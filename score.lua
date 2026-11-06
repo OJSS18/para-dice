@@ -108,10 +108,13 @@ score.ROUNDS_PER_LEVEL = 5
 score.MAX_LEVEL = 10
 
 -- Points needed to clear level 1, and how much bigger each level's
--- target is than the one before (1.5 = 50% more each level):
---   level 1: 500   level 2: 750   level 3: 1125   level 4: 1688 ...
+-- target is than the one before. The first few steps grow gently
+-- (x1.25 = 25% more), then it speeds up (x1.5 = 50% more):
+--   L1 500   L2 625   L3 781   L4 977   L5 1465   L6 2197 ...
 score.FIRST_TARGET  = 500
-score.TARGET_GROWTH = 1.5
+score.EARLY_GROWTH  = 1.25   -- used for the first EARLY_STEPS level-ups
+score.EARLY_STEPS   = 3      -- (level 1->2, 2->3 and 3->4)
+score.TARGET_GROWTH = 1.5    -- used for every level-up after that
 
 
 ---------------------------------------------------------------------------
@@ -340,13 +343,20 @@ function score.recordRound(values, noReroll)
     return entry
 end
 
--- Points needed to clear a level:
---   FIRST_TARGET x TARGET_GROWTH ^ (level - 1), rounded to a whole number.
--- '^' means "to the power of": 1.5 ^ 2 = 1.5 x 1.5 = 2.25.
+-- Points needed to clear a level: start at FIRST_TARGET and grow it once
+-- for every level after the first - by EARLY_GROWTH for the first
+-- EARLY_STEPS level-ups, then by TARGET_GROWTH. Rounded at the end.
 -- A luck item (Addict) can lower the CURRENT level's goal.
 function score.getTarget(level)
     level = level or score.level   -- no level given? use the current one
-    local target = score.FIRST_TARGET * score.TARGET_GROWTH ^ (level - 1)
+    local target = score.FIRST_TARGET
+    for step = 1, level - 1 do
+        if step <= score.EARLY_STEPS then
+            target = target * score.EARLY_GROWTH
+        else
+            target = target * score.TARGET_GROWTH
+        end
+    end
     if level == score.level then
         target = target * luck.targetMultiplier()
     end
