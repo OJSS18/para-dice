@@ -63,6 +63,13 @@ score.POINT_VALUES = {
 -- Choosing No Reroll (keeping all 5 dice) multiplies the round's points by this.
 score.NO_REROLL_MULTIPLIER = 1.1
 
+-- The KEEP bonus right now: 1.1, plus 0.1 per level of the KEEP BONUS upgrade.
+function score.keepMultiplier()
+    -- Rounded to 2 decimals: computers store 1.1 + 0.1 as 1.2000000000000002,
+    -- which would look silly on screen.
+    return math.floor(upgrades.keepMultiplier(score.NO_REROLL_MULTIPLIER) * 100 + 0.5) / 100
+end
+
 
 ---------------------------------------------------------------------------
 -- RULES: COINS (the "Money Makers")
@@ -208,7 +215,7 @@ function score.calculate(sum, noReroll)
     }
     local multiplier = r.boostMult * r.upgradeMult * markers.pointsMultiplier(sum) * r.luckMult
     if noReroll then
-        multiplier = multiplier * score.NO_REROLL_MULTIPLIER
+        multiplier = multiplier * score.keepMultiplier()
     end
     r.points = roundToWhole((r.base + r.flat) * multiplier)
     return r

@@ -122,12 +122,12 @@ local function beginLevel()
     end
 end
 
--- Click a tile while placing the marker: put it there (or move it there).
+-- Click a tile while placing markers: put a marker there, or pick it back up.
 local function placeMarkerAt(kind, k)
     if kind == "points" then
-        markers.placeOnSum(score.sumBoxes()[k].sum)
+        markers.toggle("points", score.sumBoxes()[k].sum)
     else
-        markers.placeOnHand(score.COIN_HANDS[k].id)
+        markers.toggle("coins", score.COIN_HANDS[k].id)
     end
 end
 
@@ -138,6 +138,7 @@ local function startGame()
     player.reset()          -- 0 coins, 5 white dice, empty inventory
     boosts.reset()          -- no point boosts
     upgrades.reset()        -- no shop upgrades
+    markers.reset()         -- back to one marker
     luck.give(luck.STARTER) -- everyone starts holding "Run it Back"
     beginLevel()
 end

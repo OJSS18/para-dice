@@ -19,6 +19,7 @@ local dicetypes = require("dicetypes")
 local luck      = require("luck")
 local player    = require("player")
 local upgrades  = require("upgrades")
+local markers   = require("markers")
 
 local shop = {}
 
@@ -27,7 +28,7 @@ local shop = {}
 -- SIZES (tweak these to resize the shop)
 ---------------------------------------------------------------------------
 
-shop.CARD_W      = 170   -- each item card
+shop.CARD_W      = 160   -- each item card
 shop.CARD_H      = 270
 shop.CARD_GAP    = 12    -- gap between the two cards in a window
 shop.WINDOW_PAD  = 14    -- space between a window's frame and its cards
@@ -131,9 +132,12 @@ function shop.open(nextLevel)
     local first = luck.randomItem("shop", {}, nextLevel)
     shop.stock.luck = { first, luck.randomItem("shop", { first }, nextLevel) }
 
-    -- Two different upgrades, priced for their NEXT level.
+    -- Two different random upgrades, then KEEP BONUS (always there),
+    -- each priced for its NEXT level.
     shop.stock.upgrades = {}
-    for _, id in ipairs(pickDifferent(upgrades.ORDER, 2)) do
+    local offered = pickDifferent(upgrades.ORDER, 2)
+    table.insert(offered, "keep")
+    for _, id in ipairs(offered) do
         table.insert(shop.stock.upgrades,
             { id = id, label = upgrades.nextLabel(id), price = upgrades.nextPrice(id) })
     end
@@ -194,6 +198,21 @@ function shop.buyUpgrade(k)
     upgrades.levelUp(offer.id)
     shop.sold.upgrades[k] = true
     shop.message = offer.label .. " bought!  " .. upgrades.DEFS[offer.id].about .. "."
+end
+
+-- Buy one more marker (white chip) to place at the start of each level.
+function shop.buyMarker()
+    if markers.owned >= markers.MAX_OWNED then
+        shop.message = "You already have the most markers (" .. markers.MAX_OWNED .. ")."
+        return
+    end
+    local price = markers.nextPrice()
+    if not player.spend(price) then
+        shop.message = "Another marker costs " .. price .. " coins."
+        return
+    end
+    markers.owned = markers.owned + 1
+    shop.message = "+1 MARKER!  You now have " .. markers.owned .. " chips to place each level."
 end
 
 -- Pull the Mystery Machine's lever.
@@ -267,14 +286,14 @@ end
 -- LAYOUT (where things are) - used by shopdraw.lua AND by clicking
 ---------------------------------------------------------------------------
 --
---            [  SHOP  marquee sign  ]
---   +-- DICE --+ +-- LUCK --+ +- UPGRADES -+
---   | [ ] [ ]  | | [ ] [ ]  | |  [ ] [ ]   |
---   +----------+ +----------+ +------------+
---   +- YOUR DICE -+  +--MYSTERY--+  +- HOLDING -+
---   | o o o o o   |  |  [reel]   |  |  item     |
---   | inventory   |  |  [SPIN]   |  [CONTINUE]
---   +-------------+  +-----------+   message
+--                 [  SHOP  marquee sign  ]
+--   +-- DICE --+ +-- LUCK --+ +--- UPGRADES ----+
+--   | [ ] [ ]  | | [ ] [ ]  | | [ ] [ ] [KEEP]  |
+--   +----------+ +----------+ +-----------------+
+--   +- YOUR DICE -+  +--MYSTERY--+  +- HOLDING -+ +MARKERS+
+--   | o o o o o   |  |  [reel]   |  |  item     | | +1    |
+--   | inventory   |  |  [SPIN]   |       [CONTINUE]
+--   +-------------+  +-----------+        message
 
 local function rect(x, y, w, h)
     return { x = x, y = y, w = w, h = h }
@@ -289,14 +308,21 @@ function shop.getTop()
     return math.max(8, (love.graphics.getHeight() - SHOP_HEIGHT) / 2)
 end
 
--- Width of one window holding two cards.
-local function windowW()
-    return 2 * shop.CARD_W + shop.CARD_GAP + 2 * shop.WINDOW_PAD
+-- How many cards each top window holds (1 = dice, 2 = luck, 3 = upgrades).
+local CARDS_IN = { 2, 2, 3 }
+
+-- Width of a window holding 'n' cards.
+local function windowW(n)
+    return n * shop.CARD_W + (n - 1) * shop.CARD_GAP + 2 * shop.WINDOW_PAD
 end
 
--- The left edge of everything (the three windows are centred).
+-- The left edge of everything (the three windows are centred), and the
+-- total width they take up.
 local function shopLeft()
-    local total = 3 * windowW() + 2 * shop.WINDOW_GAP
+    local total = 2 * shop.WINDOW_GAP
+    for _, n in ipairs(CARDS_IN) do
+        total = total + windowW(n)
+    end
     return (love.graphics.getWidth() - total) / 2, total
 end
 
@@ -307,15 +333,17 @@ end
 
 -- Window w (1 = dice, 2 = luck, 3 = upgrades).
 function shop.windowRect(w)
-    local left = shopLeft()
-    local x = left + (w - 1) * (windowW() + shop.WINDOW_GAP)
-    return rect(x, shop.getTop() + 94, windowW(), shop.WINDOW_HEAD + shop.CARD_H + shop.WINDOW_PAD)
+    local x = shopLeft()
+    for previous = 1, w - 1 do
+        x = x + windowW(CARDS_IN[previous]) + shop.WINDOW_GAP
+    end
+    return rect(x, shop.getTop() + 94, windowW(CARDS_IN[w]), shop.WINDOW_HEAD + shop.CARD_H + shop.WINDOW_PAD)
 end
 
 -- Which window each kind of card lives in.
 local WINDOW_FOR = { dice = 1, luck = 2, upgrades = 3 }
 
--- Card n (1 or 2) of a kind ("dice", "luck" or "upgrades").
+-- Card n of a kind ("dice" and "luck" have 2 cards, "upgrades" has 3).
 function shop.cardRect(kind, n)
     local win = shop.windowRect(WINDOW_FOR[kind])
     return rect(win.x + shop.WINDOW_PAD + (n - 1) * (shop.CARD_W + shop.CARD_GAP),
@@ -366,23 +394,41 @@ function shop.spinButtonRect()
     return rect(m.x + 20, m.y + m.h - 62, m.w - 40, 48)
 end
 
--- The column on the right: what you're holding, then Continue.
-function shop.holdingRect()
+-- The column on the right of the machine: HOLDING and MARKERS side by
+-- side, then Continue and the message underneath.
+local MARKERS_W = 190
+
+local function rightColumn()
     local m = shop.machineRect()
     local left, total = shopLeft()
     local x = m.x + m.w + 40
     return rect(x, bottomY(), left + total - x, 150)
 end
 
+function shop.holdingRect()
+    local c = rightColumn()
+    return rect(c.x, c.y, c.w - MARKERS_W - 18, c.h)
+end
+
+function shop.markersRect()
+    local c = rightColumn()
+    return rect(c.x + c.w - MARKERS_W, c.y, MARKERS_W, c.h)
+end
+
+function shop.markerButtonRect()
+    local r = shop.markersRect()
+    return rect(r.x + 16, r.y + r.h - 50, r.w - 32, 38)
+end
+
 function shop.continueRect()
-    local h = shop.holdingRect()
-    return rect(h.x + (h.w - shop.CONTINUE_W) / 2, h.y + h.h + 20, shop.CONTINUE_W, shop.CONTINUE_H)
+    local c = rightColumn()
+    return rect(c.x + (c.w - shop.CONTINUE_W) / 2, c.y + c.h + 20, shop.CONTINUE_W, shop.CONTINUE_H)
 end
 
 function shop.messageRect()
-    local h = shop.holdingRect()
-    local c = shop.continueRect()
-    return rect(h.x, c.y + c.h + 14, h.w, 80)
+    local c = rightColumn()
+    local b = shop.continueRect()
+    return rect(c.x, b.y + b.h + 14, c.w, 80)
 end
 
 
@@ -397,7 +443,14 @@ function shop.click(px, py)
     for n = 1, 2 do
         if isInside(px, py, shop.cardRect("dice", n)) then shop.buyDice(n); return nil end
         if isInside(px, py, shop.cardRect("luck", n)) then shop.buyLuck(n); return nil end
+    end
+    for n = 1, 3 do
         if isInside(px, py, shop.cardRect("upgrades", n)) then shop.buyUpgrade(n); return nil end
+    end
+
+    if isInside(px, py, shop.markersRect()) then
+        shop.buyMarker()
+        return nil
     end
 
     if isInside(px, py, shop.spinButtonRect()) or isInside(px, py, shop.reelRect()) then

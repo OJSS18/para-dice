@@ -347,7 +347,7 @@ end
 -- the tile under the mouse gets highlighted.
 function scoreboard.draw(lightsOn, placing)
     local mx, my = love.mouse.getPosition()
-    local chipX, chipY   -- where to draw the marker chip, once we find its tile
+    local chips = {}     -- where to draw marker chips: a list of {x, y}, one per marked tile
 
     -- POINTS: 26 boxes, 5 to 30 in order, each with bulbs all round it.
     local pointBulbs = newBulbGrid()
@@ -359,7 +359,7 @@ function scoreboard.draw(lightsOn, placing)
             drawHover(r)
         end
         if markers.isOnSum(box.sum) then
-            chipX, chipY = chipSpot(r)
+            table.insert(chips, { chipSpot(r) })
         end
         addBoxBulbs(pointBulbs, r, lit)
     end
@@ -394,15 +394,16 @@ function scoreboard.draw(lightsOn, placing)
             drawHover(r)
         end
         if markers.isOnHand(hand.id) then
-            chipX, chipY = chipSpot(r)
+            table.insert(chips, { chipSpot(r) })
         end
         addBoxBulbs(coinBulbs, r, lit)
     end
     drawBulbGrid(coinBulbs)
 
-    -- The marker chip goes on last, so it sits on top of everything.
-    if chipX then
-        drawChip(chipX, chipY, 15)
+    -- The marker chips go on last, so they sit on top of everything.
+    -- ({ chipSpot(r) } packs chipSpot's two answers, x and y, into a table.)
+    for _, c in ipairs(chips) do
+        drawChip(c[1], c[2], 15)
     end
 end
 

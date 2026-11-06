@@ -25,8 +25,8 @@
 --   payMe          - true = also earn coins equal to the point's value
 --   unlockTokens   - true = earn an Unlock Token for each level you beat
 --
--- Each item boosts a given point only ONCE (the first time you roll it
--- while holding the item). Boosts from different items stack.
+-- Boosts STACK: every time a point hits while you hold the item, that
+-- point is boosted again, and boosts from different items stack too.
 --
 -- Pure LOGIC/data - nothing in here draws.
 
@@ -65,7 +65,7 @@ luck.ITEMS = {
     -- STARTER (everyone begins with this; never sold)
     runItBack = {
         name = "Run it Back", rarity = "starter", image = nil,
-        about = "Every point you score gets x1.1 for the rest of the run. Gone at the start of Level 3.",
+        about = "Each time a point hits, it gets another x1.1 for the rest of the run. Gone at the start of Level 3.",
         duration = { untilLevel = 3 }, pointRunMult = 1.1,
     },
 
@@ -78,26 +78,26 @@ luck.ITEMS = {
     },
     rabbitsFoot = {
         name = "Rabbit's Foot", rarity = "common", image = "rabbitsFoot",
-        about = "Every point you roll pays x1.75 for the rest of the level.",
+        about = "Each time a point hits, it gets another x1.75 for the rest of the level.",
         duration = ROLLS, pointLevelMult = 1.75,
     },
 
     -- UNCOMMON
     rabbitsLeg = {
         name = "Rabbit's Leg", rarity = "uncommon", image = "rabbitsLeg",
-        about = "Every point you roll gets x1.5 for the rest of the run.",
+        about = "Each time a point hits, it gets another x1.5 for the rest of the run.",
         duration = ROLLS, pointRunMult = 1.5,
     },
     showMeTheMoney = {
         name = "Show Me The Money", rarity = "uncommon", image = "showMeTheMoney",
-        about = "Every point you roll gets +100 points for the rest of the run.",
+        about = "Each time a point hits, it gets another +100 points for the rest of the run.",
         duration = ROLLS, pointRunFlat = 100,
     },
 
     -- RARE
     showMeTheMoneyRare = {
         name = "Show Me The Money", rarity = "rare", image = "showMeTheMoneyRare",
-        about = "Every point you roll gets +200 points for the rest of the run.",
+        about = "Each time a point hits, it gets another +200 points for the rest of the run.",
         duration = ROLLS, pointRunFlat = 200,
     },
     theySeeMeRollin = {
@@ -114,7 +114,7 @@ luck.ITEMS = {
     -- EPIC
     showMeTheMoneyEpic = {
         name = "Show Me The Money", rarity = "epic", image = "showMeTheMoneyEpic",
-        about = "Every point you roll gets +300 points and x1.25 for the rest of the run.",
+        about = "Each time a point hits, it gets another +300 points and x1.25 for the rest of the run.",
         duration = ROLLS, pointRunFlat = 300, pointRunMult = 1.25,
     },
     evenSteven = {
@@ -131,7 +131,7 @@ luck.ITEMS = {
     -- LEGENDARY
     showMeTheMoneyLegendary = {
         name = "Show Me The Money", rarity = "legendary", image = "showMeTheMoneyLegendary",
-        about = "Every point you roll gets +500 points and x1.75 for the rest of the run.",
+        about = "Each time a point hits, it gets another +500 points and x1.75 for the rest of the run.",
         duration = ROLLS, pointRunFlat = 500, pointRunMult = 1.75,
     },
     fyPayMe = {
@@ -169,7 +169,6 @@ luck.STARTER = "runItBack"
 luck.current     = nil   -- id of the held item, or nil for none
 luck.rollsLeft   = nil   -- for { rolls = N } items
 luck.levelsSeen  = 0     -- for { levels = N } items: level starts since it was given
-luck.boostedSums = {}    -- points this item has already boosted (each only once)
 
 
 ---------------------------------------------------------------------------
@@ -196,14 +195,12 @@ function luck.give(id)
     luck.current     = id
     luck.rollsLeft   = item.duration.rolls
     luck.levelsSeen  = 0
-    luck.boostedSums = {}
 end
 
 function luck.clear()
     luck.current     = nil
     luck.rollsLeft   = nil
     luck.levelsSeen  = 0
-    luck.boostedSums = {}
 end
 
 -- Short text for how long the held item has left, e.g. "14 rolls".
@@ -329,18 +326,18 @@ function luck.givesUnlockTokens()
     return item ~= nil and item.unlockTokens == true
 end
 
--- A point was just scored: stick this item's boosts onto it (once per point).
+-- A point was just scored: stick this item's boosts onto it.
+-- They STACK: every time the same point hits, it gets boosted again.
+-- (Roll 19 three times with Run it Back and 19 is worth x1.1 x1.1 x1.1.)
 function luck.onPointScored(sum)
     local item = held()
-    if item == nil or luck.boostedSums[sum] then return end
+    if item == nil then return end
 
     if item.pointRunMult or item.pointRunFlat then
         boosts.addRun(sum, item.pointRunMult, item.pointRunFlat)
-        luck.boostedSums[sum] = true
     end
-    if item.pointLevelMult and not boosts.hasLevel(sum) then
+    if item.pointLevelMult then
         boosts.addLevel(sum, item.pointLevelMult)
-        luck.boostedSums[sum] = true
     end
 end
 

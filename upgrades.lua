@@ -41,8 +41,18 @@ upgrades.DEFS = {
     },
 }
 
--- The ids in a fixed order (for picking shop stock).
+-- The ids in a fixed order (for picking shop stock). These ROTATE: the shop
+-- offers 2 of them at random each visit.
 upgrades.ORDER = { "even", "odd", "lower", "upper", "common" }
+
+-- KEEP BONUS: this one does NOT rotate - it's in the shop every visit.
+-- Each level raises the KEEP (no reroll) multiplier by 0.1:
+--   x1.1 normally, x1.2 at LVL1, x1.3 at LVL2 ...
+upgrades.DEFS.keep = {
+    name = "KEEP BONUS", about = "KEEP with no reroll pays +0.1x more",
+    covers = function(sum) return false end,   -- not a sum group
+}
+upgrades.KEEP_STEP = 0.1
 
 -- How many levels of each upgrade the player owns. upgrades.levels.even = 2
 upgrades.levels = {}
@@ -54,6 +64,12 @@ function upgrades.reset()
     for _, id in ipairs(upgrades.ORDER) do
         upgrades.levels[id] = 0
     end
+    upgrades.levels.keep = 0
+end
+
+-- The KEEP bonus multiplier with this upgrade, given the normal one (1.1).
+function upgrades.keepMultiplier(normal)
+    return normal + upgrades.KEEP_STEP * upgrades.level("keep")
 end
 
 -- Current level of an upgrade (0 = not bought).

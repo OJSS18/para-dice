@@ -10,6 +10,7 @@ local shop      = require("shop")
 local player    = require("player")
 local luck      = require("luck")
 local upgrades  = require("upgrades")
+local markers   = require("markers")
 local dicetypes = require("dicetypes")
 local score     = require("score")
 local draw      = require("draw")    -- for draw.dieImage and draw.luckImage
@@ -165,11 +166,17 @@ end
 -- An upgrade card: a big "x1.25" badge, its name and level, what it does.
 local function drawUpgradeCard(r, offer, sold)
     local def = upgrades.DEFS[offer.id]
-    local accent = { 0.35, 0.85, 1 }
+    local isKeep = (offer.id == "keep")
+    -- KEEP BONUS is the always-there card, so it gets gold instead of blue.
+    local accent = isKeep and { 1, 0.80, 0.25 } or { 0.35, 0.85, 1 }
     drawCardBox(r, sold, accent)
 
-    -- Round badge showing what this group's multiplier becomes.
-    local nextMult = 1 + upgrades.STEP * (upgrades.level(offer.id) + (sold and 0 or 1))
+    -- Round badge showing what the multiplier becomes.
+    local nextLevel = upgrades.level(offer.id) + (sold and 0 or 1)
+    local nextMult = 1 + upgrades.STEP * nextLevel
+    if isKeep then
+        nextMult = score.NO_REROLL_MULTIPLIER + upgrades.KEEP_STEP * nextLevel
+    end
     local cx, cy = r.x + r.w / 2, r.y + 46
     love.graphics.setColor(0.05, 0.25, 0.4)
     love.graphics.circle("fill", cx, cy, 36)
@@ -347,14 +354,48 @@ local function drawHolding()
     end
     local item = luck.get(luck.current)
     local color = luck.rarityColor(item)
-    drawLuckPicture(item.id, r.x + 20, r.y + 34, 72)
-    local tx, tw = r.x + 104, r.w - 120
-    ui.text(luck.RARITIES[item.rarity].label, fonts.hint, tx, r.y + 30, tw, "left", color)
-    ui.text(item.name, fonts.small, tx, r.y + 46, tw, "left", WHITE)
-    ui.text(luck.timeLeftText(), fonts.tiny, tx, r.y + 70, tw, "left", color)
+    drawLuckPicture(item.id, r.x + 16, r.y + 34, 58)
+    local tx, tw = r.x + 86, r.w - 100
+    ui.text(luck.RARITIES[item.rarity].label, fonts.hint, tx, r.y + 26, tw, "left", color)
+    ui.text(item.name, fonts.small, tx, r.y + 42, tw, "left", WHITE)
+    ui.text(luck.timeLeftText(), fonts.tiny, tx, r.y + 64, tw, "left", color)
     love.graphics.setFont(fonts.tiny)
     love.graphics.setColor(DIM)
-    love.graphics.printf(item.about, tx, r.y + 88, tw, "left")
+    love.graphics.printf(item.about, tx, r.y + 80, tw, "left")
+end
+
+-- A white casino chip seen face-on (for the MARKERS window).
+local function drawChipIcon(cx, cy, r)
+    love.graphics.setColor(0, 0, 0, 0.4)
+    love.graphics.circle("fill", cx + 2, cy + 3, r)
+    love.graphics.setColor(0.97, 0.97, 0.99)
+    love.graphics.circle("fill", cx, cy, r)
+    love.graphics.setColor(0.15, 0.32, 0.85)
+    for n = 0, 5 do
+        local a = n * math.pi / 3
+        love.graphics.circle("fill", cx + math.cos(a) * r * 0.78, cy + math.sin(a) * r * 0.78, r * 0.16)
+    end
+    love.graphics.setColor(0.55, 0.58, 0.68)
+    love.graphics.circle("line", cx, cy, r * 0.58)
+    ui.text("x" .. markers.MULTIPLIER, fonts.tiny, cx - r, cy - 8, r * 2, "center", { 0.10, 0.18, 0.55 })
+end
+
+-- MARKERS: buy another white chip to place at the start of each level.
+local function drawMarkers()
+    local r = shop.markersRect()
+    ui.vegasWindow(r, "MARKERS")
+    drawChipIcon(r.x + 40, r.y + 58, 22)
+    ui.text("OWNED", fonts.hint, r.x + 72, r.y + 34, r.w - 84, "left", DIM)
+    ui.text(markers.owned .. " / " .. markers.MAX_OWNED, fonts.heading, r.x + 72, r.y + 50, r.w - 84, "left", WHITE, true)
+    ui.text("+1 chip each level", fonts.tiny, r.x + 72, r.y + 74, r.w - 84, "left", DIM)
+
+    local b = shop.markerButtonRect()
+    if markers.owned >= markers.MAX_OWNED then
+        ui.glossyButton(b, "MAX", { 0.5, 0.5, 0.55 }, false)
+    else
+        local price = markers.nextPrice()
+        ui.glossyButton(b, "+1  BUY " .. price, { 0.12, 0.38, 0.95 }, player.coins >= price)
+    end
 end
 
 
@@ -380,12 +421,15 @@ function shopdraw.screen()
     for n = 1, 2 do
         drawDiceCard(shop.cardRect("dice", n), shop.stock.dice[n], shop.sold.dice[n])
         drawLuckCard(shop.cardRect("luck", n), shop.stock.luck[n], shop.sold.luck[n])
+    end
+    for n = 1, 3 do
         drawUpgradeCard(shop.cardRect("upgrades", n), shop.stock.upgrades[n], shop.sold.upgrades[n])
     end
 
     drawYourDice()
     drawMachine()
     drawHolding()
+    drawMarkers()
 
     -- A glossy green CONTINUE button, then the latest message under it.
     ui.glossyButton(shop.continueRect(), "CONTINUE", { 0.10, 0.65, 0.25 }, not shop.machine.spinning)

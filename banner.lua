@@ -86,22 +86,28 @@ local function row(label, value, y, valueColor)
     ui.text(value, fonts.text, c.x + c.w * 0.35, y, c.w * 0.65, "right", valueColor or CREAM)
 end
 
--- What the marker is sitting on, as text: "17", "Full House", or "none".
+-- What the markers are sitting on, as text: "17, Full House", or "none".
 local function markerName()
-    local m = markers.placed
-    if m == nil and markers.autoSum then
-        return markers.autoSum .. " (auto)"   -- Addict's automatic marker
-    elseif m == nil then
-        return "none"
-    elseif m.kind == "points" then
-        return tostring(m.sum)
-    end
-    for _, hand in ipairs(score.COIN_HANDS) do
-        if hand.id == m.hand then
-            return hand.name
+    local names = {}
+    for _, m in ipairs(markers.placed) do
+        if m.kind == "points" then
+            table.insert(names, tostring(m.sum))
+        else
+            for _, hand in ipairs(score.COIN_HANDS) do
+                if hand.id == m.hand then
+                    table.insert(names, hand.name)
+                end
+            end
         end
     end
-    return "?"
+    if markers.autoSum then
+        table.insert(names, markers.autoSum .. " (auto)")   -- Addict's automatic marker
+    end
+    if #names == 0 then
+        return "none"
+    end
+    -- table.concat joins a list with ", " between each item.
+    return table.concat(names, ", ")
 end
 
 -- A thin gold divider line across the banner.
@@ -165,7 +171,8 @@ function banner.draw(state)
         row("Luck", "none", y, DIM)
     end
     y = y + 32
-    row("Marker", markerName(), y, (markers.placed or markers.autoSum) and WHITE or DIM)
+    local anyMarker = markers.count() > 0 or markers.autoSum ~= nil
+    row("Markers", markerName(), y, anyMarker and WHITE or DIM)
     if player.unlockTokens > 0 then
         y = y + 32
         row("Unlock Tokens", tostring(player.unlockTokens), y, { 1, 0.62, 0.15 })
@@ -174,13 +181,14 @@ function banner.draw(state)
     divider(y - 6)
 
     if placing then
-        -- PLACE YOUR MARKER: explain what the chip does.
-        ui.text("PLACE YOUR MARKER", fonts.heading, c.x, y + 4, c.w, "left", GOLD, true)
+        -- PLACE YOUR MARKERS: explain what the chips do.
+        ui.text("PLACE YOUR MARKERS", fonts.heading, c.x, y + 4, c.w, "left", GOLD, true)
+        local chipsLeft = markers.owned - markers.count()
         local lines = {
-            "Put your white chip on any",
-            "POINTS or MONEY MAKER tile.",
-            "If that tile hits this level,",
-            "it pays x" .. markers.MULTIPLIER .. "!",
+            "Put your white chips on any",
+            "POINTS or MONEY MAKER tiles.",
+            "Each marked tile pays x" .. markers.MULTIPLIER .. "!",
+            chipsLeft .. " of " .. markers.owned .. " chips left to place.",
         }
         for n, line in ipairs(lines) do
             ui.text(line, fonts.small, c.x, y + 8 + n * 24, c.w, "left", CREAM)
@@ -215,7 +223,7 @@ function banner.draw(state)
             boosted = true
         end
         if r.noReroll then
-            table.insert(lines, "x" .. score.NO_REROLL_MULTIPLIER .. " keep bonus")
+            table.insert(lines, "x" .. score.keepMultiplier() .. " keep bonus")
             boosted = true
         end
         if boosted then
@@ -243,7 +251,7 @@ function banner.draw(state)
         -- Before the first roll: ROLL starts the level (chip or no chip),
         -- and the blue button takes the chip back off the table.
         ui.glossyButton(layout.rerollButton(), "ROLL", RED_BUTTON, true)
-        ui.glossyButton(layout.keepButton(), "REMOVE CHIP", BLUE_BUTTON, markers.placed ~= nil)
+        ui.glossyButton(layout.keepButton(), "CLEAR CHIPS", BLUE_BUTTON, markers.count() > 0)
     else
         -- Neither works while dice are moving.
         local ready = choosing and not busy
@@ -261,7 +269,7 @@ function banner.draw(state)
         -- Show the bonus on KEEP while it can still be earned.
         local keepLabel = "KEEP"
         if canKeep and not dice.hasRerolled() then
-            keepLabel = "KEEP  x" .. score.NO_REROLL_MULTIPLIER
+            keepLabel = "KEEP  x" .. score.keepMultiplier()
         end
         ui.glossyButton(layout.keepButton(), keepLabel, BLUE_BUTTON, canKeep)
     end

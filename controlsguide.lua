@@ -21,10 +21,10 @@ local SECTIONS = {
     { title = "START", items = {
         { "Enter  /  START",   "Start a new game" },
     } },
-    { title = "PLACING YOUR MARKER (start of each level)", items = {
-        { "Click a tile",        "Put your white chip there (x1.5 if it hits)" },
-        { "REMOVE CHIP",         "Take the chip back off the table" },
-        { "Enter  /  ROLL",      "Start rolling (the chip is optional)" },
+    { title = "PLACING YOUR MARKERS (start of each level)", items = {
+        { "Click a tile",        "Put a white chip there (x1.5 if it hits); click again to pick it up" },
+        { "CLEAR CHIPS",         "Take all your chips back off the table" },
+        { "Enter  /  ROLL",      "Start rolling (chips are optional)" },
     } },
     { title = "ROLLING", items = {
         { "Click a die  /  1-5", "Mark that die to keep (again to un-mark)" },
@@ -37,6 +37,7 @@ local SECTIONS = {
     } },
     { title = "SHOP", items = {
         { "Click a card",               "Buy it (dice, luck item or upgrade)" },
+        { "MARKERS  +1",                "Buy another white chip to place each level" },
         { "SPIN  /  click the reel",    "Mystery Machine: 30 coins for a random luck item" },
         { "Click inventory die, then one of your dice", "Swap it in" },
         { "Enter  /  CONTINUE",         "Start the next level" },
