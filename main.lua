@@ -94,7 +94,7 @@ local state = "start"
 local roundEndPending = false
 
 -- The mouse went down on a tray die. If it's let go without moving, that
--- picks / un-picks the die; if it's dragged, it picks the die up to throw.
+-- holds / lets go of the die; if it's dragged, it picks up the dice to throw.
 -- { i = which die, x, y = where the press started }, or nil.
 local pendingPress = nil
 local DRAG_DISTANCE = 12   -- pixels the mouse must move before it counts as a drag
@@ -210,18 +210,19 @@ local function finishRound(noReroll)
     end
 end
 
--- The list of dice picked to throw, e.g. {1, 3, 4}.
-local function selectedDice()
+-- The list of dice the next throw will send, e.g. {1, 3, 4}
+-- (all 5 on the first throw, then every die that isn't held).
+local function diceToThrow()
     local list = {}
     for i = 1, config.NUM_DICE do
-        if dice.selected[i] then
+        if dice.willThrow(i) then
             table.insert(list, i)
         end
     end
     return list
 end
 
--- Throw the picked dice. 'how' is "hand" (letting go of the handful held
+-- Throw the dice (all 5, or the ones not held). 'how' is "hand" (letting go of the handful held
 -- under the mouse) or "auto" (THROW / REROLL button, or Enter).
 -- The real results are decided first (in dice.lua); the physics then
 -- sends the dice across the table and each settles onto its result.
@@ -236,7 +237,7 @@ local function throwDice(how)
     if isReroll then
         luck.useRoll()          -- rerolls count toward the luck item too
     end
-    local thrown, which = dice.throwSelected()
+    local thrown, which = dice.throw()
     if not thrown then
         animation.cancelHold()
         return
@@ -251,10 +252,10 @@ local function throwDice(how)
     end
 end
 
--- Pick up every picked die into a handful under the mouse at (x, y).
+-- Pick up every die that's about to be thrown into a handful under the mouse at (x, y).
 local function grabDice(x, y)
     if dice.canThrow() then
-        animation.grab(selectedDice(), player.loadout, x, y)
+        animation.grab(diceToThrow(), player.loadout, x, y)
     end
 end
 
@@ -455,13 +456,13 @@ function love.keypressed(key)
         elseif key == "k" then
             tryNoReroll()       -- K = the KEEP button
         elseif key == "a" then
-            dice.selectAll()    -- A = pick all (again = un-pick all)
+            dice.holdAll()      -- A = hold all (again = let them all go)
         else
             -- tonumber turns the text "3" into the number 3.
             -- For keys that aren't numbers (like "a") it gives nil.
             local n = tonumber(key)
             if n and n >= 1 and n <= config.NUM_DICE then
-                dice.toggleSelect(n)
+                dice.toggleHold(n)  -- 1-5 = hold / let go of that die
             end
         end
 
@@ -606,14 +607,10 @@ function love.mousemoved(x, y)
         return
     end
 
-    -- Dragging off a tray die: pick it (if it isn't already) and pick up
-    -- the whole handful of picked dice.
+    -- Dragging off a tray die picks up the whole handful about to be thrown.
     if pendingPress then
         local dx, dy = x - pendingPress.x, y - pendingPress.y
         if dx * dx + dy * dy > DRAG_DISTANCE * DRAG_DISTANCE then
-            if not dice.selected[pendingPress.i] then
-                dice.toggleSelect(pendingPress.i)
-            end
             pendingPress = nil
             grabDice(x, y)
         end
@@ -632,7 +629,7 @@ function love.mousereleased(x, y, button)
 
     if pendingPress then
         if state == "play" then
-            dice.toggleSelect(pendingPress.i)
+            dice.toggleHold(pendingPress.i)   -- a click holds / lets go of the die
         end
         pendingPress = nil
     end

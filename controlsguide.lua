@@ -28,10 +28,11 @@ local SECTIONS = {
         { "Enter  /  ROLL",      "Start rolling (once ALL your chips are placed)" },
     } },
     { title = "ROLLING", items = {
-        { "Click a die  /  1-5", "Pick that die to throw (again to un-pick)" },
-        { "A",                   "Pick all the dice you can (again to un-pick them all)" },
-        { "Hold on the felt, fling, let go", "Throw the picked dice that way (1-5 at a time)" },
-        { "Enter  /  THROW / REROLL", "Throw the picked dice for you" },
+        { "First throw",         "Always throws all 5 dice" },
+        { "Click a die  /  1-5", "After the first throw: HOLD that die (again to let it go)" },
+        { "A",                   "Hold all the dice (again to let them all go)" },
+        { "Hold on the felt, fling, let go", "Throw the dice that aren't held that way" },
+        { "Enter  /  THROW / REROLL", "Throw the dice that aren't held for you" },
         { "K  /  KEEP",          "Keep all 5 dice (x1.1 points if you haven't rerolled)" },
     } },
     { title = "BETWEEN ROUNDS", items = {

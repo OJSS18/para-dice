@@ -132,15 +132,16 @@ end
 
 -- The dice sitting in the tray (the ones that aren't out on the felt or
 -- in your hand). Dice picked to throw glow gold; dice not thrown yet this
--- round are shown dimmed (they still show last round's face).
+-- round are shown dimmed (they still show last round's face). HELD dice
+-- glow gold and say HELD.
 local function drawTrayDice()
     for i = 1, config.NUM_DICE do
         local slot = layout.traySlot(i)
 
         if animation.getDraw(i) == nil then
-            local picked = dice.selected[i]
+            local picked = dice.held[i]
 
-            -- Picked dice: a soft gold glow behind the die...
+            -- Held dice: a soft gold glow behind the die...
             if picked then
                 love.graphics.setColor(1, 0.8, 0.2, 0.25)
                 love.graphics.rectangle("fill", slot.x - 8, slot.y - 8, slot.w + 16, slot.h + 16, 14, 14)
@@ -162,15 +163,16 @@ local function drawTrayDice()
                 love.graphics.setLineWidth(4)
                 love.graphics.rectangle("line", slot.x - 4, slot.y - 4, slot.w + 8, slot.h + 8, 10, 10)
                 love.graphics.setLineWidth(1)
+                ui.text("HELD", fonts.hint, slot.x, slot.y + slot.h + 4, slot.w, "center", { 1, 0.85, 0.1 })
             end
         end
     end
 
-    -- A "THROW" / "REROLL" tag above the tray when any die is picked.
-    if dice.countSelected() > 0 and not animation.isHolding() then
+    -- A "THROW 5" / "REROLL 3" tag above the tray, saying how many dice go next.
+    if dice.canThrow() and not animation.isRolling() and not animation.isHolding() then
         local t = layout.tray()
         local label = dice.allThrown() and "REROLL" or "THROW"
-        ui.text(label .. " " .. dice.countSelected(), fonts.heading, t.x, t.y - 32, t.w, "center",
+        ui.text(label .. " " .. dice.countToThrow(), fonts.heading, t.x, t.y - 32, t.w, "center",
             { 1, 0.85, 0.1 }, true)
     end
 end

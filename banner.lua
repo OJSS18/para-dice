@@ -204,14 +204,22 @@ function banner.draw(state)
     if choosing and not dice.decided and (not dice.allThrown() or dice.canReroll()) then
         local title = dice.allThrown() and "REROLL?" or "THROW THE DICE"
         ui.text(title, fonts.heading, c.x, y + 4, c.w, "left", GOLD, true)
-        local lines = {
-            "Pick dice: click them or 1-5",
-            "(A picks all of them).",
-            "Hold the mouse on the felt,",
-            "then fling and let go!",
-        }
+        local lines
         if dice.allThrown() then
-            table.insert(lines, "Or KEEP all 5 as they are.")
+            lines = {
+                "HOLD dice: click them or 1-5",
+                "(A holds all of them).",
+                "The rest get rerolled - fling",
+                "on the felt or press REROLL.",
+                "Or KEEP all 5 as they are.",
+            }
+        else
+            lines = {
+                "All 5 dice go on the first throw.",
+                "Hold the mouse on the felt,",
+                "then fling and let go!",
+                "(or press THROW)",
+            }
         end
         for n, line in ipairs(lines) do
             ui.text(line, fonts.small, c.x, y + 8 + n * 24, c.w, "left", CREAM)
