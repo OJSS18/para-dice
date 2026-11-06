@@ -326,6 +326,12 @@ function layout.rerollButton()
     return rect(kb.x, kb.y - 16 - config.BUTTON_H, kb.w, config.BUTTON_H)
 end
 
+-- The big button on the LEVEL CLEAR / GAME OVER / YOU WIN screens.
+function layout.overlayButton()
+    local W, H = love.graphics.getWidth(), love.graphics.getHeight()
+    return rect((W - 320) / 2, H / 2 + 40, 320, 64)
+end
+
 -- Where the yellow controls hint goes (under the buttons).
 function layout.controlsHint()
     local b = layout.banner()

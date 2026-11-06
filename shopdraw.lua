@@ -371,7 +371,7 @@ function shopdraw.screen()
     -- Coins and next level, top-left; the controls hint, top-right.
     ui.text("COINS  " .. player.coins, fonts.heading, 20, 20, 400, "left", GOLD, true)
     ui.text("NEXT UP: LEVEL " .. shop.nextLevel, fonts.heading, 20, 48, 400, "left", WHITE)
-    ui.text("PRESS C FOR A LIST OF CONTROLS", fonts.heading, W - 600, 48, 580, "right", YELLOW)
+    ui.text(ui.controlsHint(), fonts.heading, W - 600, 48, 580, "right", YELLOW)
 
     -- The three windows of cards
     ui.vegasWindow(shop.windowRect(1), "DICE")

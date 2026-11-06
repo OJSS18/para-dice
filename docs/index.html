@@ -3,7 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, minimum-scale=1, maximum-scale=1">
+    <!-- No pinch-zoom or double-tap zoom on phones: the game handles its own scaling. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <!-- Let it be added to a phone's home screen and open full screen, like an app. -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a0306">
     <title>Para-DICE</title>
 
     <!-- GitHub Pages can't send the "cross-origin isolation" headers the
@@ -12,45 +18,77 @@
          page once to switch itself on. -->
     <script src="coi-serviceworker.min.js"></script>
 
-    <!-- Load custom style sheet -->
+    <!-- Phones won't play sound until the player touches the page. Keep a
+         list of every sound "context" the game makes, and wake them all up
+         on the first tap, click or key press. -->
+    <script>
+      (function () {
+        var contexts = [];
+        ["AudioContext", "webkitAudioContext"].forEach(function (name) {
+          var Original = window[name];
+          if (!Original) return;
+          window[name] = function () {
+            var ctx = new (Function.prototype.bind.apply(Original, [null].concat([].slice.call(arguments))))();
+            contexts.push(ctx);
+            return ctx;
+          };
+          window[name].prototype = Original.prototype;
+        });
+        function wake() {
+          contexts.forEach(function (ctx) { if (ctx.state === "suspended") ctx.resume(); });
+        }
+        ["touchstart", "touchend", "pointerdown", "mousedown", "keydown"].forEach(function (type) {
+          window.addEventListener(type, wake, true);
+        });
+      })();
+    </script>
+
     <link rel="stylesheet" type="text/css" href="theme/love.css">
   </head>
   <body>
-    <center>
-      <div>
-        <h1>Para-DICE</h1>
+    <div id="page">
+      <h1>Para-DICE</h1>
+      <div id="stage">
         <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()" width="1366" height="768"></canvas>
         <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
       </div>
-    </center>
+      <footer>
+        <button onclick="goFullScreen();">Go Fullscreen</button>
+        &nbsp; Click or tap the game first so it can hear you. &nbsp;
+        Made with <a href="https://love2d.org">LÖVE</a> and <a href="https://github.com/Davidobot/love.js">love.js</a>.
+        If the screen stays blank, reload the page.
+      </footer>
+    </div>
+
+    <!-- Shown on phones held upright: the game is built for landscape. -->
+    <div id="rotate">
+      <div class="phone"></div>
+      <p>Turn your phone sideways to play</p>
+    </div>
 
     <script type='text/javascript'>
-      function goFullScreen(){
-            var canvas = document.getElementById("canvas");
-            if(canvas.requestFullScreen)
-                canvas.requestFullScreen();
-            else if(canvas.webkitRequestFullScreen)
-                canvas.webkitRequestFullScreen();
-            else if(canvas.mozRequestFullScreen)
-                canvas.mozRequestFullScreen();
+      // Full screen the whole page (not just the canvas), and on phones that
+      // allow it, lock the screen to landscape.
+      function goFullScreen() {
+        var el = document.documentElement;
+        var request = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+        if (request) {
+          var p = request.call(el);
+          if (p && p.then && screen.orientation && screen.orientation.lock) {
+            p.then(function () { screen.orientation.lock("landscape").catch(function () {}); });
+          }
+        }
       }
-      function FullScreenHook(){
-        var canvas = document.getElementById("canvas");
-        canvas.width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-        canvas.height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-      }
+
       var loadingContext = document.getElementById('loadingCanvas').getContext('2d');
       function drawLoadingText(text) {
         var canvas = loadingContext.canvas;
-
         loadingContext.fillStyle = "rgb(13, 77, 38)";
         loadingContext.fillRect(0, 0, canvas.width, canvas.height);
-
         loadingContext.font = 'bold 2em Georgia, serif';
         loadingContext.textAlign = 'center'
         loadingContext.fillStyle = "rgb(255, 210, 70)";
         loadingContext.fillText(text, canvas.width / 2, canvas.height / 2);
-
         loadingContext.font = '1.2em Georgia, serif';
         loadingContext.fillText("Shuffling the dice... (about 50 MB the first time)", canvas.width / 2, canvas.height / 4 * 3);
       }
@@ -58,12 +96,17 @@
       window.onload = function () { window.focus(); };
       window.onclick = function () { window.focus(); };
 
+      // Stop the page itself from scrolling when Space / arrow keys are pressed.
       window.addEventListener("keydown", function(e) {
-        // space and arrow keys
-        if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+        if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
           e.preventDefault();
         }
       }, false);
+
+      // Stop the page bouncing or scrolling when a finger drags on the game.
+      document.addEventListener("touchmove", function (e) {
+        if (e.target.tagName === "CANVAS") e.preventDefault();
+      }, { passive: false });
 
       var Module = {
         arguments: ["./game.love"],
@@ -71,12 +114,7 @@
         printErr: console.error.bind(console),
         canvas: (function() {
           var canvas = document.getElementById('canvas');
-
-          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
-          // application robust, you may want to override this behavior before shipping!
-          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
           canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
-
           return canvas;
         })(),
         setStatus: function(text) {
@@ -97,7 +135,6 @@
       };
       Module.setStatus('Downloading...');
       window.onerror = function(event) {
-        // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
         Module.setStatus('Exception thrown, see JavaScript console');
         Module.setStatus = function(text) {
           if (text) Module.printErr('[post-exception status] ' + text);
@@ -110,8 +147,5 @@
     </script>
     <script type="text/javascript" src="game.js"></script>
     <script async type="text/javascript" src="love.js" onload="applicationLoad(this)"></script>
-    <footer>
-      <p><button onclick="goFullScreen();">Go Fullscreen</button> &nbsp; Click the game first so it can hear your keys. &nbsp; Made with <a href="https://love2d.org">LÖVE</a> and <a href="https://github.com/Davidobot/love.js">love.js</a>. If the screen stays blank, reload the page.</p>
-    </footer>
   </body>
 </html>

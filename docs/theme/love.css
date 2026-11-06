@@ -2,28 +2,71 @@
     box-sizing: border-box;
 }
 
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;              /* the game fills the window; no page scrolling */
+}
+
+body {
+    font-family: arial;
+    background: radial-gradient(ellipse at top, #4a0a14 0%, #1a0306 70%);
+    background-attachment: fixed;
+    color: rgb(240, 225, 200);
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#page {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
 h1 {
     font-family: Georgia, "Times New Roman", serif;
     color: rgb(255, 210, 70);
     letter-spacing: 4px;
     text-shadow: 0 0 12px rgba(255, 190, 60, 0.6), 2px 3px 0 #000;
-    margin: 14px 0 10px 0;
+    margin: 8px 0;
+    font-size: 30px;
 }
 
-body {
-    font-family: arial;
-    margin: 0;
+/* The game is drawn at 1366 x 768 and then SCALED to fit the space
+   (keeping its shape), so it fits any screen from a phone to a big monitor.
+   The game still sees taps and clicks in the right places. */
+#stage {
+    --header: 110px;               /* room for the title and footer */
+    width: min(100vw, calc((100vh - var(--header)) * 1366 / 768));
+    aspect-ratio: 1366 / 768;
+    position: relative;
+}
+
+#canvas, #loadingCanvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    touch-action: none;            /* no scrolling / zooming when touching the game */
+    box-shadow: 0 0 0 4px #c9971f, 0 0 30px rgba(255, 190, 60, 0.35);
+}
+
+/* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+#canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
     padding: 0;
-    background: radial-gradient(ellipse at top, #4a0a14 0%, #1a0306 70%);
-    background-attachment: fixed;
-    color: rgb(240, 225, 200);
-    min-height: 100vh;
+    border: 0px none;
+    visibility: hidden;
 }
 
 footer {
-    font-family: arial;
     font-size: 12px;
-    padding: 8px 10px;
+    padding: 6px 10px;
     text-align: center;
     color: rgba(240, 225, 200, 0.7);
 }
@@ -37,26 +80,48 @@ button {
     cursor: pointer;
 }
 
-/* Links */
-a {
-    text-decoration: none;
-}
-a:link, a:visited {
-    color: rgb(255, 200, 80);
-}
-a:hover {
-    color: rgb(255, 240, 180);
-}
+a { text-decoration: none; }
+a:link, a:visited { color: rgb(255, 200, 80); }
+a:hover { color: rgb(255, 240, 180); }
 
-/* A gold frame round the game */
-#canvas, #loadingCanvas {
-    box-shadow: 0 0 0 4px #c9971f, 0 0 30px rgba(255, 190, 60, 0.35);
+/* PHONES (short screens, or full screen): no title or footer - every pixel
+   goes to the game. */
+@media (max-height: 600px), (display-mode: fullscreen) {
+    h1, footer { display: none; }
+    #stage { --header: 0px; }
+    #canvas, #loadingCanvas { box-shadow: none; }
 }
+:fullscreen h1, :fullscreen footer { display: none; }
+:fullscreen #stage { --header: 0px; }
 
-/* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-#canvas {
-    padding-right: 0;
-    display: block;
-    border: 0px none;
-    visibility: hidden;
+/* PHONES HELD UPRIGHT: ask the player to turn the phone sideways. */
+#rotate {
+    display: none;
+}
+@media (orientation: portrait) and (max-width: 900px) {
+    #rotate {
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(20, 2, 5, 0.94);
+        color: rgb(255, 210, 70);
+        font-family: Georgia, serif;
+        font-size: 22px;
+        text-align: center;
+    }
+    #rotate .phone {
+        width: 60px;
+        height: 100px;
+        border: 5px solid rgb(255, 210, 70);
+        border-radius: 12px;
+        animation: turn 2s ease-in-out infinite;
+    }
+}
+@keyframes turn {
+    0%, 30%   { transform: rotate(0deg); }
+    60%, 100% { transform: rotate(-90deg); }
 }

@@ -9,6 +9,18 @@ local fonts = require("fonts")
 
 local ui = {}
 
+-- true once the player has touched the screen (phone / tablet). Hints then
+-- talk about tapping instead of keys. main.lua sets this.
+ui.touchMode = false
+
+-- The "how to see the controls" hint, worded for keyboard or touch.
+function ui.controlsHint()
+    if ui.touchMode then
+        return "TAP CONTROLS (TOP RIGHT) FOR HELP"
+    end
+    return "PRESS C FOR A LIST OF CONTROLS"
+end
+
 -- Blend between two colours. t = 0 gives a, t = 1 gives b.
 local function mix(a, b, t)
     return { a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t }

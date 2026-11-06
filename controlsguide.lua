@@ -13,13 +13,13 @@ local controlsguide = {}
 
 -- Each section has a title and a list of {keys, what it does}.
 local SECTIONS = {
-    { title = "ANY TIME", items = {
-        { "C",       "Show / hide this list" },
+    { title = "ANY TIME  (on a phone or tablet, tap = click)", items = {
+        { "C  /  CONTROLS tab", "Show / hide this list (tap anywhere to close it)" },
         { "S  /  SETTINGS tab", "Settings: music volume (Left / Right arrows or drag the slider)" },
         { "Esc",     "Close this list - or quit the game" },
     } },
     { title = "START", items = {
-        { "Enter",   "Start a new game" },
+        { "Enter  /  START",   "Start a new game" },
     } },
     { title = "PLACING YOUR MARKER (start of each level)", items = {
         { "Click a tile",        "Put your white chip there (x1.5 if it hits)" },
@@ -32,8 +32,8 @@ local SECTIONS = {
         { "K  /  KEEP",          "Keep all 5 dice (x1.1 points if you haven't rerolled)" },
     } },
     { title = "BETWEEN ROUNDS", items = {
-        { "Space",   "Roll the next round" },
-        { "Space",   "After LEVEL CLEAR: go to the shop" },
+        { "Space  /  NEXT ROUND",     "Roll the next round" },
+        { "Space  /  VISIT THE SHOP", "After LEVEL CLEAR: go to the shop" },
     } },
     { title = "SHOP", items = {
         { "Click a card",               "Buy it (dice, luck item or upgrade)" },
@@ -42,7 +42,7 @@ local SECTIONS = {
         { "Enter  /  CONTINUE",         "Start the next level" },
     } },
     { title = "GAME OVER / YOU WIN", items = {
-        { "Enter",   "Play again" },
+        { "Enter  /  PLAY AGAIN",   "Play again" },
     } },
 }
 
@@ -51,6 +51,38 @@ local GOD_MODE = { title = "TESTING (GOD MODE)", items = {
     { "`  (the ~ key)", "In a level: win it and go to the shop.  In the shop: +coins" },
 } }
 
+
+-- The CONTROLS tab, hanging from the top edge just left of SETTINGS.
+-- (On a phone there's no C key, so this is how you open the list.)
+function controlsguide.tabRect()
+    return { x = love.graphics.getWidth() - 334, y = 0, w = 150, h = 38 }
+end
+
+function controlsguide.isOnTab(x, y)
+    local r = controlsguide.tabRect()
+    return x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h
+end
+
+function controlsguide.drawTab()
+    local r = controlsguide.tabRect()
+    love.graphics.setColor(0, 0, 0, 0.5)
+    love.graphics.rectangle("fill", r.x + 3, r.y + 4, r.w, r.h)
+    if ui.isHovered(r) then
+        love.graphics.setColor(0.75, 0.08, 0.12)
+    else
+        love.graphics.setColor(0.55, 0.05, 0.08)
+    end
+    love.graphics.rectangle("fill", r.x, r.y - 10, r.w, r.h + 10, 10, 10)
+    love.graphics.setColor(1, 0.82, 0.3)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", r.x, r.y - 10, r.w, r.h + 10, 10, 10)
+    love.graphics.setLineWidth(1)
+    -- A gold "?" coin
+    love.graphics.setColor(1, 0.85, 0.35)
+    love.graphics.circle("fill", r.x + 22, r.y + r.h / 2, 10)
+    ui.text("?", fonts.hint, r.x + 12, r.y + r.h / 2 - 8, 20, "center", { 0.45, 0.04, 0.07 })
+    ui.text("CONTROLS", fonts.hint, r.x + 36, r.y + 12, r.w - 44, "center", { 1, 0.95, 0.85 })
+end
 
 -- Draw the guide over whatever is on screen.
 function controlsguide.draw()

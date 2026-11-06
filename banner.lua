@@ -116,9 +116,9 @@ end
 function banner.drawControlsHint(r)
     love.graphics.setFont(fonts.hint)
     love.graphics.setColor(0, 0, 0, 0.7)
-    love.graphics.printf("PRESS C FOR A LIST OF CONTROLS", r.x + 1, r.y + 2, r.w, "center")
+    love.graphics.printf(ui.controlsHint(), r.x + 1, r.y + 2, r.w, "center")
     love.graphics.setColor(YELLOW)
-    love.graphics.printf("PRESS C FOR A LIST OF CONTROLS", r.x, r.y, r.w, "center")
+    love.graphics.printf(ui.controlsHint(), r.x, r.y, r.w, "center")
 end
 
 
@@ -250,7 +250,13 @@ function banner.draw(state)
         local canReroll = ready and dice.canReroll() and dice.countToReroll() > 0
         local canKeep   = ready and dice.canKeep()
 
-        ui.glossyButton(layout.rerollButton(), "REROLL", RED_BUTTON, canReroll)
+        if state == "roundOver" then
+            -- Between rounds the red button starts the next round
+            -- (so it can be tapped on a phone - no Space bar there).
+            ui.glossyButton(layout.rerollButton(), "NEXT ROUND", RED_BUTTON, true)
+        else
+            ui.glossyButton(layout.rerollButton(), "REROLL", RED_BUTTON, canReroll)
+        end
 
         -- Show the bonus on KEEP while it can still be earned.
         local keepLabel = "KEEP"
@@ -266,6 +272,8 @@ end
 -- Just the decorated banner with the controls hint (start screen).
 function banner.drawFrameOnly()
     drawFrame()
+    -- A big START button (Enter works too).
+    ui.glossyButton(layout.rerollButton(), "START", RED_BUTTON, true)
     banner.drawControlsHint(layout.controlsHint())
 end
 

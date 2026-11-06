@@ -58,6 +58,7 @@ local layout    = require("layout")
 local draw      = require("draw")
 local shopdraw  = require("shopdraw")
 local controlsguide = require("controlsguide")
+local ui            = require("ui")
 local settings      = require("settings")
 local settingsmenu  = require("settingsmenu")
 local music         = require("music")
@@ -290,6 +291,7 @@ function love.draw()
 
     -- The SETTINGS tab is on every screen; the panels go on top of everything.
     settingsmenu.drawTab()
+    controlsguide.drawTab()
     if showSettings then
         settingsmenu.draw()
     end
@@ -299,6 +301,8 @@ function love.draw()
 end
 
 function love.keypressed(key)
+    ui.touchMode = false   -- a key was pressed, so hints talk about keys again
+
     -- While SETTINGS is open: left/right change the volume, S or Escape
     -- closes it, and every other key is ignored.
     if showSettings then
@@ -404,10 +408,15 @@ end
 
 -- x, y   = where the mouse was clicked
 -- button = which mouse button (1 = left, 2 = right, 3 = middle)
-function love.mousepressed(x, y, button)
+-- 'istouch' is true when the "click" was really a finger on a touch screen
+-- (LÖVE turns taps into mouse clicks for us, so tapping just works).
+function love.mousepressed(x, y, button, istouch)
     if button ~= 1 then
         return   -- only the left button does anything
     end
+
+    -- Remember whether the player is using touch, so hints can say "tap".
+    ui.touchMode = istouch == true
 
     -- Clicking anywhere closes the controls list (and does nothing else).
     if showControls then
@@ -423,9 +432,37 @@ function love.mousepressed(x, y, button)
         return
     end
 
-    -- The SETTINGS tab, on every screen.
+    -- The SETTINGS and CONTROLS tabs, on every screen.
     if settingsmenu.isOnTab(x, y) then
         showSettings = true
+        return
+    end
+    if controlsguide.isOnTab(x, y) then
+        showControls = true
+        return
+    end
+
+    -- Screens that used to need a key now have a button too, so the whole
+    -- game can be played by tapping on a phone.
+    if state == "start" then
+        if layout.isOnRerollButton(x, y) then
+            startGame()                  -- the START button
+        end
+        return
+    elseif state == "roundOver" then
+        if layout.isOnRerollButton(x, y) then
+            startRound()                 -- the NEXT ROUND button
+        end
+        return
+    elseif state == "levelClear" then
+        if layout.isInside(x, y, layout.overlayButton()) then
+            openShop()                   -- VISIT THE SHOP
+        end
+        return
+    elseif state == "gameOver" or state == "victory" then
+        if layout.isInside(x, y, layout.overlayButton()) then
+            startGame()                  -- PLAY AGAIN
+        end
         return
     end
 
