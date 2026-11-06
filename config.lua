@@ -100,6 +100,10 @@ config.BUTTON_H = 56
 -- Luck items
 
 -- God mode (testing only - see godmode.lua)
+-- The game's version, shown small in the bottom-right corner. Bump it
+-- (and add a line to CHANGELOG.md) whenever you put out a new version.
+config.VERSION = "0.0.1"
+
 config.GOD_MODE_ENABLED = true  -- set to false before you share the game
 config.GOD_MODE_COINS   = 100   -- coins given each time god mode is used
 

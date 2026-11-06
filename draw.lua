@@ -194,6 +194,10 @@ function draw.startScreen()
     local f = layout.felt()
     ui.text(ui.controlsHint(), fonts.heading, f.x, cy + 90, f.w, "center",
         { 1, 0.9, 0.2 }, true)
+    if not ui.touchMode then
+        ui.text("ENTER = START      T = START WITH TUTORIAL", fonts.heading, f.x, cy + 122, f.w, "center",
+            { 1, 0.95, 0.85 }, true)
+    end
 end
 
 -- The play screen. main.lua passes in 'state' ("play", "roundOver", ...).

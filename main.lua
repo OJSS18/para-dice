@@ -17,6 +17,7 @@
 --   luck.lua      - luck items (perks): up to 3, permanent until sold; rarities and effects
 --   luckart.lua   - luck item pictures, SELL buttons and tooltips
 --   luckrack.lua  - your 3 luck slots on the play screen (sell from there)
+--   tutorial.lua  - START WITH TUTORIAL: spotlights, arrows and steps over a real game
 --   boosts.lua    - lasting boosts stuck onto POINTS tiles by luck items
 --   upgrades.lua  - shop upgrades: EVEN / ODD / LOWER 13 / UPPER 13 / HOT FOUR
 --   markers.lua   - the white chip placed on a tile each level (x1.5)
@@ -52,6 +53,7 @@ local score     = require("score")
 local player    = require("player")
 local luck      = require("luck")
 local luckrack  = require("luckrack")
+local tutorial  = require("tutorial")
 local markers   = require("markers")
 local boosts    = require("boosts")
 local upgrades  = require("upgrades")
@@ -65,6 +67,7 @@ local shopdraw  = require("shopdraw")
 local controlsguide = require("controlsguide")
 local oddsguide     = require("oddsguide")
 local ui            = require("ui")
+local fonts         = require("fonts")
 local settings      = require("settings")
 local settingsmenu  = require("settingsmenu")
 local music         = require("music")
@@ -143,8 +146,14 @@ local function placeMarkerAt(kind, k)
     end
 end
 
--- Start a brand new game from zero.
-local function startGame()
+-- Start a brand new game from zero. 'withTutorial' = true runs the tutorial
+-- over it (START WITH TUTORIAL on the title screen).
+local function startGame(withTutorial)
+    if withTutorial then
+        tutorial.start()
+    else
+        tutorial.stop()
+    end
     confetti.stop()
     bigwin.stop()
     score.reset()
@@ -325,6 +334,7 @@ function love.update(dt)
     confetti.update(dt)
     bigwin.update(dt)
     luckrack.update(dt)
+    tutorial.update(state)  -- moves the tutorial on once you've done what it asked
     if state == "shop" then
         shop.update(dt)     -- the Mystery Machine's reel
     end
@@ -356,6 +366,13 @@ function love.draw()
     -- BIG WIN / MEGA WIN letters, over whatever screen is showing.
     bigwin.draw()
 
+    -- The tutorial's spotlight, arrow and words (only while it's running).
+    tutorial.draw()
+
+    -- The version number, small, in the bottom-right corner.
+    local W, H = love.graphics.getWidth(), love.graphics.getHeight()
+    ui.text("v" .. config.VERSION, fonts.hint, W - 110, H - 20, 100, "right", { 1, 1, 1, 0.35 })
+
     -- The SETTINGS tab is on every screen; the panels go on top of everything.
     settingsmenu.drawTab()
     controlsguide.drawTab()
@@ -384,6 +401,12 @@ function love.keypressed(key)
         elseif key == "s" or key == "escape" then
             showSettings = false
         end
+        return
+    end
+
+    -- While the tutorial is showing a "read this" step, it takes the keys
+    -- (Enter / Space = NEXT) and the game underneath ignores them.
+    if tutorial.keypressed(key) then
         return
     end
 
@@ -445,6 +468,8 @@ function love.keypressed(key)
     if state == "start" then
         if isEnter then
             startGame()
+        elseif key == "t" then
+            startGame(true)     -- T = START WITH TUTORIAL
         end
 
     elseif state == "placeMarker" then
@@ -551,9 +576,17 @@ function love.mousepressed(x, y, button, istouch)
 
     -- Screens that used to need a key now have a button too, so the whole
     -- game can be played by tapping on a phone.
+    -- The tutorial's NEXT / SKIP buttons (and, on a "read this" step, it
+    -- swallows every other click).
+    if tutorial.mousepressed(x, y) then
+        return
+    end
+
     if state == "start" then
         if layout.isOnRerollButton(x, y) then
             startGame()                  -- the START button
+        elseif layout.isOnKeepButton(x, y) then
+            startGame(true)              -- START WITH TUTORIAL
         end
         return
     elseif state == "roundOver" then

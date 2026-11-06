@@ -4,6 +4,8 @@ A Yahtzee / craps-style dice roguelite made with [LÖVE](https://love2d.org) 11.
 
 **Play in your browser:** see the GitHub Pages link in this repository's "About" section.
 
+**Current version:** v0.0.1 - see [CHANGELOG.md](CHANGELOG.md). New to the game? Pick **TUTORIAL** on the title screen.
+
 ## Running it on your computer
 
 Install LÖVE 11, then from this folder run:

@@ -329,8 +329,9 @@ end
 -- Just the decorated banner with the controls hint (start screen).
 function banner.drawFrameOnly()
     drawFrame()
-    -- A big START button (Enter works too).
+    -- A big START button (Enter works too), and START WITH TUTORIAL (T).
     ui.glossyButton(layout.rerollButton(), "START", RED_BUTTON, true)
+    ui.glossyButton(layout.keepButton(), "TUTORIAL", BLUE_BUTTON, true)
     banner.drawControlsHint(layout.controlsHint())
 end
 

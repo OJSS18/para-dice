@@ -21,6 +21,7 @@ local SECTIONS = {
     } },
     { title = "START", items = {
         { "Enter  /  START",   "Start a new game" },
+        { "T  /  TUTORIAL",    "Start a new game with the tutorial (SKIP TUTORIAL to stop it)" },
     } },
     { title = "PLACING YOUR MARKERS (start of each level)", items = {
         { "Click a tile",        "Put a white chip there (x1.5 if it hits); click again to pick it up" },

@@ -48,6 +48,11 @@ dice.decided = false
 -- The sum of this round's FIRST throw (Comeback Kid compares against it).
 dice.firstSum = nil
 
+-- The TUTORIAL can set what the next throw lands on, e.g. {3, 3, 3, 5, 5}.
+-- Each thrown die i lands on rig[i] instead of a random face. It's used
+-- once, then cleared. (nil = a normal, random throw.)
+dice.rig = nil
+
 
 ---------------------------------------------------------------------------
 -- HELPERS (only used inside this file, so they're 'local', not 'dice.')
@@ -220,7 +225,7 @@ function dice.throw()
     local which = {}
     for i = 1, config.NUM_DICE do
         if dice.willThrow(i) then
-            dice.values[i] = rollDie(i)
+            dice.values[i] = (dice.rig and dice.rig[i]) or rollDie(i)
             dice.thrown[i] = true
             table.insert(which, i)   -- remember that die i was thrown
         end
@@ -231,6 +236,7 @@ function dice.throw()
         clearHeld()
     end
 
+    dice.rig = nil     -- a tutorial rig only counts for one throw
     dice.total = sumValues()
     if not isReroll then
         dice.firstSum = dice.total   -- the first throw always sends all 5
