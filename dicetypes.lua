@@ -12,6 +12,11 @@
 -- The coloured dice add up to 100, so you can read them as percentages.
 -- Bigger weight = more likely. Change these to rebalance the dice.
 --
+-- PRICES come from the strategy simulator (tools/strategy-sim, PRICETEST):
+-- about 80 coins for each extra level a die helps a player clear.
+-- Amber is the strongest (low sums pay big); Green is cheap because
+-- hugging the middle lands on the LOW-value tiles.
+--
 -- This file is pure LOGIC/data. It never draws (draw.lua loads the images).
 
 local util = require("util")
@@ -39,28 +44,28 @@ dicetypes.TYPES = {
         name    = "Dice of Blue",
         about   = "Leans toward low numbers.",
         weights = { 30, 20, 15, 15, 10, 10 },
-        price   = 40,
+        price   = 25,
     },
     green = {
         id      = "green",
         name    = "Dice of Green",
         about   = "Hugs the middle. Safe sums.",
         weights = { 5, 20, 25, 25, 20, 5 },
-        price   = 30,
+        price   = 10,
     },
     purple = {
         id      = "purple",
         name    = "Dice of Purple",
         about   = "Loves the extremes: 1s and 6s.",
         weights = { 30, 10, 10, 10, 10, 30 },
-        price   = 55,
+        price   = 30,
     },
     amber = {
         id      = "amber",
         name    = "Dice of Amber",
         about   = "Lands on 1 almost half the time.",
         weights = { 45, 11, 11, 11, 11, 11 },
-        price   = 50,
+        price   = 60,
     },
 }
 

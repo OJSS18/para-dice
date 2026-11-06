@@ -8,7 +8,7 @@
 --                 then you swap one into any of your 5 slots.
 --   * UPGRADES  - 2 random upgrades, e.g. "EVEN LVL1" (+0.25x on even sums).
 --   * YOUR LUCK - the luck items you hold (up to 3). SELL any of them.
---   * THE MYSTERY MACHINE - a THREE-reel slot machine: 30 coins a spin.
+--   * THE MYSTERY MACHINE - a THREE-reel slot machine: 35 coins a spin.
 --                 Each reel lands on a random luck item and you pick ONE.
 --                 Odds by rarity 30/30/22/13/5 %. Luck items can't be got
 --                 any other way. If your 3 slots are full, sell one first.
@@ -50,7 +50,7 @@ shop.MACHINE_H   = 320
 shop.REELS       = 3
 shop.REEL_W      = 148
 shop.REEL_GAP    = 14
-shop.MYSTERY_PRICE = 30
+shop.MYSTERY_PRICE = 35
 shop.SPIN_TIME   = 2.2   -- seconds the FIRST reel spins for...
 shop.REEL_DELAY  = 0.45  -- ...and each next reel stops this much later
 

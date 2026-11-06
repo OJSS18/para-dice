@@ -12,31 +12,33 @@
 local upgrades = {}
 
 upgrades.STEP = 0.25        -- each level adds this much to the multiplier
-upgrades.PRICE_STEP = 25    -- LVL1 costs 25, LVL2 costs 50, LVL3 costs 75...
+-- Each upgrade has its own PRICE for LVL1; LVL2 costs twice that, LVL3
+-- three times... (Prices from the strategy simulator: the upgrades that help
+-- most cost most.)
 
 -- Each upgrade: a name, what it does, and a test that says whether a sum
 -- belongs to its group. ('function(sum) return ... end' is a small function
 -- stored in the table - we call it like def.covers(18).)
 upgrades.DEFS = {
     even = {
-        name = "EVEN", about = "Every EVEN sum scores +0.25x",
+        name = "EVEN", about = "Every EVEN sum scores +0.25x", price = 55,
         covers = function(sum) return sum % 2 == 0 end,
     },
     odd = {
-        name = "ODD", about = "Every ODD sum scores +0.25x",
+        name = "ODD", about = "Every ODD sum scores +0.25x", price = 40,
         covers = function(sum) return sum % 2 == 1 end,
     },
     lower = {
-        name = "LOWER 13", about = "Sums 5 to 17 score +0.25x",
+        name = "LOWER 13", about = "Sums 5 to 17 score +0.25x", price = 60,
         covers = function(sum) return sum <= 17 end,
     },
     upper = {
-        name = "UPPER 13", about = "Sums 18 to 30 score +0.25x",
+        name = "UPPER 13", about = "Sums 18 to 30 score +0.25x", price = 60,
         covers = function(sum) return sum >= 18 end,
     },
     common = {
         -- 17 and 18 are the most likely sums with 5 dice, then 16 and 19.
-        name = "HOT FOUR", about = "The 4 most likely sums (16, 17, 18, 19) score +0.25x",
+        name = "HOT FOUR", about = "The 4 most likely sums (16, 17, 18, 19) score +0.25x", price = 20,
         covers = function(sum) return sum >= 16 and sum <= 19 end,
     },
 }
@@ -49,7 +51,7 @@ upgrades.ORDER = { "even", "odd", "lower", "upper", "common" }
 -- Each level raises the KEEP (no reroll) multiplier by 0.1:
 --   x1.1 normally, x1.2 at LVL1, x1.3 at LVL2 ...
 upgrades.DEFS.keep = {
-    name = "KEEP BONUS", about = "KEEP with no reroll pays +0.1x more",
+    name = "KEEP BONUS", about = "KEEP with no reroll pays +0.1x more", price = 20,
     covers = function(sum) return false end,   -- not a sum group
 }
 upgrades.KEEP_STEP = 0.1
@@ -84,7 +86,7 @@ end
 
 -- What the next level costs.
 function upgrades.nextPrice(id)
-    return upgrades.PRICE_STEP * (upgrades.level(id) + 1)
+    return upgrades.DEFS[id].price * (upgrades.level(id) + 1)
 end
 
 -- Buy one more level.

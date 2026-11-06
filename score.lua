@@ -75,17 +75,17 @@ end
 ---------------------------------------------------------------------------
 -- RULES: COINS (the "Money Makers")
 ---------------------------------------------------------------------------
--- Coins use the same values as the classic Yahtzee scorecard:
+-- Coins are based on the classic Yahtzee scorecard:
 --   5 of a Kind (all 5 the same)   50
 --   Large Straight (5 in a row)    40
+--   4 of a Kind                    35
 --   Small Straight (4 in a row)    30
 --   Full House (3 of one + 2 of another)  25
---   4 of a Kind                    sum of all 5 dice
---   3 of a Kind                    sum of all 5 dice
+--   3 of a Kind                    20
 -- A roll can match more than one (four 6s is also three 6s); only the
 -- one that pays the MOST is paid.
 --
--- coins = "sum" means "pays the total of all 5 dice".
+-- (coins = "sum" would mean "pays the total of all 5 dice"; no hand uses it now.)
 -- This list is in order from best to worst, which is also the order the
 -- boxes are drawn on the table.
 score.COIN_HANDS = {
@@ -93,8 +93,8 @@ score.COIN_HANDS = {
     { id = "largeStraight", name = "Large Straight", coins = 40 },
     { id = "smallStraight", name = "Small Straight", coins = 30 },
     { id = "fullHouse",     name = "Full House",     coins = 25 },
-    { id = "fourKind",      name = "4 of a Kind",    coins = "sum" },
-    { id = "threeKind",     name = "3 of a Kind",    coins = "sum" },
+    { id = "fourKind",      name = "4 of a Kind",    coins = 35 },
+    { id = "threeKind",     name = "3 of a Kind",    coins = 20 },
 }
 
 

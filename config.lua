@@ -96,14 +96,14 @@ config.BUTTON_H = 56
 
 -- The game's version, shown small in the bottom-right corner. Bump it
 -- (and add a line to CHANGELOG.md) whenever you put out a new version.
-config.VERSION = "0.2.1"
+config.VERSION = "0.3.0"
 
 -- The RULES version: change it ONLY when a change could make an old replay
 -- code play out differently (dice odds, scoring, shop, luck items, actions).
 -- The online leaderboard only shows runs with the same rules version, so
 -- changing it starts a fresh leaderboard "season". Looks-only changes
 -- (like the shop transitions) keep it the same.
-config.RULES_VERSION = "0.2.0"
+config.RULES_VERSION = "0.3.0"
 
 -- The ONLINE leaderboard (a free Supabase project - see README.md).
 -- Leave these empty and the leaderboard only shows runs from this device.

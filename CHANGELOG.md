@@ -2,6 +2,18 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.3.0 - 2026-11-06
+
+Balance update, priced from the strategy simulator (about 80 coins per extra level a
+purchase helps clear). A new leaderboard season.
+- Money Makers: 4 of a Kind now pays 35 coins and 3 of a Kind 20 (they paid the dice sum).
+- Dice: Red 40 (same), Blue 25 (was 40), Purple 30 (was 55), Amber 60 (was 50),
+  Green 10 (was 30 - hugging the middle lands on low-value tiles, so it hurts more than it helps).
+- Upgrades now have their own prices (LVL2 costs 2x, LVL3 3x...): LOWER 13 / UPPER 13 60,
+  EVEN 55, ODD 40, HOT FOUR 20, KEEP BONUS 20 (all were 25).
+- Markers: 20 / 30 / 40 / 50 for the 2nd to 5th chip (were 50 / 75 / 100 / 125).
+- Mystery Machine: 35 a spin (was 30).
+
 ## v0.2.1 - 2026-11-06
 
 - Placeholder pictures for the 11 new luck items, in the same style as the others (made by

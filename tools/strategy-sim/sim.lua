@@ -312,10 +312,16 @@ function sim.playGame(s)
     score.reset(); player.reset(); boosts.reset(); upgrades.reset()
     markers.reset(); luck.reset(); luck.give(luck.STARTER)
     for _, id in ipairs(s.startLuck or {}) do luck.give(id) end   -- perks held from the start
+    for i, id in ipairs(s.startDice or {}) do player.loadout[i] = id end   -- dice swapped in from the start
+    for id, lvl in pairs(s.startUpgrades or {}) do upgrades.levels[id] = lvl end
+    markers.owned = s.startMarkers or markers.owned
+    sim.coinsEarned, sim.levelsPlayed = 0, 0
     while true do
         boosts.clearLevel(); markers.clear(); markers.autoSum = nil
         placeMarkers()
         for _ = 1, score.ROUNDS_PER_LEVEL do playRound() end
+        sim.coinsEarned = sim.coinsEarned + score.levelCoins
+        sim.levelsPlayed = sim.levelsPlayed + 1
         if not score.hasPassedLevel() then
             return score.level - 1, score.levelTotal / score.getTarget()
         end

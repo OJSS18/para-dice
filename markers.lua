@@ -19,9 +19,10 @@ markers.MULTIPLIER = 1.5
 markers.owned = 1
 markers.MAX_OWNED = 5
 
--- What the next extra marker costs in the shop: 50, then 75, then 100...
+-- What the next extra marker costs in the shop: 20, then 30, 40, 50.
+-- (Each extra chip helps about +0.2 levels in the simulator.)
 function markers.nextPrice()
-    return 25 + 25 * markers.owned
+    return 10 + 10 * markers.owned
 end
 
 -- The markers on the table: a list, oldest first. Each one looks like

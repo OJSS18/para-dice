@@ -275,7 +275,7 @@ local STEPS = {
           .. "swap it into YOUR DICE). UPGRADES boost groups of points for the whole run." },
     { screen = "shop", kind = "next", target = T.machine,
       title = "THE MYSTERY MACHINE",
-      text = "This is the ONLY way to get new luck items. A spin costs 30 coins and lands 3 random items "
+      text = "This is the ONLY way to get new luck items. A spin costs 35 coins and lands 3 random items "
           .. "- click a reel to keep ONE of them. Rarer items are stronger." },
     { screen = "shop", kind = "next", target = T.yourLuck,
       title = "YOUR LUCK",

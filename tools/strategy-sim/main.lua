@@ -14,6 +14,38 @@ function love.load(args)
 
     local sim = require("sim")
     local strategies = require("strategies")
+    -- PRICE TEST: what each shop purchase is worth, bought before level 1.
+    if os.getenv("PRICETEST") then
+        local variants = { { "none", {} } }
+        for _, t in ipairs({ "red", "blue", "green", "purple", "amber" }) do
+            for _, n in ipairs({ 1, 3, 5 }) do
+                local list = {}
+                for i = 1, n do list[i] = t end
+                table.insert(variants, { t .. " x" .. n, { startDice = list } })
+            end
+        end
+        for _, u in ipairs({ "even", "odd", "lower", "upper", "common", "keep" }) do
+            table.insert(variants, { u .. " LVL1", { startUpgrades = { [u] = 1 } } })
+        end
+        table.insert(variants, { "lower LVL2", { startUpgrades = { lower = 2 } } })
+        table.insert(variants, { "2 markers", { startMarkers = 2 } })
+        table.insert(variants, { "3 markers", { startMarkers = 3 } })
+        for _, v in ipairs(variants) do
+            local s = { name = v[1], reroll = "ev", coinWeight = 0 }
+            for k, x in pairs(v[2]) do s[k] = x end
+            local levels, coins, played = 0, 0, 0
+            for g = 1, N do
+                require("rng").setSeed(seed + g)
+                levels = levels + sim.playGame(s)
+                coins, played = coins + sim.coinsEarned, played + sim.levelsPlayed
+            end
+            print(string.format("PRICE	%s	%.3f	%.1f", v[1], levels / N, coins / played))
+            io.stdout:flush()
+        end
+        love.event.quit()
+        return
+    end
+
     -- PERK TEST: every luck item held from the start, one at a time.
     if os.getenv("PERKTEST") then
         local luck = require("luck")
