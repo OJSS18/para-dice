@@ -16,6 +16,7 @@ local SECTIONS = {
     { title = "ANY TIME  (on a phone or tablet, tap = click)", items = {
         { "C  /  CONTROLS tab", "Show / hide this list (tap anywhere to close it)" },
         { "S  /  SETTINGS tab", "Settings: music volume (Left / Right arrows or drag the slider)" },
+        { "O  /  ODDS tab",     "See how likely each face is on each of your 5 dice" },
         { "Esc",     "Close this list - or quit the game" },
     } },
     { title = "START", items = {
@@ -113,17 +114,17 @@ function controlsguide.draw()
     -- Keys in the left column, what they do in the right column.
     local keyW = cardW * 0.40
     local left = x + 36
-    local rowY = y + 84
-    local lineH = 20
+    local rowY = y + 80
+    local lineH = 19
     for _, s in ipairs(sections) do
         ui.text(s.title, fonts.heading, left, rowY, cardW - 72, "left", { 1, 0.45, 0.35 })
-        rowY = rowY + 23
+        rowY = rowY + 22
         for _, item in ipairs(s.items) do
             ui.text(item[1], fonts.small, left + 12, rowY, keyW - 20, "left", { 1, 0.9, 0.3 })
             ui.text(item[2], fonts.small, left + keyW, rowY, cardW - keyW - 72, "left", { 1, 0.95, 0.88 })
             rowY = rowY + lineH
         end
-        rowY = rowY + 5
+        rowY = rowY + 3
     end
 end
 

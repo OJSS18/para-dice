@@ -32,6 +32,7 @@
 --   banner.lua    - DRAWING of the info banner and buttons on the left
 --   ui.lua        - shared drawing helpers: glossy buttons, shadowed text
 --   controlsguide.lua - the list of controls shown when you press C
+--   oddsguide.lua - the dice odds panel shown when you press O
 --   music.lua     - the looping background music
 --   settings.lua  - the player's settings (music volume), saved to disk
 --   settingsmenu.lua - the SETTINGS tab and panel
@@ -58,6 +59,7 @@ local layout    = require("layout")
 local draw      = require("draw")
 local shopdraw  = require("shopdraw")
 local controlsguide = require("controlsguide")
+local oddsguide     = require("oddsguide")
 local ui            = require("ui")
 local settings      = require("settings")
 local settingsmenu  = require("settingsmenu")
@@ -68,6 +70,9 @@ local showControls = false
 
 -- true while the settings panel (S, or the SETTINGS tab) is open.
 local showSettings = false
+
+-- true while the dice odds panel (O, or the ODDS tab) is open.
+local showOdds = false
 
 -- 'state' tells us which screen we're on. It's just a string:
 --   "start"       - the title screen
@@ -293,8 +298,12 @@ function love.draw()
     -- The SETTINGS tab is on every screen; the panels go on top of everything.
     settingsmenu.drawTab()
     controlsguide.drawTab()
+    oddsguide.drawTab()
     if showSettings then
         settingsmenu.draw()
+    end
+    if showOdds then
+        oddsguide.draw()
     end
     if showControls then
         controlsguide.draw()
@@ -320,6 +329,22 @@ function love.keypressed(key)
     -- C opens and closes the controls list, from any screen.
     if key == "c" then
         showControls = not showControls
+        showOdds = false
+        return
+    end
+
+    -- O opens and closes the dice odds panel, from any screen.
+    if key == "o" then
+        showOdds = not showOdds
+        showControls = false
+        return
+    end
+
+    -- While the odds panel is open, Escape closes it and other keys are ignored.
+    if showOdds then
+        if key == "escape" then
+            showOdds = false
+        end
         return
     end
 
@@ -420,9 +445,11 @@ function love.mousepressed(x, y, button, istouch)
     -- Remember whether the player is using touch, so hints can say "tap".
     ui.touchMode = istouch == true
 
-    -- Clicking anywhere closes the controls list (and does nothing else).
-    if showControls then
+    -- Clicking anywhere closes the controls list or the odds panel
+    -- (and does nothing else).
+    if showControls or showOdds then
         showControls = false
+        showOdds = false
         return
     end
 
@@ -441,6 +468,10 @@ function love.mousepressed(x, y, button, istouch)
     end
     if controlsguide.isOnTab(x, y) then
         showControls = true
+        return
+    end
+    if oddsguide.isOnTab(x, y) then
+        showOdds = true
         return
     end
 
