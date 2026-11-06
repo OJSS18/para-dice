@@ -62,12 +62,17 @@ end
 ---------------------------------------------------------------------------
 
 local function headers()
-    return {
+    local h = {
         ["apikey"] = config.ONLINE_KEY,
-        ["Authorization"] = "Bearer " .. config.ONLINE_KEY,
         ["Content-Type"] = "application/json",
         ["Prefer"] = "return=minimal",
     }
+    -- Older "anon" keys (they start with eyJ) also go in Authorization;
+    -- the newer "sb_publishable_" keys must not.
+    if config.ONLINE_KEY:sub(1, 3) == "eyJ" then
+        h["Authorization"] = "Bearer " .. config.ONLINE_KEY
+    end
+    return h
 end
 
 -- Download the top runs for a game type ("normal" or "hard").

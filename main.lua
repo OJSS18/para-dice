@@ -151,7 +151,7 @@ end
 local function openLeaderboard()
     screen = "leaderboard"
     if screens.board.which == "online" then
-        leaderboard.fetchOnline(screens.board.mode)
+        leaderboard.fetchOnline(screens.board.mode, true)   -- keeps showing what we have while it loads
     end
 end
 

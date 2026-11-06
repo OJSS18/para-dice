@@ -101,8 +101,8 @@ config.VERSION = "0.1.0"
 -- The ONLINE leaderboard (a free Supabase project - see README.md).
 -- Leave these empty and the leaderboard only shows runs from this device.
 -- The key is the project's PUBLIC "anon" key, which is safe to share.
-config.ONLINE_URL = ""
-config.ONLINE_KEY = ""
+config.ONLINE_URL = "https://friyyzhqhidytdwxcqih.supabase.co"
+config.ONLINE_KEY = "sb_publishable_9kcOMDaLZo_CLS_4uPCDaQ_htVhqB6M"
 
 -- God mode (testing only - see godmode.lua)
 config.GOD_MODE_ENABLED = true  -- set to false before you share the game
