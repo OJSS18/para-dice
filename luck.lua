@@ -39,6 +39,12 @@
 --   unlockTokens   - true = earn an Unlock Token for each level you beat
 --   loadedDie      - true = your FIRST die never lands on 1 or 2
 --   bigWinShares   - { big, mega } - lower BIG WIN / MEGA WIN thresholds
+--   allHandsMult   - multiplies the coins of EVERY Money Maker hand
+--   interest, interestCap - clearing a level pays this share of your coins (up to the cap)
+--   copyLeft       - true = acts as a copy of the item in the slot to its LEFT
+--
+-- Items hold their slot order: you can drag them (or press L and the
+-- arrow keys) to rearrange them - which matters for Copycat.
 --
 -- Pure LOGIC/data - nothing in here draws.
 
@@ -126,17 +132,37 @@ luck.ITEMS = {
         about = "+1 coin for every 6 you roll.",
         bonus = function(d) return 1, 0, d.counts[6] end,
     },
+    middleRoad = {
+        name = "Middle of the Road", rarity = "common", image = "middleRoad",
+        about = "The dice add up to 15-20 (the usual sums): +20 points.",
+        check = function(d) return d.sum >= 15 and d.sum <= 20 end, flat = 20,
+    },
 
     -- UNCOMMON
     rabbitsLeg = {
         name = "Rabbit's Leg", rarity = "uncommon", image = "rabbitsLeg",
-        about = "Each time a point hits, it gets another x1.5 for the rest of the run.",
-        pointRunMult = 1.5,
+        about = "Each time a point hits, it gets another x1.25 for the rest of the run.",
+        pointRunMult = 1.25,
     },
-    showMeTheMoney = {
-        name = "Show Me The Money", rarity = "uncommon", image = "showMeTheMoney",
-        about = "Each time a point hits, it gets another +100 points for the rest of the run.",
-        pointRunFlat = 100,
+    hotDice = {
+        name = "Hot Dice", rarity = "uncommon", image = "hotDice",
+        about = "+8 points for every 5 or 6 you roll.",
+        bonus = function(d) return 1, 8 * (d.counts[5] + d.counts[6]), 0 end,
+    },
+    underdog = {
+        name = "Underdog", rarity = "uncommon", image = "underdog",
+        about = "Land on a tile worth 60 points or less: x1.6 points.",
+        check = function(d) return d.points <= 60 end, mult = 1.6,
+    },
+    tipJar = {
+        name = "Tip Jar", rarity = "uncommon", image = "tipJar",
+        about = "+3 coins every round.",
+        check = function() return true end, coins = 3,
+    },
+    piggyBank = {
+        name = "Piggy Bank", rarity = "uncommon", image = "piggyBank",
+        about = "+2 coins for every 1 you roll.",
+        bonus = function(d) return 1, 0, 2 * d.counts[1] end,
     },
     -- (the six Double Trouble cards are added further down)
     lowballDeluxe = {
@@ -167,10 +193,25 @@ luck.ITEMS = {
     },
 
     -- RARE
-    showMeTheMoneyRare = {
-        name = "Show Me The Money", rarity = "rare", image = "showMeTheMoneyRare",
-        about = "Each time a point hits, it gets another +200 points for the rest of the run.",
-        pointRunFlat = 200,
+    doubleDown = {
+        name = "Double Down", rarity = "rare", image = "doubleDown",
+        about = "If you rerolled this round: x1.5 points.",
+        check = function(d) return d.rerolled end, mult = 1.5,
+    },
+    firstImpression = {
+        name = "First Impression", rarity = "rare", image = "firstImpression",
+        about = "KEEP your first throw (no reroll): x1.4 points.",
+        check = function(d) return d.noReroll end, mult = 1.4,
+    },
+    collector = {
+        name = "Collector", rarity = "rare", image = "collector",
+        about = "Every Money Maker hand pays x1.5 coins.",
+        allHandsMult = 1.5,
+    },
+    interest = {
+        name = "Compound Interest", rarity = "rare", image = "interest",
+        about = "Clear a level: +10% of your coins (up to 30).",
+        interest = 0.10, interestCap = 30,
     },
     theySeeMeRollin = {
         name = "They See Me Rollin'", rarity = "rare", image = "theySeeMeRollin",
@@ -210,10 +251,15 @@ luck.ITEMS = {
     },
 
     -- EPIC
-    showMeTheMoneyEpic = {
-        name = "Show Me The Money", rarity = "epic", image = "showMeTheMoneyEpic",
-        about = "Each time a point hits, it gets another +300 points and x1.25 for the rest of the run.",
-        pointRunFlat = 300, pointRunMult = 1.25,
+    copycat = {
+        name = "Copycat", rarity = "epic", image = "copycat",
+        about = "Copies the luck item in the slot to its LEFT. (Drag items to rearrange them.)",
+        copyLeft = true,
+    },
+    hatTrick = {
+        name = "Hat Trick", rarity = "epic", image = "hatTrick",
+        about = "Three of a kind or better: x1.8 points.",
+        check = function(d) return d.most >= 3 end, mult = 1.8,
     },
     evenSteven = {
         name = "Even Steven", rarity = "epic", image = "evenSteven",
@@ -252,10 +298,10 @@ luck.ITEMS = {
     },
 
     -- LEGENDARY
-    showMeTheMoneyLegendary = {
+    showMeTheMoney = {
         name = "Show Me The Money", rarity = "legendary", image = "showMeTheMoneyLegendary",
-        about = "Each time a point hits, it gets another +500 points and x1.75 for the rest of the run.",
-        pointRunFlat = 500, pointRunMult = 1.75,
+        about = "Each time a point hits, it gets another +100 points for the rest of the run.",
+        pointRunFlat = 100,
     },
     fyPayMe = {
         name = "F*** You Pay Me", rarity = "legendary", image = "fyPayMe",
@@ -301,13 +347,14 @@ luck.ITEMS = {
 -- are slotted in below.
 luck.ORDER = {
     "runItBack",
-    "addict", "rabbitsFoot", "snakeEyes", "pairUp", "lowball", "highroller", "pocketChange",
-    "rabbitsLeg", "showMeTheMoney", "lowballDeluxe", "skyHigh", "noRepeats", "comebackKid", "steadyHand",
-    "showMeTheMoneyRare", "theySeeMeRollin", "cashIsKing", "allSquare", "oddSquad",
-    "luckySeven", "houseRules", "middleChild",
-    "showMeTheMoneyEpic", "evenSteven", "thatsOdd", "pureBreed", "stairway",
-    "crowdFavourite", "loadedDie", "hotStreak",
-    "showMeTheMoneyLegendary", "fyPayMe", "unlockToken", "yahtzeeGods", "midasDice",
+    "addict", "rabbitsFoot", "snakeEyes", "pairUp", "lowball", "highroller", "pocketChange", "middleRoad",
+    "rabbitsLeg", "lowballDeluxe", "skyHigh", "noRepeats", "comebackKid", "steadyHand",
+    "hotDice", "underdog", "tipJar", "piggyBank",
+    "theySeeMeRollin", "cashIsKing", "allSquare", "oddSquad",
+    "luckySeven", "houseRules", "middleChild", "doubleDown", "firstImpression", "collector", "interest",
+    "evenSteven", "thatsOdd", "pureBreed", "stairway",
+    "crowdFavourite", "loadedDie", "hotStreak", "copycat", "hatTrick",
+    "showMeTheMoney", "fyPayMe", "unlockToken", "yahtzeeGods", "midasDice",
     "mirrorMirror", "secondChance", "jackpotMagnet",
 }
 
@@ -400,14 +447,35 @@ function luck.reset()
     luck.streak = 0
 end
 
+-- What a Copycat with nothing to copy acts like: nothing at all.
+local COPYING_NOTHING = { name = "Copycat" }
+
 -- Loop over the held items: for item in each() do ... end
+-- A Copycat comes out as a copy of the item to its left (a table that
+-- looks up everything in that item, with its own name).
 local function each()
     local k = 0
     return function()
         k = k + 1
         local id = luck.held[k]
-        return id and luck.ITEMS[id]
+        if id == nil then return nil end
+        local item = luck.ITEMS[id]
+        if item.copyLeft then
+            local left = luck.held[k - 1] and luck.ITEMS[luck.held[k - 1]]
+            if left == nil or left.copyLeft then return COPYING_NOTHING end
+            return setmetatable({ name = "Copycat (" .. left.name .. ")" }, { __index = left })
+        end
+        return item
     end
+end
+
+-- Move the item in slot 'from' to slot 'to' (the others shuffle along).
+-- Returns true if it moved.
+function luck.move(from, to)
+    if luck.held[from] == nil or to < 1 or to > #luck.held or from == to then return false end
+    local id = table.remove(luck.held, from)
+    table.insert(luck.held, to, id)
+    return true
 end
 
 -- Does any held item have this field set?
@@ -475,6 +543,7 @@ function luck.handCoinsMultiplier(handId)
         if item.handCoinsMult and item.handCoinsMult[handId] then
             m = m * item.handCoinsMult[handId]
         end
+        m = m * (item.allHandsMult or 1)   -- Collector: every hand
     end
     return m
 end
@@ -482,6 +551,18 @@ end
 -- Extra coins for scoring a point worth 'points' (F*** You Pay Me).
 function luck.payMeCoins(points)
     return anyHeld("payMe") and points or 0
+end
+
+-- Coins for clearing a level while holding Compound Interest, given the
+-- coins you have.
+function luck.levelEndCoins(coins)
+    local total = 0
+    for item in each() do
+        if item.interest then
+            total = total + math.min(item.interestCap, math.floor(coins * item.interest))
+        end
+    end
+    return total
 end
 
 -- Does a held item hand out Unlock Tokens?

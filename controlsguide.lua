@@ -51,6 +51,7 @@ local SECTIONS = {
         { "SPIN",                       "Mystery Machine: 30 coins, 3 luck items come up" },
         { "Click a reel",               "Keep that luck item (one per spin, 3 slots max)" },
         { "SELL",                       "Sell a luck item for half its value (shop or play screen)" },
+        { "Drag a luck item  /  L + arrows", "Reorder your luck items (Copycat copies the one to its left)" },
         { "Click inventory die, then one of your dice", "Swap it in" },
         { "Enter  /  CONTINUE",         "Start the next level" },
     } },

@@ -428,6 +428,27 @@ function shop.luckRowRect(k)
     return rect(r.x + 12, r.y + shop.WINDOW_HEAD + (k - 1) * rowH, r.w - 24, rowH)
 end
 
+-- Which YOUR LUCK row holds an item at (px, py)? (Not counting its SELL button.)
+function shop.luckRowAt(px, py)
+    for k = 1, #luck.held do
+        if isInside(px, py, shop.luckRowRect(k)) and not isInside(px, py, shop.luckSellRect(k)) then
+            return k
+        end
+    end
+    return nil
+end
+
+-- Where a dragged item would land if let go at height py: the nearest row.
+function shop.luckDropRowAt(py)
+    local best, bestD = nil, math.huge
+    for k = 1, #luck.held do
+        local r = shop.luckRowRect(k)
+        local d = math.abs(py - (r.y + r.h / 2))
+        if d < bestD then best, bestD = k, d end
+    end
+    return best
+end
+
 -- How big the item pictures are: smaller when there are 4 rows (endless).
 function shop.luckPictureSize()
     return luck.MAX_HELD > 3 and 40 or 56

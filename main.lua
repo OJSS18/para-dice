@@ -119,6 +119,16 @@ local pendingPress = nil
 local DRAG_DISTANCE = 12   -- pixels the mouse must move before it counts as a drag
 
 
+-- REARRANGING luck items: press on one and drag it to another slot, or
+-- click it (or press L) to pick it and move it with the arrow keys.
+local function moveLuck(from, to)
+    if to and to ~= from and game.act("moveLuck", from * 10 + to) then
+        luckrack.selected = to
+        return true
+    end
+    return false
+end
+
 ---------------------------------------------------------------------------
 -- MOVING BETWEEN SCREENS
 ---------------------------------------------------------------------------
@@ -126,6 +136,7 @@ local DRAG_DISTANCE = 12   -- pixels the mouse must move before it counts as a d
 -- Start a new run of a game type ("tutorial", "normal" or "hard").
 local function startRun(mode)
     game.new(mode)
+    luckrack.selected, luckrack.drag = nil, nil
     lastRun = { code = nil, copied = false }
     pendingPress = nil
     leaveUntil = 0
@@ -316,6 +327,7 @@ local function drawScene()
         else
             draw.endScreen(s, { code = lastRun.code, copied = lastRun.copied, buttons = screen == "game" })
         end
+        luckrack.drawDragged()   -- a luck item being dragged, under the mouse
         bigwin.draw()       -- BIG WIN / MEGA WIN letters, over whatever is showing
         tutorial.draw()     -- the tutorial's spotlight, arrow and words (if running)
         replay.draw()       -- the replay controls (if watching one)
@@ -489,6 +501,20 @@ function love.keypressed(key)
         elseif key == "down" then replay.slower()
         elseif key == "escape" then exitReplay() end
     elseif screen == "game" then
+        -- L picks the next luck item; the arrows move the picked one.
+        if (game.onTable() or game.state == "shop") and require("luck").held[1] then
+            local luck = require("luck")
+            if key == "l" then
+                local k = (luckrack.selected or 0) + 1
+                luckrack.selected = (k <= #luck.held) and k or nil
+                return
+            end
+            local sel = luckrack.selected
+            if sel and luck.held[sel] then
+                if key == "left" or key == "up" then moveLuck(sel, sel - 1); return end
+                if key == "right" or key == "down" then moveLuck(sel, sel + 1); return end
+            end
+        end
         if godmode.isTrigger(key) then
             game.act("god")
             return
@@ -508,11 +534,20 @@ end
 local function runClick(x, y)
     local s = game.state
 
-    -- The luck rack (right of the tray): SELL a luck item any time the
-    -- dice aren't flying.
+    -- The luck rack (right of the tray): SELL a luck item, or press on one
+    -- to drag it, any time the dice aren't flying.
     if game.onTable() and not animation.isRolling() and not animation.isHolding() then
         local hit = luckrack.click(x, y)
-        if type(hit) == "number" then game.act("sellRack", hit) end
+        if type(hit) == "number" then
+            game.act("sellRack", hit)
+            luckrack.selected = nil
+            return
+        end
+        local k = luckrack.slotAt(x, y)
+        if k then
+            luckrack.drag = { from = k, startX = x, startY = y, x = x, y = y, moved = false }
+            return
+        end
         if hit then return end
     end
 
@@ -535,9 +570,16 @@ local function runClick(x, y)
     end
 
     if s == "shop" then
+        -- A luck item's row (not its SELL button): start dragging it.
+        local k = shop.luckRowAt(x, y)
+        if k then
+            luckrack.drag = { from = k, startX = x, startY = y, x = x, y = y, moved = false }
+            return
+        end
         -- shop.lua says WHAT was clicked; game.act does it (and records it).
         local action, arg = shop.click(x, y)
         if action then game.act(action, arg) end
+        if action == "sellShop" then luckrack.selected = nil end
         return
     end
 
@@ -667,6 +709,13 @@ function love.mousemoved(x, y)
         settingsmenu.mousemoved(x)
         return
     end
+    -- Dragging a luck item: it follows the mouse once it's moved a little.
+    local d = luckrack.drag
+    if d then
+        d.x, d.y = x, y
+        if (x - d.startX) ^ 2 + (y - d.startY) ^ 2 > 8 * 8 then d.moved = true end
+        return
+    end
     -- Dragging off a tray die picks up the whole handful about to be thrown.
     if pendingPress then
         local dx, dy = x - pendingPress.x, y - pendingPress.y
@@ -683,6 +732,20 @@ end
 function love.mousereleased(x, y, button)
     settingsmenu.mousereleased()
     if button ~= 1 then return end
+    -- Letting go of a luck item: drop it on the nearest slot - or, if it
+    -- never moved, that was a click: pick it (again = un-pick).
+    local d = luckrack.drag
+    if d then
+        luckrack.drag = nil
+        if screen ~= "game" then return end
+        if d.moved then
+            local to = game.state == "shop" and shop.luckDropRowAt(y) or luckrack.dropSlotAt(x)
+            if not moveLuck(d.from, to) then luckrack.selected = nil end
+        else
+            luckrack.selected = (luckrack.selected ~= d.from) and d.from or nil
+        end
+        return
+    end
     if pendingPress then
         if screen == "game" and game.state == "play" then
             game.act("hold", pendingPress.i)

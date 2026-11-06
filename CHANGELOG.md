@@ -2,6 +2,21 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.2.0 - 2026-11-06
+
+Luck item shake-up (a new leaderboard season, since old replays would play differently):
+- Show Me The Money is now LEGENDARY (+100 points per hit, for the run). The stronger
+  rare / epic / legendary versions are gone. Rabbit's Leg is now x1.25 per hit (was x1.5).
+- New perks that help THIS round: Middle of the Road (common), Hot Dice and Underdog
+  (uncommon), Double Down and First Impression (rare), Hat Trick (epic).
+- New coin perks: Tip Jar and Piggy Bank (uncommon), Collector and Compound Interest (rare).
+- COPYCAT (epic): copies the luck item in the slot to its left.
+- Rearrange your luck items: drag them in the luck rack or the shop's YOUR LUCK, or press
+  L to pick one and the arrow keys to move it. (Moves are part of replays.)
+- New perks use a plain coin icon until they get art: add assets/luck/<id>.png
+  (middleRoad, hotDice, underdog, tipJar, piggyBank, doubleDown, firstImpression,
+  collector, interest, copycat, hatTrick).
+
 ## v0.1.1 - 2026-11-06
 
 - Shop transitions: at the end of a level the table slides away and the shop slides in

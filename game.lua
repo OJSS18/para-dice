@@ -130,9 +130,14 @@ local function finishRound(noReroll)
     -- scored. (AFTER scoring, so the boost counts from the next time.)
     luck.onPointScored(result.sum)
 
-    -- Unlock Token: one token for each level beaten while holding it.
-    if score.isLevelOver() and score.hasPassedLevel() and luck.givesUnlockTokens() then
-        player.unlockTokens = player.unlockTokens + 1
+    -- Clearing a level: Unlock Tokens, and Compound Interest on your coins.
+    if score.isLevelOver() and score.hasPassedLevel() then
+        if luck.givesUnlockTokens() then
+            player.unlockTokens = player.unlockTokens + 1
+        end
+        local interest = luck.levelEndCoins(player.coins)
+        player.addCoins(interest)
+        score.levelCoins = score.levelCoins + interest
     end
 
     if not score.isLevelOver() then
@@ -315,6 +320,13 @@ function ACTIONS.finish()
     endRun("finished")
     return true
 end
+-- Rearrange the luck items: arg = from x 10 + to (e.g. 13 = slot 1 to slot 3).
+-- The order matters for Copycat, so it's an action (and in replays).
+function ACTIONS.moveLuck(arg)
+    if not (game.onTable() or game.state == "shop") then return false end
+    return luck.move(math.floor(arg / 10), arg % 10)
+end
+
 -- Sell luck item k from the rack on the play screen.
 function ACTIONS.sellRack(arg)
     if not (game.state == "placeMarker" or game.state == "play" or game.state == "roundOver") then return false end
@@ -379,7 +391,7 @@ end
 game.ACTION_NAMES = {
     "marker", "clearMarkers", "roll", "throw", "hold", "holdAll", "keep", "nextRound",
     "openShop", "endless", "finish", "sellRack", "buyDice", "buyUpgrade", "buyMarker",
-    "sellShop", "take", "selectInv", "equip", "spin", "continue", "god",
+    "sellShop", "take", "selectInv", "equip", "spin", "continue", "god", "moveLuck",
 }
 
 -- Do an action. Returns true if it did something (and, while recording,

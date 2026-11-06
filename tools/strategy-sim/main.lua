@@ -14,6 +14,29 @@ function love.load(args)
 
     local sim = require("sim")
     local strategies = require("strategies")
+    -- PERK TEST: every luck item held from the start, one at a time.
+    if os.getenv("PERKTEST") then
+        local luck = require("luck")
+        local ids = { "none" }
+        for _, id in ipairs(luck.ORDER) do if id ~= luck.STARTER then table.insert(ids, id) end end
+        local from = tonumber(os.getenv("PERKFROM") or "1")
+        for n, id in ipairs(ids) do
+          if n >= from then
+            local s = { name = id, reroll = "ev", coinWeight = 0, startLuck = id ~= "none" and { id } or nil }
+            local levels, wins = 0, 0
+            for g = 1, N do
+                require("rng").setSeed(seed + g)
+                local l = sim.playGame(s)
+                levels = levels + l
+                if l == 10 then wins = wins + 1 end
+            end
+            print(string.format("PERK	%s	%.3f	%.1f", id, levels / N, 100 * wins / N))
+            io.stdout:flush()
+          end
+        end
+        love.event.quit()
+        return
+    end
     print(string.format("%-40s %7s %8s %9s %s", "STRATEGY", "WINS", "AVG LVL", "MEDIAN", "levels cleared: 0 1 2 ... 10"))
     for n, s in ipairs(strategies) do
         if only == nil or only[n] then

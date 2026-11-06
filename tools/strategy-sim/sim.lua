@@ -275,8 +275,11 @@ local function finishRound(noReroll)
         score.levelCoins = score.levelCoins + result.winBonus
     end
     luck.onPointScored(result.sum)
-    if score.isLevelOver() and score.hasPassedLevel() and luck.givesUnlockTokens() then
-        player.unlockTokens = player.unlockTokens + 1
+    if score.isLevelOver() and score.hasPassedLevel() then
+        if luck.givesUnlockTokens() then player.unlockTokens = player.unlockTokens + 1 end
+        local interest = luck.levelEndCoins(player.coins)
+        player.addCoins(interest)
+        score.levelCoins = score.levelCoins + interest
     end
 end
 
@@ -308,6 +311,7 @@ function sim.playGame(s)
     strat = s
     score.reset(); player.reset(); boosts.reset(); upgrades.reset()
     markers.reset(); luck.reset(); luck.give(luck.STARTER)
+    for _, id in ipairs(s.startLuck or {}) do luck.give(id) end   -- perks held from the start
     while true do
         boosts.clearLevel(); markers.clear(); markers.autoSum = nil
         placeMarkers()

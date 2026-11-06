@@ -25,6 +25,53 @@ local SELL_H = 22
 -- long it has left on screen.
 local note, noteTime = "", 0
 
+-- REARRANGING luck items (main.lua fills these in; the rack and the shop
+-- both draw them):
+--   luckrack.selected - the slot picked with a click or the L key (the
+--                       arrow keys then move it), or nil
+--   luckrack.drag     - { from = slot, x, y, moved } while one is being dragged
+luckrack.selected = nil
+luckrack.drag = nil
+
+-- Which slot's picture is at (px, py) on the rack? (Held items only.)
+function luckrack.slotAt(px, py)
+    for k = 1, #luck.held do
+        if layout.isInside(px, py, luckrack.slotRect(k)) then return k end
+    end
+    return nil
+end
+
+-- Where a dragged item would land if let go at (px, py): the nearest slot.
+function luckrack.dropSlotAt(px)
+    local best, bestD = nil, math.huge
+    for k = 1, #luck.held do
+        local s = luckrack.slotRect(k)
+        local d = math.abs(px - (s.x + s.w / 2))
+        if d < bestD then best, bestD = k, d end
+    end
+    return best
+end
+
+-- The dragged item, following the mouse (drawn last, on top).
+function luckrack.drawDragged()
+    local d = luckrack.drag
+    if d and d.moved and luck.held[d.from] then
+        love.graphics.setColor(0, 0, 0, 0.4)
+        love.graphics.rectangle("fill", d.x - 30, d.y - 26, 64, 64, 8, 8)
+        luckart.picture(luck.held[d.from], d.x - 32, d.y - 32, 64)
+    end
+end
+
+-- A gold glow round a selected slot, and a faint hint how to move it.
+local function drawSelected(s)
+    local pulse = 0.6 + 0.4 * math.sin(love.timer.getTime() * 5)
+    love.graphics.setColor(1, 0.85, 0.2, pulse)
+    love.graphics.setLineWidth(3)
+    love.graphics.rectangle("line", s.x - 5, s.y - 5, s.w + 10, s.h + 10, 10, 10)
+    love.graphics.setLineWidth(1)
+end
+luckrack.drawSelected = drawSelected
+
 
 ---------------------------------------------------------------------------
 -- LAYOUT
@@ -77,7 +124,9 @@ function luckrack.draw()
         if id then
             local item = luck.get(id)
             local color = luck.rarityColor(item)
-            luckart.picture(id, s.x, s.y, s.w)
+            local lifted = luckrack.drag and luckrack.drag.moved and luckrack.drag.from == k
+            if not lifted then luckart.picture(id, s.x, s.y, s.w) end
+            if luckrack.selected == k then drawSelected(s) end
             love.graphics.setColor(color)
             love.graphics.setLineWidth(2)
             love.graphics.rectangle("line", s.x - 2, s.y - 2, s.w + 4, s.h + 4, 8, 8)
@@ -93,11 +142,15 @@ function luckrack.draw()
 
     if noteTime > 0 then
         ui.text(note, fonts.hint, r.x - 40, r.y - 20, r.w + 80, "center", { 1, 0.85, 0.3 }, true)
+    elseif luckrack.selected and luck.held[luckrack.selected] then
+        ui.text("LEFT / RIGHT to move it", fonts.hint, r.x - 40, r.y - 20, r.w + 80, "center",
+            { 1, 0.85, 0.3 }, true)
     end
 end
 
 -- The tooltip for whichever item the mouse is over (drawn on top of everything).
 function luckrack.drawTooltip()
+    if luckrack.drag and luckrack.drag.moved then return end   -- not while dragging
     for k = 1, luck.MAX_HELD do
         local s = luckrack.slotRect(k)
         if luck.held[k] and ui.isHovered(s) then

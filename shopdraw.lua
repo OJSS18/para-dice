@@ -14,6 +14,7 @@ local dicetypes = require("dicetypes")
 local score     = require("score")
 local draw      = require("draw")    -- for draw.dieImage
 local luckart   = require("luckart") -- luck item pictures and SELL buttons
+local luckrack  = require("luckrack") -- which luck item is picked / being dragged
 local fonts     = require("fonts")
 local ui        = require("ui")
 
@@ -369,6 +370,9 @@ end
 local function drawYourLuck()
     local r = shop.luckRect()
     ui.vegasWindow(r, "YOUR LUCK  " .. #luck.held .. "/" .. luck.MAX_HELD)
+    if #luck.held > 1 then
+        ui.text("drag to reorder (or L + arrows)", fonts.tiny, r.x, r.y + r.h + 1, r.w, "center", DIM)
+    end
     for k = 1, luck.MAX_HELD do
         local row = shop.luckRowRect(k)
         if k > 1 then
@@ -379,7 +383,9 @@ local function drawYourLuck()
         if id then
             local item = luck.get(id)
             local color = luck.rarityColor(item)
-            luckart.picture(id, row.x + 4, row.y + 4, shop.luckPictureSize())
+            local lifted = luckrack.drag and luckrack.drag.moved and luckrack.drag.from == k
+            if not lifted then luckart.picture(id, row.x + 4, row.y + 4, shop.luckPictureSize()) end
+            if luckrack.selected == k then luckrack.drawSelected(row) end
             luckart.sellButton(shop.luckSellRect(k), luck.sellPrice(item))
             local tx, tw = row.x + 76, row.w - 76
             ui.text(luck.RARITIES[item.rarity].label, fonts.hint, tx, row.y + 4, tw, "left", color)

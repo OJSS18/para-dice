@@ -3,13 +3,13 @@
 
 -- Luck items that help any points strategy, best first.
 local POINTS_LUCK = {
-    "showMeTheMoneyLegendary", "evenSteven", "thatsOdd", "showMeTheMoneyEpic", "secondChance",
-    "rabbitsLeg", "rabbitsFoot", "showMeTheMoneyRare", "theySeeMeRollin", "crowdFavourite",
+    "evenSteven", "thatsOdd", "secondChance",
+    "rabbitsLeg", "rabbitsFoot", "theySeeMeRollin", "crowdFavourite",
     "showMeTheMoney", "luckySeven", "pureBreed",
 }
 -- Extra ones that suit LOW dice (lots of 1s and 2s).
 local LOW_LUCK = {
-    "showMeTheMoneyLegendary", "evenSteven", "thatsOdd", "showMeTheMoneyEpic", "secondChance",
+    "evenSteven", "thatsOdd", "secondChance",
     "lowballDeluxe", "rabbitsLeg", "rabbitsFoot", "tripleThreat1", "showMeTheMoneyRare",
     "theySeeMeRollin", "doubleTrouble1", "crowdFavourite", "lowball", "snakeEyes", "showMeTheMoney",
 }
@@ -41,8 +41,8 @@ return {
     { name = "12 Odd + Even Hunter", reroll = "ev", coinWeight = 1,
       shopOrder = { "spin", "dice", "upgrades" }, dice = { "amber", "blue" }, upgrades = { "lower" },
       spin = true, luckAvoid = AVOID, luckPrefs = {
-          "evenSteven", "thatsOdd", "showMeTheMoneyLegendary", "showMeTheMoneyEpic", "secondChance",
-          "rabbitsLeg", "rabbitsFoot", "showMeTheMoneyRare", "theySeeMeRollin", "lowballDeluxe",
+          "evenSteven", "thatsOdd", "secondChance",
+          "rabbitsLeg", "rabbitsFoot", "theySeeMeRollin", "lowballDeluxe",
           "crowdFavourite", "showMeTheMoney" } },
     { name = "13 Spin First, no Even+Odd combo", reroll = "ev", coinWeight = 1,
       shopOrder = { "spin", "dice", "upgrades" }, dice = { "amber", "blue" }, upgrades = { "lower" },
