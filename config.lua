@@ -47,9 +47,9 @@ config.DIE_WALL_BOUNCE      = 0.6   -- 0 = dead stop on a wall, 1 = perfect boun
 config.DIE_ROLL_FRICTION    = 1150  -- how hard the felt slows a rolling die (per second)
 config.DIE_ROLL_DRAG        = 0.9   -- extra slowing that's stronger the faster it rolls
 
--- The tumble pictures are 192x192, with the die body about 130 pixels wide
+-- The tumble pictures are 216x216, with the die body 130 pixels wide
 -- in the middle. They're scaled so that body is the die size we want.
-config.TUMBLE_FRAME_SIZE = 192
+config.TUMBLE_FRAME_SIZE = 216
 config.TUMBLE_BODY_SIZE  = 130
 
 -- The craps table
@@ -102,7 +102,7 @@ config.BUTTON_H = 56
 -- God mode (testing only - see godmode.lua)
 -- The game's version, shown small in the bottom-right corner. Bump it
 -- (and add a line to CHANGELOG.md) whenever you put out a new version.
-config.VERSION = "0.0.1"
+config.VERSION = "0.0.2"
 
 config.GOD_MODE_ENABLED = true  -- set to false before you share the game
 config.GOD_MODE_COINS   = 100   -- coins given each time god mode is used

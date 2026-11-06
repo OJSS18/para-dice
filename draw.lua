@@ -103,8 +103,8 @@ local function drawFrame(color, frameId, cx, cy, size, angle)
     local image = frames[color][frameId]
     -- Scale so the die BODY (not the whole see-through picture) is 'size' wide.
     local scale = size / config.TUMBLE_BODY_SIZE
-    -- The last two numbers (96, 96) are the "origin": the point in the
-    -- picture placed at (cx, cy). 96 is half of 192 - the picture's centre.
+    -- The last two numbers (half, half) are the "origin": the point in the
+    -- picture placed at (cx, cy): the middle of the 216x216 picture.
     local half = config.TUMBLE_FRAME_SIZE / 2
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(image, cx, cy, angle, scale, scale, half, half)
