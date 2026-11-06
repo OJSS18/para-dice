@@ -44,6 +44,7 @@
 --   replaycode.lua  - turning a run into a shareable REPLAY CODE and back
 --   replay.lua    - WATCHING a replay: a bot plays the code's actions back
 --   verify.lua    - checks an online leaderboard run is real by replaying its code
+--   transition.lua- the sliding SWOOSH between the table and the shop
 --   net.lua       - web requests (online leaderboard) and the clipboard
 --   json.lua      - reading and writing JSON, the web's text format
 --   controlsguide.lua - the list of controls shown when you press C
@@ -88,6 +89,7 @@ local replaycode    = require("replaycode")
 local replay        = require("replay")
 local net           = require("net")
 local godmode       = require("godmode")
+local transition    = require("transition")
 
 -- Which screen is showing:
 --   "menu"        - the main menu
@@ -249,6 +251,7 @@ function love.load()
     settings.load()                    -- remembered settings (if any)
     profiles.load()                    -- who's logged in, and everyone's stats
     leaderboard.load()                 -- the runs saved on this device
+    transition.load()                  -- make the swoosh sounds
     music.start(settings.values.musicVolume)
 end
 
@@ -263,6 +266,8 @@ local REFRESH_EVERY = 20   -- seconds
 
 function love.update(dt)
     net.update()
+    transition.update(dt)
+    transition.setVolume(settings.values.musicVolume)
     if screen == "leaderboard" then
         leaderboard.update()   -- check downloaded runs are real (see verify.lua)
     end
@@ -287,7 +292,11 @@ function love.update(dt)
     replay.update(dt)
 end
 
-function love.draw()
+-- Was the shop showing last frame? (A change starts a slide.)
+local wasInShop = nil
+
+-- The screen itself (everything that slides during a transition).
+local function drawScene()
     if screen == "menu" then
         menu.drawMain()
     elseif screen == "playMenu" then
@@ -315,6 +324,19 @@ function love.draw()
                 0, 90, love.graphics.getWidth(), "center", { 1, 0.4, 0.35 }, true)
         end
     end
+end
+
+function love.draw()
+    -- Going into the shop, or coming back out to the table: slide + swoosh.
+    -- (Only within a run - not when a new run starts or you leave to the menu.)
+    local inShop = inRun() and game.state == "shop"
+    if not inRun() then
+        wasInShop = nil
+    elseif wasInShop ~= nil and inShop ~= wasInShop then
+        transition.start(inShop)
+    end
+    if inRun() then wasInShop = inShop end
+    transition.draw(drawScene)
 
     -- The version number, small, in the bottom-right corner.
     local W, H = love.graphics.getWidth(), love.graphics.getHeight()
@@ -558,6 +580,7 @@ end
 -- when the "click" was really a finger (LÖVE turns taps into clicks).
 function love.mousepressed(x, y, button, istouch)
     if button ~= 1 then return end
+    if transition.isActive() then return end   -- wait for the slide to finish
     ui.touchMode = istouch == true
 
     -- Clicking anywhere closes the controls list or the odds panel.

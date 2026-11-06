@@ -90,7 +90,7 @@ function leaderboard.fetchOnline(mode, quietly)
         leaderboard.onlineStatus = "loading"
     end
     local url = config.ONLINE_URL .. "/rest/v1/runs?select=username,mode,level,points,code,created_at"
-        .. "&mode=eq." .. mode .. "&version=eq." .. config.VERSION
+        .. "&mode=eq." .. mode .. "&version=eq." .. config.RULES_VERSION
         .. "&order=level.desc,points.desc,created_at.asc&limit=200"
     net.request("GET", url, headers(), nil, function(status, text)
         local list = (status == 200) and json.decode(text)
@@ -136,7 +136,7 @@ function leaderboard.submit(run)
     -- new run shows up there straight away.
     if leaderboard.isOnline() and not run.god and run.code then
         local body = json.encode({ username = run.name, mode = run.mode, level = run.level,
-            points = run.points, code = run.code, version = config.VERSION })
+            points = run.points, code = run.code, version = config.RULES_VERSION })
         net.request("POST", config.ONLINE_URL .. "/rest/v1/runs", headers(), body, function()
             leaderboard.fetchOnline(run.mode, true)
         end)

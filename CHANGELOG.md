@@ -2,6 +2,14 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.1.1 - 2026-11-06
+
+- Shop transitions: at the end of a level the table slides away and the shop slides in
+  with a soft swoosh; CONTINUE slides the table back in with a matching swoosh.
+  (The swooshes are made in code, so the download didn't grow.)
+- The online leaderboard is live (Supabase). Seasons now follow a separate rules version,
+  so looks-only updates like this one keep everyone's runs on the board.
+
 ## v0.1.0 - 2026-11-06
 
 - New MAIN MENU on a blue felt table, with the big Para-DICE logo in marquee lights:

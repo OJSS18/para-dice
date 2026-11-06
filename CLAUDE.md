@@ -13,7 +13,7 @@ A dice roguelite (Yahtzee meets craps) in LÖVE 11 / Lua. The owner is a beginne
 
 ## Code layout rules
 - main.lua's header lists every module. Shared helpers (rect, isInside, clamp, lerp, round, sum, countFaces, pickWeighted, randomBetween) live in `util.lua` - use them instead of writing local copies. Logic files never draw, and drawing files never change game data.
-- `config.lua` holds every tweakable number. `config.VERSION` shows bottom-right. Bump it and add a `CHANGELOG.md` entry (and update the README's "Current version") for each shipped change.
+- `config.lua` holds every tweakable number. `config.VERSION` shows bottom-right. Bump it and add a `CHANGELOG.md` entry (and update the README's "Current version") for each shipped change. Bump `config.RULES_VERSION` too ONLY if old replay codes could play out differently (it resets the online leaderboard season).
 - **Replays depend on two rules:** every game-changing player input must go through `game.act(name, arg)` (main.lua never changes game data directly), and all game randomness must use `rng.random` (seeded per run), never `love.math.random` (that's for animations only). `game.ACTION_NAMES` order is part of the replay-code format: only ever add to the end.
 - Dice results are chosen in `dice.lua` before a throw. `animation.lua` only moves the dice and picks pictures, so it must never change `dice.values`.
 
