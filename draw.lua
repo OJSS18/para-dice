@@ -114,7 +114,7 @@ end
 -- in your hand). Dice picked to throw glow gold; dice not thrown yet this
 -- round are shown dimmed (they still show last round's face). HELD dice
 -- glow gold and say HELD.
-local function drawTrayDice()
+local function drawTrayDice(state)
     for i = 1, config.NUM_DICE do
         local slot = layout.traySlot(i)
 
@@ -148,11 +148,13 @@ local function drawTrayDice()
         end
     end
 
-    -- A "THROW 5" / "REROLL 3" tag above the tray, saying how many dice go next.
-    if dice.canThrow() and not animation.isRolling() and not animation.isHolding() then
+    -- A "REROLL 3" tag above the tray, saying how many dice the reroll sends.
+    -- Only for REROLLS while playing: the first throw always sends all 5,
+    -- so it needs no tag.
+    local rerolling = state == "play" and dice.allThrown() and dice.canReroll()
+    if rerolling and dice.countToThrow() > 0 and not animation.isRolling() and not animation.isHolding() then
         local t = layout.tray()
-        local label = dice.allThrown() and "REROLL" or "THROW"
-        ui.text(label .. " " .. dice.countToThrow(), fonts.heading, t.x, t.y - 32, t.w, "center",
+        ui.text("REROLL " .. dice.countToThrow(), fonts.heading, t.x, t.y - 32, t.w, "center",
             { 1, 0.85, 0.1 }, true)
     end
 end
@@ -213,7 +215,7 @@ function draw.playScreen(state)
         scoreboard.drawScoreLine(score.lastRound, score.lastRound.noReroll)
     end
     luckrack.draw()          -- your luck items, right of the tray
-    drawTrayDice()
+    drawTrayDice(state)
     drawMovingDice()
     banner.draw(state)
     luckrack.drawTooltip()   -- what the hovered luck item does, on top
