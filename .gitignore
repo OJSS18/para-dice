@@ -1,0 +1,6 @@
+# Local tool settings (paths only make sense on this PC)
+.claude/
+
+# Unused font with a non-commercial-only licence - keep it out of the public repo
+assets/fonts/Qager-zrlmw.ttf
+assets/fonts/info.txt

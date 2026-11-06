@@ -1,0 +1,62 @@
+* {
+    box-sizing: border-box;
+}
+
+h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    color: rgb(255, 210, 70);
+    letter-spacing: 4px;
+    text-shadow: 0 0 12px rgba(255, 190, 60, 0.6), 2px 3px 0 #000;
+    margin: 14px 0 10px 0;
+}
+
+body {
+    font-family: arial;
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(ellipse at top, #4a0a14 0%, #1a0306 70%);
+    background-attachment: fixed;
+    color: rgb(240, 225, 200);
+    min-height: 100vh;
+}
+
+footer {
+    font-family: arial;
+    font-size: 12px;
+    padding: 8px 10px;
+    text-align: center;
+    color: rgba(240, 225, 200, 0.7);
+}
+
+button {
+    background: linear-gradient(#ffd34a, #c98a10);
+    border: 1px solid #7a4a00;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Links */
+a {
+    text-decoration: none;
+}
+a:link, a:visited {
+    color: rgb(255, 200, 80);
+}
+a:hover {
+    color: rgb(255, 240, 180);
+}
+
+/* A gold frame round the game */
+#canvas, #loadingCanvas {
+    box-shadow: 0 0 0 4px #c9971f, 0 0 30px rgba(255, 190, 60, 0.35);
+}
+
+/* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+#canvas {
+    padding-right: 0;
+    display: block;
+    border: 0px none;
+    visibility: hidden;
+}
