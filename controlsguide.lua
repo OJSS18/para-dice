@@ -40,9 +40,11 @@ local SECTIONS = {
         { "Space  /  VISIT THE SHOP", "After LEVEL CLEAR: go to the shop" },
     } },
     { title = "SHOP", items = {
-        { "Click a card",               "Buy it (dice, luck item or upgrade)" },
+        { "Click a card",               "Buy it (dice or upgrade)" },
         { "MARKERS  +1",                "Buy another white chip to place each level" },
-        { "SPIN  /  click the reel",    "Mystery Machine: 30 coins for a random luck item" },
+        { "SPIN",                       "Mystery Machine: 30 coins, 3 luck items come up" },
+        { "Click a reel",               "Keep that luck item (one per spin, 3 slots max)" },
+        { "SELL",                       "Sell a luck item for half its value (shop or play screen)" },
         { "Click inventory die, then one of your dice", "Swap it in" },
         { "Enter  /  CONTINUE",         "Start the next level" },
     } },
@@ -99,7 +101,7 @@ function controlsguide.draw()
 
     -- The card the list sits on.
     local cardW = math.min(860, W - 80)
-    local cardH = math.min(700, H - 30)
+    local cardH = math.min(740, H - 20)
     local x, y = (W - cardW) / 2, (H - cardH) / 2
     love.graphics.setColor(0.10, 0.04, 0.07, 0.97)
     love.graphics.rectangle("fill", x, y, cardW, cardH, 16, 16)
@@ -118,13 +120,19 @@ function controlsguide.draw()
     local keyW = cardW * 0.40
     local left = x + 36
     local rowY = y + 80
-    local lineH = 19
+    -- Rows are 19 pixels apart - or closer, if that's what it takes for
+    -- the whole list to fit inside the card.
+    local itemCount = 0
+    for _, s in ipairs(sections) do itemCount = itemCount + #s.items end
+    local room = (y + cardH - 14) - rowY - #sections * 25
+    local lineH = math.min(19, room / itemCount)
+    local font = lineH < 18 and fonts.tiny or fonts.small
     for _, s in ipairs(sections) do
         ui.text(s.title, fonts.heading, left, rowY, cardW - 72, "left", { 1, 0.45, 0.35 })
         rowY = rowY + 22
         for _, item in ipairs(s.items) do
-            ui.text(item[1], fonts.small, left + 12, rowY, keyW - 20, "left", { 1, 0.9, 0.3 })
-            ui.text(item[2], fonts.small, left + keyW, rowY, cardW - keyW - 72, "left", { 1, 0.95, 0.88 })
+            ui.text(item[1], font, left + 12, rowY, keyW - 20, "left", { 1, 0.9, 0.3 })
+            ui.text(item[2], font, left + keyW, rowY, cardW - keyW - 72, "left", { 1, 0.95, 0.88 })
             rowY = rowY + lineH
         end
         rowY = rowY + 3

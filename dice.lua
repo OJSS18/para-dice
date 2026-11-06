@@ -45,6 +45,9 @@ dice.rerollsLeft  = config.MAX_REROLLS
 -- true once the player has pressed KEEP this round (the round is decided).
 dice.decided = false
 
+-- The sum of this round's FIRST throw (Comeback Kid compares against it).
+dice.firstSum = nil
+
 
 ---------------------------------------------------------------------------
 -- HELPERS (only used inside this file, so they're 'local', not 'dice.')
@@ -52,10 +55,10 @@ dice.decided = false
 
 -- Roll die number i and return its new value (1-6).
 -- Each slot can hold a different TYPE of die (white, red, ...), and each
--- type has its own odds. A held luck item can tilt the odds further.
+-- type has its own odds. A luck item can tilt them (Loaded Die).
 local function rollDie(i)
     local dieType = dicetypes.get(player.loadout[i])
-    local weights = luck.applyTo(dieType.weights)
+    local weights = luck.applyTo(dieType.weights, i)
     return dicetypes.pickFace(weights)
 end
 
@@ -167,8 +170,9 @@ function dice.newRound()
         dice.held[i] = false
     end
     dice.total = 0
+    dice.firstSum = nil
     -- Rerolls for this round: normally MAX_REROLLS, but a luck item can
-    -- add one (They See Me Rollin') or take them all away (Addict).
+    -- add some (They See Me Rollin', Second Chance) or take them all away (Addict).
     dice.rerollsGiven = luck.rerollsPerRound(config.MAX_REROLLS)
     dice.rerollsLeft  = dice.rerollsGiven
     dice.decided = false
@@ -228,6 +232,9 @@ function dice.throw()
     end
 
     dice.total = sumValues()
+    if not isReroll then
+        dice.firstSum = dice.total   -- the first throw always sends all 5
+    end
     return true, which
 end
 

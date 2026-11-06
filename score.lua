@@ -194,17 +194,22 @@ function score.tileValue(sum)
 end
 
 -- Work out a round's points WITHOUT saving anything.
---   1. Start from the tile's value, plus any flat bonus (Show Me The Money).
+--   1. Start from the tile's value, plus any flat bonus (Show Me The Money)
+--      and any flat bonus from luck items (Snake Eyes +15...).
 --   2. Multiply by everything that applies - they all stack:
 --        point boosts (Run it Back, Rabbit's Foot/Leg...)
 --        shop upgrades (EVEN, ODD, LOWER 13, UPPER 13, HOT FOUR)
 --        x1.5 if a marker is on this sum
---        x2 for Even Steven / That's Odd
+--        luck items that pay for these dice (Sky High, Even Steven...)
 --        x1.1 for KEEP with no reroll
 --   3. Round once, at the very end.
+-- 'values' is the list of 5 dice faces. 'rerolled' = the player rerolled,
+-- 'firstSum' = the sum of the first throw (for Comeback Kid).
 -- Returns a table describing the result, e.g.
---   { base = 55, flat = 100, boostMult = 1.1, marker = true, luckMult = 1, points = 285 }
-function score.calculate(sum, noReroll)
+--   { base = 55, flat = 100, boostMult = 1.1, marker = true, points = 285,
+--     perks = { {name = "Sky High", mult = 1.5, flat = 0, coins = 0} }, ... }
+function score.calculate(values, noReroll, rerolled, firstSum)
+    local sum = sumOf(values)
     local r = {
         sum         = sum,
         base        = score.pointsForSum(sum),
@@ -212,13 +217,46 @@ function score.calculate(sum, noReroll)
         boostMult   = boosts.multiplierFor(sum),
         upgradeMult = upgrades.multiplierFor(sum),
         marker      = markers.isOnSum(sum),
-        luckMult    = luck.sumMultiplier(sum),
     }
-    local multiplier = r.boostMult * r.upgradeMult * markers.pointsMultiplier(sum) * r.luckMult
+
+    -- Luck items that pay out for these exact dice.
+    local facts = luck.diceFacts(values, {
+        noReroll = noReroll, rerolled = rerolled,
+        points = score.tileValue(sum),
+        firstPoints = firstSum and score.tileValue(firstSum),
+    })
+    r.perks = luck.roundBonuses(facts)
+    r.perkMult, r.perkFlat, r.perkCoins = 1, 0, 0
+    for _, p in ipairs(r.perks) do
+        r.perkMult  = r.perkMult * p.mult
+        r.perkFlat  = r.perkFlat + p.flat
+        r.perkCoins = r.perkCoins + p.coins
+    end
+
+    local multiplier = r.boostMult * r.upgradeMult * markers.pointsMultiplier(sum) * r.perkMult
     if noReroll then
         multiplier = multiplier * score.keepMultiplier()
     end
-    r.points = roundToWhole((r.base + r.flat) * multiplier)
+    local points = (r.base + r.flat + r.perkFlat) * multiplier
+
+    -- HOT STREAK: beat the round before (before its own streak bonus) and
+    -- the streak grows; miss and it's back to zero.
+    r.pre = points
+    if luck.has("hotStreak") then
+        if score.lastPre and points > score.lastPre then
+            r.streak = luck.streak + 1
+        else
+            r.streak = 0
+        end
+        if r.streak > 0 then
+            local m = 1 + 0.25 * r.streak
+            table.insert(r.perks, { name = "Hot Streak", mult = m, flat = 0, coins = 0 })
+            r.perkMult = r.perkMult * m
+            points = points * m
+        end
+    end
+
+    r.points = roundToWhole(points)
     return r
 end
 
@@ -239,8 +277,9 @@ score.formatMult = fmtMult
 
 function score.breakdown(r, noReroll)
     local baseText = tostring(r.base)
-    if (r.flat or 0) > 0 then
-        baseText = "(" .. r.base .. " + " .. r.flat .. ")"
+    local flat = (r.flat or 0) + (r.perkFlat or 0)
+    if flat > 0 then
+        baseText = "(" .. r.base .. " + " .. flat .. ")"
     end
     local mult, sources = 1, {}
     local function add(m, name)
@@ -251,7 +290,9 @@ function score.breakdown(r, noReroll)
     end
     add(r.boostMult, "boost")
     add(r.upgradeMult, "upgrades")
-    add(r.luckMult, r.sum and r.sum % 2 == 0 and "Even Steven" or "That's Odd")
+    for _, p in ipairs(r.perks or {}) do
+        add(p.mult, p.name)
+    end
     local marked = r.marker
     if marked == nil then marked = r.markerPoints end
     if marked then add(markers.MULTIPLIER, "marker") end
@@ -323,7 +364,8 @@ function score.bestHand(values)
     for _, hand in ipairs(score.COIN_HANDS) do
         if score.matchesHand(hand.id, values) then
             local coins = roundToWhole(score.handCoins(hand, values)
-                * markers.coinsMultiplier(hand.id) * luck.coinsMultiplier())
+                * markers.coinsMultiplier(hand.id) * luck.handCoinsMultiplier(hand.id)
+                * luck.coinsMultiplier())
             if coins > bestCoins then
                 bestHand, bestCoins = hand, coins
             end
@@ -340,18 +382,23 @@ end
 -- Score a finished round from its 5 final dice values.
 -- Adds the points to the totals, works out the coins, and saves the round.
 -- Returns the saved entry (main.lua uses entry.coins to pay the player).
-function score.recordRound(values, noReroll)
-    local sum = sumOf(values)
-    local calc = score.calculate(sum, noReroll)
+function score.recordRound(values, noReroll, rerolled, firstSum)
+    local calc = score.calculate(values, noReroll, rerolled, firstSum)
+    local sum = calc.sum
     local hand, coins = score.bestHand(values)
 
-    -- F*** You Pay Me: coins equal to the point's tile value (doubled by Cash
-    -- is King too, though you can only hold one item at a time anyway).
+    -- F*** You Pay Me: coins equal to the point's tile value (doubled by Cash is King too).
     local payMe = roundToWhole(luck.payMeCoins(score.tileValue(sum)) * luck.coinsMultiplier())
+    -- Coins from luck items (Pocket Change, Steady Hand, Yahtzee Gods).
+    local perkCoins = roundToWhole(calc.perkCoins * luck.coinsMultiplier())
+
+    -- Remember this round for Hot Streak.
+    score.lastPre = calc.pre
+    if calc.streak then luck.streak = calc.streak end
 
     score.round      = score.round + 1
     score.levelTotal = score.levelTotal + calc.points
-    score.levelCoins = score.levelCoins + coins + payMe
+    score.levelCoins = score.levelCoins + coins + payMe + perkCoins
     score.total      = score.total + calc.points
 
     local entry = {
@@ -363,13 +410,16 @@ function score.recordRound(values, noReroll)
         points   = calc.points,
         -- 'hand and hand.name' = the hand's name, or nil if there's no hand.
         hand     = hand and hand.name,
-        coins    = coins + payMe,
+        handCoins = coins,
+        coins    = coins + payMe + perkCoins,
         payMe    = payMe,
+        perkCoins = perkCoins,
         -- What boosted this round (for the round result text)
         flat         = calc.flat,
         boostMult    = calc.boostMult,
         upgradeMult  = calc.upgradeMult,
-        luckMult     = calc.luckMult,
+        perks        = calc.perks,
+        perkFlat     = calc.perkFlat,
         markerPoints = calc.marker,
         markerCoins  = hand ~= nil and markers.isOnHand(hand.id),
     }
@@ -425,6 +475,7 @@ function score.reset()
     score.total      = 0
     score.history    = {}
     score.lastRound  = nil
+    score.lastPre    = nil
 end
 
 return score

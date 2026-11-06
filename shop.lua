@@ -1,16 +1,17 @@
 -- shop.lua
 -- The SHOP between levels: what's for sale, buying, the Mystery Machine,
--- swapping dice into your 5 slots, and WHERE everything sits on screen.
+-- selling luck items, swapping dice into your 5 slots, and WHERE
+-- everything sits on screen.
 --
 -- What's on offer each visit (each in its own Vegas-style window):
---   * DICE     - 2 random coloured dice. Bought dice go to your inventory;
---                then you swap one into any of your 5 slots.
---   * LUCK     - 2 random luck items (you hold one at a time; buying
---                replaces it). Odds by rarity: 40/30/20/9/1 %.
---                No rare or epic items before level 4.
---   * UPGRADES - 2 random upgrades, e.g. "EVEN LVL1" (+0.25x on even sums).
---   * THE MYSTERY MACHINE - a one-reel slot machine: 30 coins a spin for a
---                random luck item. Odds 20/35/25/15/5 %, any rarity, any level.
+--   * DICE      - 2 random coloured dice. Bought dice go to your inventory;
+--                 then you swap one into any of your 5 slots.
+--   * UPGRADES  - 2 random upgrades, e.g. "EVEN LVL1" (+0.25x on even sums).
+--   * YOUR LUCK - the luck items you hold (up to 3). SELL any of them.
+--   * THE MYSTERY MACHINE - a THREE-reel slot machine: 30 coins a spin.
+--                 Each reel lands on a random luck item and you pick ONE.
+--                 Odds by rarity 30/30/22/13/5 %. Luck items can't be got
+--                 any other way. If your 3 slots are full, sell one first.
 --
 -- This file is LOGIC + LAYOUT. The drawing lives in shopdraw.lua.
 
@@ -30,22 +31,27 @@ local shop = {}
 
 shop.CARD_W      = 160   -- each item card
 shop.CARD_H      = 270
-shop.CARD_GAP    = 12    -- gap between the two cards in a window
+shop.CARD_GAP    = 12    -- gap between the cards in a window
 shop.WINDOW_PAD  = 14    -- space between a window's frame and its cards
 shop.WINDOW_HEAD = 34    -- room at the top of a window for its title plate
-shop.WINDOW_GAP  = 18    -- gap between the three windows
+shop.WINDOW_GAP  = 18    -- gap between the top windows
 
 shop.SLOT_SIZE   = 76    -- your 5 equipped dice
 shop.SLOT_GAP    = 12
 shop.INV_SIZE    = 58    -- dice in your inventory
 shop.INV_GAP     = 10
 
-shop.MACHINE_W   = 230   -- the Mystery Machine cabinet
-shop.MACHINE_H   = 320
-shop.MYSTERY_PRICE = 30
-shop.SPIN_TIME   = 2.6   -- seconds the reel spins for
+shop.LUCK_W      = 360   -- the YOUR LUCK window (top right)
 
-shop.CONTINUE_W  = 260
+shop.MACHINE_W   = 520   -- the Mystery Machine cabinet
+shop.MACHINE_H   = 320
+shop.REELS       = 3
+shop.REEL_W      = 148
+shop.REEL_GAP    = 14
+shop.MYSTERY_PRICE = 30
+shop.SPIN_TIME   = 2.2   -- seconds the FIRST reel spins for...
+shop.REEL_DELAY  = 0.45  -- ...and each next reel stops this much later
+
 shop.CONTINUE_H  = 56
 
 -- The whole shop is this tall; it's centred top-to-bottom on screen.
@@ -58,12 +64,11 @@ local SHOP_HEIGHT = 748
 
 -- What's for sale:
 --   dice     = { "red", "amber" }
---   luck     = { "addict", "rabbitsLeg" }
 --   upgrades = { {id = "even", label = "EVEN LVL1", price = 25}, ... }
-shop.stock = { dice = {}, luck = {}, upgrades = {} }
+shop.stock = { dice = {}, upgrades = {} }
 
 -- sold.dice[1] = true once the first dice card has been bought, etc.
-shop.sold = { dice = {}, luck = {}, upgrades = {} }
+shop.sold = { dice = {}, upgrades = {} }
 
 -- Which inventory die is picked, waiting to be swapped into a slot (or nil).
 shop.selectedInv = nil
@@ -71,16 +76,18 @@ shop.selectedInv = nil
 -- A line of feedback ("Bought Dice of Red!", ...).
 shop.message = ""
 
--- The level the player is about to play (decides whether rare/epic can show).
+-- The level the player is about to play.
 shop.nextLevel = 1
 
 -- THE MYSTERY MACHINE
---   strip     - the list of item ids painted on the reel, top to bottom;
---               the LAST one is where it stops (the prize)
---   spinning  - true while the reel is turning
+--   reels[k]  - { strip = {...}, prize = id }: the item ids painted on
+--               reel k, top to bottom; the LAST one is where it stops (the
+--               prize). Before the first spin, prize is nil.
+--   spinning  - true while any reel is turning
 --   time      - seconds since this spin started
---   prize     - the item id it's going to land on (or landed on)
-shop.machine = { strip = {}, spinning = false, time = 0, prize = nil }
+--   taken     - which reel's prize the player picked (nil = not yet)
+--   warned    - true once we've warned that an untaken prize will be lost
+shop.machine = { reels = {}, spinning = false, time = 0, taken = nil, warned = false }
 
 
 ---------------------------------------------------------------------------
@@ -102,18 +109,27 @@ local function pickDifferent(list, count)
     return picked
 end
 
--- Fast at first, slowing to a stop - for the reel.
+-- Fast at first, slowing to a stop - for the reels.
 local function easeOut(p)
     return 1 - (1 - p) ^ 3
 end
 
--- Some random items to paint on the reel (just for show).
+-- Some random items to paint on a reel (just for show).
 local function randomStrip(count)
     local strip = {}
     for i = 1, count do
-        strip[i] = luck.randomItem("mystery")
+        strip[i] = luck.randomItem()
     end
     return strip
+end
+
+-- Three idle reels showing random items, with no prizes on them.
+local function idleReels()
+    local reels = {}
+    for k = 1, shop.REELS do
+        reels[k] = { strip = randomStrip(3), prize = nil }
+    end
+    return reels
 end
 
 
@@ -127,11 +143,6 @@ function shop.open(nextLevel)
 
     shop.stock.dice = pickDifferent(dicetypes.shopTypes(), 2)
 
-    -- Two different luck items, picked by the shop's rarity odds. Passing
-    -- the level keeps rare and epic out until level 4.
-    local first = luck.randomItem("shop", {}, nextLevel)
-    shop.stock.luck = { first, luck.randomItem("shop", { first }, nextLevel) }
-
     -- Two different random upgrades, then KEEP BONUS (always there),
     -- each priced for its NEXT level.
     shop.stock.upgrades = {}
@@ -142,12 +153,12 @@ function shop.open(nextLevel)
             { id = id, label = upgrades.nextLabel(id), price = upgrades.nextPrice(id) })
     end
 
-    shop.sold = { dice = {}, luck = {}, upgrades = {} }
+    shop.sold = { dice = {}, upgrades = {} }
     shop.selectedInv = nil
     shop.message = "Welcome to the shop!"
 
-    -- An idle reel showing a few random items.
-    shop.machine = { strip = randomStrip(3), spinning = false, time = 0, prize = nil }
+    -- Idle reels showing a few random items.
+    shop.machine = { reels = idleReels(), spinning = false, time = 0, taken = nil, warned = false }
 end
 
 -- Buy dice card k (1 or 2).
@@ -163,31 +174,17 @@ function shop.buyDice(k)
     shop.message = "Bought " .. dieType.name .. "! It's in your inventory."
 end
 
--- Give the player a luck item and say what happened.
-local function takeLuckItem(id, prefix)
-    local item = luck.get(id)
-    local old = luck.current
-    luck.give(id)
-    if old and old ~= id then
-        shop.message = prefix .. item.name .. "! (replaced " .. luck.get(old).name .. ")"
-    else
-        shop.message = prefix .. item.name .. "!  " .. luck.durationText(item) .. "."
-    end
+-- Sell the luck item in slot k of YOUR LUCK.
+function shop.sellLuck(k)
+    local id = luck.held[k]
+    if id == nil then return end
+    local name = luck.get(id).name
+    local coins = luck.sell(k)
+    player.addCoins(coins)
+    shop.message = "Sold " .. name .. " for " .. coins .. " coins."
 end
 
--- Buy luck card k (1 or 2).
-function shop.buyLuck(k)
-    if shop.sold.luck[k] then return end
-    local item = luck.get(shop.stock.luck[k])
-    if not player.spend(luck.price(item)) then
-        shop.message = "Not enough coins for " .. item.name .. "."
-        return
-    end
-    shop.sold.luck[k] = true
-    takeLuckItem(item.id, "Bought ")
-end
-
--- Buy upgrade card k (1 or 2): one more level of that upgrade.
+-- Buy upgrade card k (1 to 3): one more level of that upgrade.
 function shop.buyUpgrade(k)
     if shop.sold.upgrades[k] then return end
     local offer = shop.stock.upgrades[k]
@@ -215,48 +212,117 @@ function shop.buyMarker()
     shop.message = "+1 MARKER!  You now have " .. markers.owned .. " chips to place each level."
 end
 
+
+---------------------------------------------------------------------------
+-- THE MYSTERY MACHINE
+---------------------------------------------------------------------------
+
+-- Have the reels landed on prizes that nobody has taken yet?
+function shop.hasUntakenPrizes()
+    local m = shop.machine
+    return not m.spinning and m.reels[1] ~= nil and m.reels[1].prize ~= nil and m.taken == nil
+end
+
 -- Pull the Mystery Machine's lever.
 function shop.pullMystery()
     local m = shop.machine
     if m.spinning then return end
+    -- Spinning again throws away prizes you haven't picked - warn once.
+    if shop.hasUntakenPrizes() and not m.warned then
+        m.warned = true
+        shop.message = "You haven't picked a prize! SPIN again to give them up."
+        return
+    end
     if not player.spend(shop.MYSTERY_PRICE) then
         shop.message = "The Mystery Machine costs " .. shop.MYSTERY_PRICE .. " coins."
         return
     end
 
-    -- Decide the prize NOW, then build a reel that ends on it. The spin is
-    -- just for show - like the dice, the result is picked first.
-    m.prize = luck.randomItem("mystery")
-    m.strip = randomStrip(26)
-    -- Start the new reel on whatever was showing, so it doesn't jump.
-    m.strip[1] = shop.machine.strip[#shop.machine.strip] or m.strip[1]
-    table.insert(m.strip, m.prize)
+    -- Decide the 3 prizes NOW (all different, and none you already hold),
+    -- then build each reel so it ends on its prize. The spin is just for
+    -- show - like the dice, the result is picked first.
+    local exclude = {}
+    for _, id in ipairs(luck.held) do
+        table.insert(exclude, id)
+    end
+    for k = 1, shop.REELS do
+        local old = m.reels[k]
+        local prize = luck.randomItem(exclude)
+        table.insert(exclude, prize)
+        -- Later reels spin longer, so they get longer strips.
+        local strip = randomStrip(20 + 6 * k)
+        -- Start the new strip on whatever was showing, so it doesn't jump.
+        strip[1] = old.strip[#old.strip] or strip[1]
+        table.insert(strip, prize)
+        m.reels[k] = { strip = strip, prize = prize }
+    end
     m.time = 0
     m.spinning = true
-    shop.message = "Round and round it goes..."
+    m.taken = nil
+    m.warned = false
+    shop.message = "Round and round they go..."
 end
 
--- Move the reel along. Called every frame from love.update while in the shop.
+-- How long reel k spins for (each one stops a little after the one before).
+function shop.reelSpinTime(k)
+    return shop.SPIN_TIME + (k - 1) * shop.REEL_DELAY
+end
+
+-- Has reel k stopped?
+function shop.reelStopped(k)
+    local m = shop.machine
+    return not m.spinning or m.time >= shop.reelSpinTime(k)
+end
+
+-- Move the reels along. Called every frame from love.update while in the shop.
 function shop.update(dt)
     local m = shop.machine
     if not m.spinning then return end
     m.time = m.time + dt
-    if m.time >= shop.SPIN_TIME then
+    if m.time >= shop.reelSpinTime(shop.REELS) then
         m.spinning = false
-        takeLuckItem(m.prize, "MYSTERY MACHINE: ")
+        if luck.isFull() then
+            shop.message = "Your luck slots are full - SELL one in YOUR LUCK, then pick a prize!"
+        else
+            shop.message = "Pick ONE prize - click its reel!"
+        end
     end
 end
 
--- How far the reel has turned, in "items": 0 shows strip[1], 1 shows strip[2]...
+-- How far reel k has turned, in "items": 0 shows strip[1], 1 shows strip[2]...
 -- It eases out, so the reel slows down before it stops on the prize.
-function shop.reelPosition()
+function shop.reelPosition(k)
     local m = shop.machine
-    local last = #m.strip - 1
-    if not m.spinning then
+    local last = #m.reels[k].strip - 1
+    if shop.reelStopped(k) then
         return last
     end
-    return last * easeOut(math.min(1, m.time / shop.SPIN_TIME))
+    return last * easeOut(m.time / shop.reelSpinTime(k))
 end
+
+-- Take the prize on reel k.
+function shop.takePrize(k)
+    local m = shop.machine
+    if m.spinning then return end
+    local prize = m.reels[k].prize
+    if prize == nil then return end
+    if m.taken then
+        shop.message = "You've already picked this spin's prize."
+        return
+    end
+    if luck.isFull() then
+        shop.message = "Your " .. luck.MAX_HELD .. " luck slots are full - SELL one in YOUR LUCK first."
+        return
+    end
+    luck.give(prize)
+    m.taken = k
+    shop.message = "MYSTERY MACHINE: you got " .. luck.get(prize).name .. "!"
+end
+
+
+---------------------------------------------------------------------------
+-- YOUR DICE
+---------------------------------------------------------------------------
 
 -- Click an inventory die to pick it (click it again to un-pick).
 function shop.selectInventory(j)
@@ -287,13 +353,14 @@ end
 ---------------------------------------------------------------------------
 --
 --                 [  SHOP  marquee sign  ]
---   +-- DICE --+ +-- LUCK --+ +--- UPGRADES ----+
---   | [ ] [ ]  | | [ ] [ ]  | | [ ] [ ] [KEEP]  |
---   +----------+ +----------+ +-----------------+
---   +- YOUR DICE -+  +--MYSTERY--+  +- HOLDING -+ +MARKERS+
---   | o o o o o   |  |  [reel]   |  |  item     | | +1    |
---   | inventory   |  |  [SPIN]   |       [CONTINUE]
---   +-------------+  +-----------+        message
+--   +-- DICE --+ +---- UPGRADES ----+ +-- YOUR LUCK --+
+--   | [ ] [ ]  | | [ ] [ ] [KEEP]   | | item    SELL  |
+--   |          | |                  | | item    SELL  |
+--   +----------+ +------------------+ +---------------+
+--   +- YOUR DICE -+  +--- MYSTERY MACHINE ---+  +MARKERS+
+--   | o o o o o   |  | [reel] [reel] [reel]  |  | +1    |
+--   | inventory   |  |        [SPIN]         |  message
+--   +-------------+  +-----------------------+  [CONTINUE]
 
 local function rect(x, y, w, h)
     return { x = x, y = y, w = w, h = h }
@@ -308,18 +375,20 @@ function shop.getTop()
     return math.max(8, (love.graphics.getHeight() - SHOP_HEIGHT) / 2)
 end
 
--- How many cards each top window holds (1 = dice, 2 = luck, 3 = upgrades).
-local CARDS_IN = { 2, 2, 3 }
+-- How many cards each card window holds (1 = dice, 2 = upgrades).
+local CARDS_IN = { 2, 3 }
 
 -- Width of a window holding 'n' cards.
 local function windowW(n)
     return n * shop.CARD_W + (n - 1) * shop.CARD_GAP + 2 * shop.WINDOW_PAD
 end
 
--- The left edge of everything (the three windows are centred), and the
--- total width they take up.
+local WINDOW_H = shop.WINDOW_HEAD + shop.CARD_H + shop.WINDOW_PAD
+
+-- The left edge of everything (the top row is centred), and the total
+-- width it takes up.
 local function shopLeft()
-    local total = 2 * shop.WINDOW_GAP
+    local total = shop.LUCK_W + 2 * shop.WINDOW_GAP
     for _, n in ipairs(CARDS_IN) do
         total = total + windowW(n)
     end
@@ -331,23 +400,42 @@ function shop.signRect()
     return rect((love.graphics.getWidth() - 460) / 2, shop.getTop() + 2, 460, 60)
 end
 
--- Window w (1 = dice, 2 = luck, 3 = upgrades).
+-- Card window w (1 = dice, 2 = upgrades).
 function shop.windowRect(w)
     local x = shopLeft()
     for previous = 1, w - 1 do
         x = x + windowW(CARDS_IN[previous]) + shop.WINDOW_GAP
     end
-    return rect(x, shop.getTop() + 94, windowW(CARDS_IN[w]), shop.WINDOW_HEAD + shop.CARD_H + shop.WINDOW_PAD)
+    return rect(x, shop.getTop() + 94, windowW(CARDS_IN[w]), WINDOW_H)
 end
 
 -- Which window each kind of card lives in.
-local WINDOW_FOR = { dice = 1, luck = 2, upgrades = 3 }
+local WINDOW_FOR = { dice = 1, upgrades = 2 }
 
--- Card n of a kind ("dice" and "luck" have 2 cards, "upgrades" has 3).
+-- Card n of a kind ("dice" has 2 cards, "upgrades" has 3).
 function shop.cardRect(kind, n)
     local win = shop.windowRect(WINDOW_FOR[kind])
     return rect(win.x + shop.WINDOW_PAD + (n - 1) * (shop.CARD_W + shop.CARD_GAP),
         win.y + shop.WINDOW_HEAD, shop.CARD_W, shop.CARD_H)
+end
+
+-- YOUR LUCK: top right, one row per luck slot.
+function shop.luckRect()
+    local left, total = shopLeft()
+    return rect(left + total - shop.LUCK_W, shop.getTop() + 94, shop.LUCK_W, WINDOW_H)
+end
+
+-- Row k of YOUR LUCK.
+function shop.luckRowRect(k)
+    local r = shop.luckRect()
+    local rowH = (r.h - shop.WINDOW_HEAD - shop.WINDOW_PAD) / luck.MAX_HELD
+    return rect(r.x + 12, r.y + shop.WINDOW_HEAD + (k - 1) * rowH, r.w - 24, rowH)
+end
+
+-- Row k's SELL button, under its picture.
+function shop.luckSellRect(k)
+    local row = shop.luckRowRect(k)
+    return rect(row.x, row.y + 62, 64, 22)
 end
 
 -- The bottom row starts here.
@@ -384,35 +472,37 @@ function shop.machineRect()
     return rect(d.x + d.w + 30, bottomY(), shop.MACHINE_W, shop.MACHINE_H)
 end
 
-function shop.reelRect()
+-- Reel k's window (the glass the pictures scroll past).
+function shop.reelRect(k)
     local m = shop.machineRect()
-    return rect(m.x + 30, m.y + 66, m.w - 60, 150)
+    local rowW = shop.REELS * shop.REEL_W + (shop.REELS - 1) * shop.REEL_GAP
+    local x = m.x + (m.w - rowW) / 2 + (k - 1) * (shop.REEL_W + shop.REEL_GAP)
+    return rect(x, m.y + 62, shop.REEL_W, 92)
 end
 
 function shop.spinButtonRect()
     local m = shop.machineRect()
-    return rect(m.x + 20, m.y + m.h - 62, m.w - 40, 48)
+    return rect(m.x + (m.w - 240) / 2, m.y + m.h - 52, 240, 42)
 end
 
--- The column on the right of the machine: HOLDING and MARKERS side by
--- side, then Continue and the message underneath.
-local MARKERS_W = 190
+-- Reel k plus the prize's name and words under it - click anywhere in
+-- here to take that prize.
+function shop.reelColumnRect(k)
+    local reel = shop.reelRect(k)
+    return rect(reel.x - 4, reel.y - 4, reel.w + 8, shop.spinButtonRect().y - reel.y - 2)
+end
 
+-- The column on the right of the machine: MARKERS, then CONTINUE.
 local function rightColumn()
     local m = shop.machineRect()
     local left, total = shopLeft()
-    local x = m.x + m.w + 40
-    return rect(x, bottomY(), left + total - x, 150)
-end
-
-function shop.holdingRect()
-    local c = rightColumn()
-    return rect(c.x, c.y, c.w - MARKERS_W - 18, c.h)
+    local x = m.x + m.w + 44   -- room for the lever
+    return rect(x, bottomY(), left + total - x, shop.MACHINE_H)
 end
 
 function shop.markersRect()
     local c = rightColumn()
-    return rect(c.x + c.w - MARKERS_W, c.y, MARKERS_W, c.h)
+    return rect(c.x, c.y, c.w, 150)
 end
 
 function shop.markerButtonRect()
@@ -422,13 +512,14 @@ end
 
 function shop.continueRect()
     local c = rightColumn()
-    return rect(c.x + (c.w - shop.CONTINUE_W) / 2, c.y + c.h + 20, shop.CONTINUE_W, shop.CONTINUE_H)
+    return rect(c.x, c.y + c.h - shop.CONTINUE_H, c.w, shop.CONTINUE_H)
 end
 
+-- The feedback message, between MARKERS and CONTINUE.
 function shop.messageRect()
     local c = rightColumn()
-    local b = shop.continueRect()
-    return rect(c.x, b.y + b.h + 14, c.w, 80)
+    local top = shop.markersRect().y + shop.markersRect().h + 10
+    return rect(c.x, top, c.w, shop.continueRect().y - 8 - top)
 end
 
 
@@ -436,16 +527,39 @@ end
 -- CLICKS
 ---------------------------------------------------------------------------
 
+-- CONTINUE (button or Enter). Returns "continue" if it's OK to leave.
+-- Leaving with a prize still on the reels warns once first.
+function shop.tryContinue()
+    local m = shop.machine
+    if m.spinning then
+        shop.message = "Wait for the Mystery Machine to stop!"
+        return nil
+    end
+    if shop.hasUntakenPrizes() and not m.warned then
+        m.warned = true
+        shop.message = "You haven't picked a Mystery Machine prize! CONTINUE again to leave it."
+        return nil
+    end
+    return "continue"
+end
+
 -- Handle a left-click at (px, py).
--- Returns "continue" if the Continue button was clicked, so main.lua can
--- start the next level. Everything else is handled right here.
+-- Returns "continue" if the Continue button was clicked (and it's OK to
+-- leave), so main.lua can start the next level. Everything else is
+-- handled right here.
 function shop.click(px, py)
     for n = 1, 2 do
         if isInside(px, py, shop.cardRect("dice", n)) then shop.buyDice(n); return nil end
-        if isInside(px, py, shop.cardRect("luck", n)) then shop.buyLuck(n); return nil end
     end
     for n = 1, 3 do
         if isInside(px, py, shop.cardRect("upgrades", n)) then shop.buyUpgrade(n); return nil end
+    end
+
+    for k = 1, luck.MAX_HELD do
+        if luck.held[k] and isInside(px, py, shop.luckSellRect(k)) then
+            shop.sellLuck(k)
+            return nil
+        end
     end
 
     if isInside(px, py, shop.markersRect()) then
@@ -453,9 +567,18 @@ function shop.click(px, py)
         return nil
     end
 
-    if isInside(px, py, shop.spinButtonRect()) or isInside(px, py, shop.reelRect()) then
+    if isInside(px, py, shop.spinButtonRect()) then
         shop.pullMystery()
         return nil
+    end
+    for k = 1, shop.REELS do
+        if isInside(px, py, shop.reelColumnRect(k)) then
+            -- Once the reels have landed, clicking one takes its prize.
+            if shop.hasUntakenPrizes() then
+                shop.takePrize(k)
+            end
+            return nil
+        end
     end
 
     for i = 1, config.NUM_DICE do
@@ -467,11 +590,7 @@ function shop.click(px, py)
     end
 
     if isInside(px, py, shop.continueRect()) then
-        if shop.machine.spinning then
-            shop.message = "Wait for the Mystery Machine to stop!"
-            return nil
-        end
-        return "continue"
+        return shop.tryContinue()
     end
     return nil
 end

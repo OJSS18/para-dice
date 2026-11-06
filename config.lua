@@ -98,7 +98,6 @@ config.BULB_HEIGHT     = 12    -- how far a bulb sticks up off the felt (seen th
 config.BUTTON_H = 56
 
 -- Luck items
-config.LUCK_DURATION = 20     -- how many rolls (fresh rolls AND rerolls) a luck item lasts
 
 -- God mode (testing only - see godmode.lua)
 config.GOD_MODE_ENABLED = true  -- set to false before you share the game

@@ -3,7 +3,7 @@
 -- side panel):
 --   * the level score in the top-left, as  SCORE/TARGET  (e.g. 116/500)
 --   * level and round
---   * coins, dice sum and luck item
+--   * coins, dice sum and how many luck items you hold
 --   * the last round's result
 --   * a glossy red REROLL button and a glossy blue KEEP button
 --   * "PRESS C FOR A LIST OF CONTROLS" in yellow at the bottom
@@ -164,12 +164,8 @@ function banner.draw(state)
     y = y + 32
     row("Dice sum", busy and "..." or tostring(dice.total), y)   -- hidden until the dice stop
     y = y + 32
-    if luck.current then
-        local item = luck.get(luck.current)
-        row("Luck", item.name .. " (" .. luck.timeLeftText() .. ")", y, luck.rarityColor(item))
-    else
-        row("Luck", "none", y, DIM)
-    end
+    -- (The items themselves sit on the luck rack, right of the dice tray.)
+    row("Luck items", #luck.held .. " / " .. luck.MAX_HELD, y, #luck.held > 0 and CREAM or DIM)
     y = y + 32
     local anyMarker = markers.count() > 0 or markers.autoSum ~= nil
     row("Markers", markerName(), y, anyMarker and WHITE or DIM)
@@ -236,6 +232,16 @@ function banner.draw(state)
             table.insert(lines, "+" .. r.flat .. " point bonus")
             boosted = true
         end
+        -- Luck items that paid out for these dice (Snake Eyes +15, Sky High x1.5...)
+        for _, p in ipairs(r.perks or {}) do
+            local parts = {}
+            if p.flat ~= 0 then table.insert(parts, "+" .. p.flat) end
+            if p.mult ~= 1 then table.insert(parts, "x" .. score.formatMult(p.mult)) end
+            if #parts > 0 then
+                table.insert(lines, table.concat(parts, " ") .. " " .. p.name)
+                boosted = true
+            end
+        end
         if r.boostMult ~= 1 then
             -- string.format("%.2f", 1.65) gives "1.65": 2 decimal places.
             table.insert(lines, "x" .. string.format("%.2f", r.boostMult) .. " point boost")
@@ -243,10 +249,6 @@ function banner.draw(state)
         end
         if r.upgradeMult ~= 1 then
             table.insert(lines, "x" .. string.format("%.2f", r.upgradeMult) .. " upgrades")
-            boosted = true
-        end
-        if r.luckMult ~= 1 then
-            table.insert(lines, "x" .. r.luckMult .. " " .. (r.sum % 2 == 0 and "Even Steven" or "That's Odd"))
             boosted = true
         end
         if r.markerPoints then
@@ -261,7 +263,7 @@ function banner.draw(state)
             table.insert(lines, "= " .. r.points .. " pts")
         end
         if r.hand then
-            local text = r.hand .. ": +" .. (r.coins - r.payMe) .. " coins"
+            local text = r.hand .. ": +" .. r.handCoins .. " coins"
             if r.markerCoins then
                 text = text .. " (x" .. markers.MULTIPLIER .. ")"
             end
@@ -272,12 +274,20 @@ function banner.draw(state)
         if r.payMe > 0 then
             table.insert(lines, "Pay Me: +" .. r.payMe .. " coins")
         end
+        if (r.perkCoins or 0) > 0 then
+            table.insert(lines, "Luck items: +" .. r.perkCoins .. " coins")
+        end
         if (r.winBonus or 0) > 0 then
             local name = r.winBonus >= 25 and "MEGA WIN" or "BIG WIN"
             table.insert(lines, name .. ": +" .. r.winBonus .. " coins")
         end
+        -- Squeeze the lines closer (and smaller) if there are lots of them,
+        -- so they never run into the buttons.
+        local room = layout.rerollButton().y - 8 - (y + 8)
+        local step = math.min(24, room / (#lines + 1))
+        local font = step < 22 and fonts.tiny or fonts.small
         for n, line in ipairs(lines) do
-            ui.text(line, fonts.small, c.x, y + 8 + n * 24, c.w, "left", CREAM)
+            ui.text(line, font, c.x, y + 8 + n * step, c.w, "left", CREAM)
         end
     end
 

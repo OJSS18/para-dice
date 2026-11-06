@@ -32,13 +32,17 @@ end
 
 -- Was this round a BIG or MEGA win? If so, start the show and give back
 -- how many bonus coins it pays (0 if it wasn't).
-function bigwin.check(points, target)
+-- 'shares' (optional) = { big, mega } to use instead of the usual 40% / 75%
+-- (the Jackpot Magnet luck item lowers them).
+function bigwin.check(points, target, shares)
     if target <= 0 then return 0 end
     local share = points / target
+    local bigShare  = shares and shares[1] or bigwin.BIG_SHARE
+    local megaShare = shares and shares[2] or bigwin.MEGA_SHARE
     local title, coins
-    if share >= bigwin.MEGA_SHARE then
+    if share >= megaShare then
         title, coins = "MEGA WIN!", bigwin.MEGA_COINS
-    elseif share >= bigwin.BIG_SHARE then
+    elseif share >= bigShare then
         title, coins = "BIG WIN!", bigwin.BIG_COINS
     else
         return 0

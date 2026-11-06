@@ -1,163 +1,338 @@
 -- luck.lua
--- LUCK ITEMS: the player can hold ONE at a time. Buying a new one in the
--- shop replaces the old one. Every game starts with "Run it Back".
+-- LUCK ITEMS (perks). They are PERMANENT: once you have one, it stays
+-- until you SELL it. You can hold up to luck.MAX_HELD (3) at once, and
+-- sell any of them at any time for half its value.
+--
+-- The only way to get new ones is the MYSTERY MACHINE in the shop: each
+-- spin shows 3 items and you pick ONE. Every game starts with "Run it Back".
 --
 -- Each item is a table of DATA describing what it does. The functions at
 -- the bottom read those fields, so adding a new item usually means adding
--- one table here - no new code. The fields an item can have:
+-- one table here. The fields an item can have:
 --
---   id, name, rarity, about, image   - the basics (the price comes from the rarity)
---   duration       - how long it lasts (one of):
---                      { rolls = 20 }      20 rolls (a fresh roll or a reroll = 1)
---                      { levels = 1 }      the next level only
---                      { untilLevel = 3 }  gone at the start of level 3
+--   id, name, rarity, about, image   - the basics
+--   weight         - how likely it is picked within its rarity (default 1).
+--                    The six "Double Trouble" cards share one item's worth.
+--
+--   LASTING BOOSTS (stuck onto the POINTS tile you land on - they STACK)
 --   pointRunMult   - each point you roll gets x this for the rest of the RUN
 --   pointRunFlat   - each point you roll gets + this many points for the rest of the RUN
 --   pointLevelMult - each point you roll gets x this for the rest of the LEVEL
+--
+--   ROUND BONUSES (checked against the 5 final dice every round)
+--   check          - function(d) that returns true when the bonus pays.
+--                    'd' describes the dice - see luck.diceFacts below.
+--   mult, flat     - what it pays when 'check' is true: x mult points, + flat points
+--   coins          - ... and + this many coins
+--   bonus          - function(d) returning mult, flat, coins - for bonuses
+--                    that grow (Midas Dice: +0.2x for every 6)
+--
+--   RULE CHANGES
 --   extraRerolls   - extra rerolls every round
 --   noRerolls      - true = no rerolls at all
 --   noMarker       - true = you can't place your own marker
 --   autoMarker     - a marker that flips between these sums each round, e.g. {17, 18}
 --   targetMult     - multiplies the level's score goal (0.75 = 25% lower)
 --   coinsMult      - multiplies every coin you earn
---   evenMult       - multiplies the points of EVEN sums
---   oddMult        - multiplies the points of ODD sums
+--   handCoinsMult  - multiplies one Money Maker's coins, e.g. { fullHouse = 2 }
 --   payMe          - true = also earn coins equal to the point's value
 --   unlockTokens   - true = earn an Unlock Token for each level you beat
---
--- Boosts STACK: every time a point hits while you hold the item, that
--- point is boosted again, and boosts from different items stack too.
+--   loadedDie      - true = your FIRST die never lands on 1 or 2
+--   bigWinShares   - { big, mega } - lower BIG WIN / MEGA WIN thresholds
 --
 -- Pure LOGIC/data - nothing in here draws.
 
-local config = require("config")
 local boosts = require("boosts")
 
 local luck = {}
 
+luck.MAX_HELD = 3
+
 -- Everything about each rarity, in one place:
---   shop    - % chance a shop luck card is this rarity
 --   mystery - % chance the MYSTERY MACHINE gives this rarity
---   price   - what an item of this rarity costs in the shop
+--   value   - what an item of this rarity is worth (you SELL for half)
 --   color   - the colour its name and border are shown in
---   minShopLevel - the shop won't sell this rarity before this level
---                  (the Mystery Machine still can)
 luck.RARITIES = {
-    starter   = { shop = 0,  mystery = 0,    color = { 0.75, 0.75, 0.78 }, label = "STARTER" },
-    common    = { shop = 40, mystery = 20, price = 10,  color = { 0.68, 0.68, 0.72 }, label = "COMMON" },
-    uncommon  = { shop = 30, mystery = 35, price = 25,  color = { 0.30, 0.88, 0.35 }, label = "UNCOMMON" },
-    rare      = { shop = 20, mystery = 25, price = 50,  color = { 0.30, 0.58, 1.00 }, label = "RARE",
-                  minShopLevel = 4 },
-    epic      = { shop = 9,  mystery = 15, price = 75,  color = { 0.72, 0.35, 1.00 }, label = "EPIC",
-                  minShopLevel = 4 },
-    legendary = { shop = 1,  mystery = 5,  price = 100, color = { 1.00, 0.82, 0.20 }, label = "LEGENDARY" },
+    starter   = { mystery = 0,  value = 10,  color = { 0.75, 0.75, 0.78 }, label = "STARTER" },
+    common    = { mystery = 30, value = 10,  color = { 0.68, 0.68, 0.72 }, label = "COMMON" },
+    uncommon  = { mystery = 30, value = 25,  color = { 0.30, 0.88, 0.35 }, label = "UNCOMMON" },
+    rare      = { mystery = 22, value = 50,  color = { 0.30, 0.58, 1.00 }, label = "RARE" },
+    epic      = { mystery = 13, value = 75,  color = { 0.72, 0.35, 1.00 }, label = "EPIC" },
+    legendary = { mystery = 5,  value = 100, color = { 1.00, 0.82, 0.20 }, label = "LEGENDARY" },
 }
 
--- What an item costs (set by its rarity).
-function luck.price(item)
-    return luck.RARITIES[item.rarity].price
+-- What selling an item pays: half its rarity's value, rounded down.
+function luck.sellPrice(item)
+    return math.floor(luck.RARITIES[item.rarity].value / 2)
 end
 
-local ROLLS = { rolls = config.LUCK_DURATION }   -- the usual 20 rolls
 
--- Every luck item, keyed by id.
+---------------------------------------------------------------------------
+-- THE ITEMS
+---------------------------------------------------------------------------
+
+-- Small helpers the 'check' functions use. 'd' is from luck.diceFacts.
+local function allOf(d, test)
+    for _, v in ipairs(d.values) do
+        if not test(v) then return false end
+    end
+    return true
+end
+local function isEven(v) return v % 2 == 0 end
+local function isOdd(v)  return v % 2 == 1 end
+
 luck.ITEMS = {
-    -- STARTER (everyone begins with this; never sold)
+    -- STARTER (everyone begins with this)
     runItBack = {
-        name = "Run it Back", rarity = "starter", image = nil,
-        about = "Each time a point hits, it gets another x1.1 for the rest of the run. Gone at the start of Level 3.",
-        duration = { untilLevel = 3 }, pointRunMult = 1.1,
+        name = "Run it Back", rarity = "starter", image = "runItBack",
+        about = "Each time a point hits, it gets another x1.1 for the rest of the run.",
+        pointRunMult = 1.1,
     },
 
     -- COMMON
     addict = {
         name = "Addict", rarity = "common", image = "addict",
-        about = "No rerolls and no marker of your own - a marker flips between 17 and 18. This level's goal is 25% lower.",
-        duration = { levels = 1 },
+        about = "No rerolls, no marker of your own (an auto marker flips 17/18). Level goals 25% lower.",
         noRerolls = true, noMarker = true, autoMarker = { 17, 18 }, targetMult = 0.75,
     },
     rabbitsFoot = {
         name = "Rabbit's Foot", rarity = "common", image = "rabbitsFoot",
         about = "Each time a point hits, it gets another x1.75 for the rest of the level.",
-        duration = ROLLS, pointLevelMult = 1.75,
+        pointLevelMult = 1.75,
+    },
+    snakeEyes = {
+        name = "Snake Eyes", rarity = "common", image = "snakeEyes",
+        about = "Two or more 1s: +15 points.",
+        check = function(d) return d.counts[1] >= 2 end, flat = 15,
+    },
+    pairUp = {
+        name = "Pair Up", rarity = "common", image = "pairUp",
+        about = "Any pair (two of the same number): +10 points.",
+        check = function(d) return d.most >= 2 end, flat = 10,
+    },
+    lowball = {
+        name = "Lowball", rarity = "common", image = "lowball",
+        about = "All 5 dice under 4 (1, 2 or 3): +50 points.",
+        check = function(d) return allOf(d, function(v) return v < 4 end) end, flat = 50,
+    },
+    highroller = {
+        name = "Highroller", rarity = "common", image = "highroller",
+        about = "All 5 dice over 3 (4, 5 or 6): +50 points.",
+        check = function(d) return allOf(d, function(v) return v > 3 end) end, flat = 50,
+    },
+    pocketChange = {
+        name = "Pocket Change", rarity = "common", image = "pocketChange",
+        about = "+1 coin for every 6 you roll.",
+        bonus = function(d) return 1, 0, d.counts[6] end,
     },
 
     -- UNCOMMON
     rabbitsLeg = {
         name = "Rabbit's Leg", rarity = "uncommon", image = "rabbitsLeg",
         about = "Each time a point hits, it gets another x1.5 for the rest of the run.",
-        duration = ROLLS, pointRunMult = 1.5,
+        pointRunMult = 1.5,
     },
     showMeTheMoney = {
         name = "Show Me The Money", rarity = "uncommon", image = "showMeTheMoney",
         about = "Each time a point hits, it gets another +100 points for the rest of the run.",
-        duration = ROLLS, pointRunFlat = 100,
+        pointRunFlat = 100,
+    },
+    -- (the six Double Trouble cards are added further down)
+    lowballDeluxe = {
+        name = "Lowball Deluxe", rarity = "uncommon", image = "lowballDeluxe",
+        about = "All 5 dice under 4 (1, 2 or 3): x1.5 points.",
+        check = function(d) return allOf(d, function(v) return v < 4 end) end, mult = 1.5,
+    },
+    skyHigh = {
+        name = "Sky High", rarity = "uncommon", image = "skyHigh",
+        about = "All 5 dice over 3 (4, 5 or 6): x1.5 points.",
+        check = function(d) return allOf(d, function(v) return v > 3 end) end, mult = 1.5,
+    },
+    noRepeats = {
+        name = "No Repeats", rarity = "uncommon", image = "noRepeats",
+        about = "All 5 dice different: +40 points.",
+        check = function(d) return d.most == 1 end, flat = 40,
+    },
+    comebackKid = {
+        name = "Comeback Kid", rarity = "uncommon", image = "comebackKid",
+        about = "Reroll onto a better point than your first throw: +30 points.",
+        check = function(d) return d.rerolled and d.firstPoints and d.points > d.firstPoints end,
+        flat = 30,
+    },
+    steadyHand = {
+        name = "Steady Hand", rarity = "uncommon", image = "steadyHand",
+        about = "KEEP without rerolling: +5 coins.",
+        check = function(d) return d.noReroll end, coins = 5,
     },
 
     -- RARE
     showMeTheMoneyRare = {
         name = "Show Me The Money", rarity = "rare", image = "showMeTheMoneyRare",
         about = "Each time a point hits, it gets another +200 points for the rest of the run.",
-        duration = ROLLS, pointRunFlat = 200,
+        pointRunFlat = 200,
     },
     theySeeMeRollin = {
         name = "They See Me Rollin'", rarity = "rare", image = "theySeeMeRollin",
         about = "Get an extra reroll every round.",
-        duration = ROLLS, extraRerolls = 1,
+        extraRerolls = 1,
     },
     cashIsKing = {
         name = "Cash is King", rarity = "rare", image = "cashIsKing",
         about = "Any time you earn coins, DOUBLE IT!",
-        duration = ROLLS, coinsMult = 2,
+        coinsMult = 2,
+    },
+    allSquare = {
+        name = "All Square", rarity = "rare", image = "allSquare",
+        about = "All 5 dice EVEN (2, 4, 6): x1.5 points.",
+        check = function(d) return allOf(d, isEven) end, mult = 1.5,
+    },
+    oddSquad = {
+        name = "Odd Squad", rarity = "rare", image = "oddSquad",
+        about = "All 5 dice ODD (1, 3, 5): x1.5 points.",
+        check = function(d) return allOf(d, isOdd) end, mult = 1.5,
+    },
+    -- (the six Triple Threat cards are added further down)
+    luckySeven = {
+        name = "Lucky Seven", rarity = "rare", image = "luckySeven",
+        about = "The dice add up to 7, 17 or 27: x1.77 points.",
+        check = function(d) return d.sum == 7 or d.sum == 17 or d.sum == 27 end, mult = 1.77,
+    },
+    houseRules = {
+        name = "House Rules", rarity = "rare", image = "houseRules",
+        about = "A Full House pays DOUBLE coins.",
+        handCoinsMult = { fullHouse = 2 },
+    },
+    middleChild = {
+        name = "Middle Child", rarity = "rare", image = "middleChild",
+        about = "No 1s and no 6s at all: +75 points.",
+        check = function(d) return d.counts[1] == 0 and d.counts[6] == 0 end, flat = 75,
     },
 
     -- EPIC
     showMeTheMoneyEpic = {
         name = "Show Me The Money", rarity = "epic", image = "showMeTheMoneyEpic",
         about = "Each time a point hits, it gets another +300 points and x1.25 for the rest of the run.",
-        duration = ROLLS, pointRunFlat = 300, pointRunMult = 1.25,
+        pointRunFlat = 300, pointRunMult = 1.25,
     },
     evenSteven = {
         name = "Even Steven", rarity = "epic", image = "evenSteven",
-        about = "Every EVEN sum you score is doubled (on top of any other multiplier).",
-        duration = ROLLS, evenMult = 2,
+        about = "Every EVEN sum you score is doubled.",
+        check = function(d) return d.sum % 2 == 0 end, mult = 2,
     },
     thatsOdd = {
         name = "Hmm... That's Odd", rarity = "epic", image = "thatsOdd",
-        about = "Every ODD sum you score is doubled (on top of any other multiplier).",
-        duration = ROLLS, oddMult = 2,
+        about = "Every ODD sum you score is doubled.",
+        check = function(d) return d.sum % 2 == 1 end, mult = 2,
+    },
+    pureBreed = {
+        name = "Pure Breed", rarity = "epic", image = "pureBreed",
+        about = "All 5 dice even OR all 5 odd: x2 points and +50 points.",
+        check = function(d) return allOf(d, isEven) or allOf(d, isOdd) end, mult = 2, flat = 50,
+    },
+    stairway = {
+        name = "Stairway", rarity = "epic", image = "stairway",
+        about = "Any straight (4 or 5 in a row): x1.75 points.",
+        check = function(d) return d.straight end, mult = 1.75,
+    },
+    crowdFavourite = {
+        name = "Crowd Favourite", rarity = "epic", image = "crowdFavourite",
+        about = "Every round you play holding this adds +0.03x to ALL points.",
+        bonus = function(d) return 1 + 0.03 * luck.crowdRounds, 0, 0 end,
+    },
+    loadedDie = {
+        name = "Loaded Die", rarity = "epic", image = "loadedDie",
+        about = "Your first die never lands on a 1 or a 2.",
+        loadedDie = true,
+    },
+    hotStreak = {
+        name = "Hot Streak", rarity = "epic", image = "hotStreak",
+        about = "Beat the round before: +0.25x per round in a row. A miss resets it.",
+        -- Worked out in score.lua, because it needs the last round's points.
     },
 
     -- LEGENDARY
     showMeTheMoneyLegendary = {
         name = "Show Me The Money", rarity = "legendary", image = "showMeTheMoneyLegendary",
         about = "Each time a point hits, it gets another +500 points and x1.75 for the rest of the run.",
-        duration = ROLLS, pointRunFlat = 500, pointRunMult = 1.75,
+        pointRunFlat = 500, pointRunMult = 1.75,
     },
     fyPayMe = {
         name = "F*** You Pay Me", rarity = "legendary", image = "fyPayMe",
         about = "Earn coins equal to the value of every point you score.",
-        duration = ROLLS, payMe = true,
+        payMe = true,
     },
     unlockToken = {
         name = "Unlock Token", rarity = "legendary", image = "unlockToken",
         about = "Earn a special Unlock Token for every level you beat while holding this.",
-        duration = ROLLS, unlockTokens = true,
+        unlockTokens = true,
+    },
+    yahtzeeGods = {
+        name = "Yahtzee Gods", rarity = "legendary", image = "yahtzeeGods",
+        about = "5 of a Kind: x5 points and +100 coins.",
+        check = function(d) return d.most == 5 end, mult = 5, coins = 100,
+    },
+    midasDice = {
+        name = "Midas Dice", rarity = "legendary", image = "midasDice",
+        about = "+0.2x points for every 6 you roll (five 6s = x2).",
+        bonus = function(d) return 1 + 0.2 * d.counts[6], 0, 0 end,
+    },
+    mirrorMirror = {
+        name = "Mirror Mirror", rarity = "legendary", image = "mirrorMirror",
+        about = "Dice 1-5 read the same both ways (like 3-5-1-5-3): x3 points.",
+        check = function(d)
+            local v = d.values
+            return v[1] == v[5] and v[2] == v[4]
+        end, mult = 3,
+    },
+    secondChance = {
+        name = "Second Chance", rarity = "legendary", image = "secondChance",
+        about = "Get TWO extra rerolls every round.",
+        extraRerolls = 2,
+    },
+    jackpotMagnet = {
+        name = "Jackpot Magnet", rarity = "legendary", image = "jackpotMagnet",
+        about = "BIG WIN needs only 30% of the goal, MEGA WIN only 60%.",
+        bigWinShares = { 0.30, 0.60 },
     },
 }
+
+-- The ids in order (tables keyed by name have no order). The face cards
+-- are slotted in below.
+luck.ORDER = {
+    "runItBack",
+    "addict", "rabbitsFoot", "snakeEyes", "pairUp", "lowball", "highroller", "pocketChange",
+    "rabbitsLeg", "showMeTheMoney", "lowballDeluxe", "skyHigh", "noRepeats", "comebackKid", "steadyHand",
+    "showMeTheMoneyRare", "theySeeMeRollin", "cashIsKing", "allSquare", "oddSquad",
+    "luckySeven", "houseRules", "middleChild",
+    "showMeTheMoneyEpic", "evenSteven", "thatsOdd", "pureBreed", "stairway",
+    "crowdFavourite", "loadedDie", "hotStreak",
+    "showMeTheMoneyLegendary", "fyPayMe", "unlockToken", "yahtzeeGods", "midasDice",
+    "mirrorMirror", "secondChance", "jackpotMagnet",
+}
+
+-- DOUBLE TROUBLE (uncommon) and TRIPLE THREAT (rare): one card per face.
+-- Built in a loop so the 12 cards don't have to be typed out. Each has a
+-- weight of 1/6, so all six together are as likely as one normal item.
+local WORDS = { "1s", "2s", "3s", "4s", "5s", "6s" }
+for face = 1, 6 do
+    luck.ITEMS["doubleTrouble" .. face] = {
+        name = "Double Trouble: " .. WORDS[face], rarity = "uncommon", image = "doubleTrouble" .. face,
+        about = "Two or more " .. WORDS[face] .. ": x1.5 points.",
+        check = function(d) return d.counts[face] >= 2 end, mult = 1.5, weight = 1 / 6,
+    }
+    luck.ITEMS["tripleThreat" .. face] = {
+        name = "Triple Threat: " .. WORDS[face], rarity = "rare", image = "tripleThreat" .. face,
+        about = "Three or more " .. WORDS[face] .. ": x2 points.",
+        check = function(d) return d.counts[face] >= 3 end, mult = 2, weight = 1 / 6,
+    }
+    table.insert(luck.ORDER, "doubleTrouble" .. face)
+    table.insert(luck.ORDER, "tripleThreat" .. face)
+end
 
 -- Fill in each item's id from its key, so items don't have to repeat it.
 for id, item in pairs(luck.ITEMS) do
     item.id = id
 end
-
--- The ids as an ordered list (tables keyed by name have no order).
-luck.ORDER = {
-    "runItBack", "addict", "rabbitsFoot", "rabbitsLeg", "showMeTheMoney",
-    "showMeTheMoneyRare", "theySeeMeRollin", "cashIsKing",
-    "showMeTheMoneyEpic", "evenSteven", "thatsOdd",
-    "showMeTheMoneyLegendary", "fyPayMe", "unlockToken",
-}
 
 luck.STARTER = "runItBack"
 
@@ -166,9 +341,9 @@ luck.STARTER = "runItBack"
 -- DATA: what the player is holding right now
 ---------------------------------------------------------------------------
 
-luck.current     = nil   -- id of the held item, or nil for none
-luck.rollsLeft   = nil   -- for { rolls = N } items
-luck.levelsSeen  = 0     -- for { levels = N } items: level starts since it was given
+luck.held = {}          -- the ids held, in slot order, e.g. { "runItBack", "skyHigh" }
+luck.crowdRounds = 0    -- rounds played while holding Crowd Favourite
+luck.streak = 0         -- Hot Streak: rounds in a row that beat the one before
 
 
 ---------------------------------------------------------------------------
@@ -179,88 +354,61 @@ function luck.get(id)
     return luck.ITEMS[id]
 end
 
--- The held item's table, or nil.
-local function held()
-    return luck.current and luck.ITEMS[luck.current]
-end
-
 -- The colour for an item's rarity.
 function luck.rarityColor(item)
     return luck.RARITIES[item.rarity].color
 end
 
--- Give the player an item. Any item they already had is REPLACED.
+-- Is this item held?
+function luck.has(id)
+    for _, held in ipairs(luck.held) do
+        if held == id then return true end
+    end
+    return false
+end
+
+-- Are all the slots full?
+function luck.isFull()
+    return #luck.held >= luck.MAX_HELD
+end
+
+-- Give the player an item. Returns false if their slots are full.
 function luck.give(id)
-    local item = luck.ITEMS[id]
-    luck.current     = id
-    luck.rollsLeft   = item.duration.rolls
-    luck.levelsSeen  = 0
+    if luck.isFull() or luck.has(id) then
+        return false
+    end
+    table.insert(luck.held, id)
+    return true
 end
 
-function luck.clear()
-    luck.current     = nil
-    luck.rollsLeft   = nil
-    luck.levelsSeen  = 0
+-- Sell the item in slot k: it's gone, and the coins it's worth are
+-- handed back (the caller gives them to the player).
+function luck.sell(k)
+    local id = luck.held[k]
+    if id == nil then return 0 end
+    table.remove(luck.held, k)
+    if id == "crowdFavourite" then luck.crowdRounds = 0 end
+    if id == "hotStreak" then luck.streak = 0 end
+    return luck.sellPrice(luck.ITEMS[id])
 end
 
--- Short text for how long the held item has left, e.g. "14 rolls".
-function luck.timeLeftText()
-    local item = held()
-    if item == nil then return "" end
-    local d = item.duration
-    if d.rolls then
-        return luck.rollsLeft .. " rolls"
-    elseif d.levels then
-        return "this level"
-    else
-        return "until L" .. d.untilLevel
+-- A new game: nothing held, counters back to zero.
+function luck.reset()
+    luck.held = {}
+    luck.crowdRounds = 0
+    luck.streak = 0
+end
+
+-- Loop over the held items: for item in luck.each() do ... end
+local function each()
+    local k = 0
+    return function()
+        k = k + 1
+        local id = luck.held[k]
+        return id and luck.ITEMS[id]
     end
 end
-
--- How long an item lasts, as words (for the shop card).
-function luck.durationText(item)
-    local d = item.duration
-    if d.rolls then
-        return "Lasts " .. d.rolls .. " rolls"
-    elseif d.levels then
-        return "Lasts " .. d.levels .. " level"
-    else
-        return "Gone at Level " .. d.untilLevel
-    end
-end
-
-
----------------------------------------------------------------------------
--- WEARING OFF
----------------------------------------------------------------------------
-
--- Call just BEFORE every roll (fresh roll or reroll). Only "rolls" items
--- count down. An item with 0 rolls left is used up, so it disappears
--- before this roll - that way an item's last roll still gets scored with it.
-function luck.useRoll()
-    if luck.rollsLeft == nil then return end
-    if luck.rollsLeft <= 0 then
-        luck.clear()
-    else
-        luck.rollsLeft = luck.rollsLeft - 1
-    end
-end
-
--- Call at the start of every level (before anything else happens).
-function luck.onLevelStart(level)
-    local item = held()
-    if item == nil then return end
-    local d = item.duration
-    if d.untilLevel and level >= d.untilLevel then
-        luck.clear()
-    elseif d.levels then
-        if luck.levelsSeen >= d.levels then
-            luck.clear()                -- its levels are used up
-        else
-            luck.levelsSeen = luck.levelsSeen + 1
-        end
-    end
-end
+luck.each = each
 
 
 ---------------------------------------------------------------------------
@@ -269,130 +417,219 @@ end
 
 -- How many rerolls the player gets each round.
 function luck.rerollsPerRound(normal)
-    local item = held()
-    if item == nil then return normal end
-    if item.noRerolls then return 0 end
-    return normal + (item.extraRerolls or 0)
+    local total = normal
+    for item in each() do
+        if item.noRerolls then return 0 end
+        total = total + (item.extraRerolls or 0)
+    end
+    return total
 end
 
 -- Can the player place their own marker?
 function luck.blocksMarker()
-    local item = held()
-    return item ~= nil and item.noMarker == true
+    for item in each() do
+        if item.noMarker then return true end
+    end
+    return false
 end
 
 -- The automatic marker's sum for this round (round = 1, 2, 3...), or nil.
 function luck.autoMarkerSum(round)
-    local item = held()
-    if item == nil or item.autoMarker == nil then return nil end
-    local list = item.autoMarker
-    return list[((round - 1) % #list) + 1]   -- round 1 -> 17, round 2 -> 18, round 3 -> 17...
+    for item in each() do
+        if item.autoMarker then
+            local list = item.autoMarker
+            return list[((round - 1) % #list) + 1]   -- round 1 -> 17, round 2 -> 18, ...
+        end
+    end
+    return nil
+end
+
+-- Multiply together one field from every held item (1 if none have it).
+local function product(field)
+    local m = 1
+    for item in each() do
+        m = m * (item[field] or 1)
+    end
+    return m
 end
 
 -- What the level's score goal is multiplied by.
 function luck.targetMultiplier()
-    local item = held()
-    return (item and item.targetMult) or 1
+    return product("targetMult")
 end
 
 -- What every coin earned is multiplied by.
 function luck.coinsMultiplier()
-    local item = held()
-    return (item and item.coinsMult) or 1
+    return product("coinsMult")
 end
 
--- Extra multiplier on a sum's points from Even Steven / That's Odd.
-function luck.sumMultiplier(sum)
-    local item = held()
-    if item == nil then return 1 end
-    if sum % 2 == 0 then
-        return item.evenMult or 1      -- % is "remainder": an even number % 2 is 0
+-- What one Money Maker hand's coins are multiplied by (House Rules).
+function luck.handCoinsMultiplier(handId)
+    local m = 1
+    for item in each() do
+        if item.handCoinsMult and item.handCoinsMult[handId] then
+            m = m * item.handCoinsMult[handId]
+        end
     end
-    return item.oddMult or 1
+    return m
 end
 
 -- Extra coins for scoring a point worth 'points' (F*** You Pay Me).
 function luck.payMeCoins(points)
-    local item = held()
-    if item and item.payMe then
-        return points
+    for item in each() do
+        if item.payMe then return points end
     end
     return 0
 end
 
--- Does the held item hand out Unlock Tokens?
+-- Does a held item hand out Unlock Tokens?
 function luck.givesUnlockTokens()
-    local item = held()
-    return item ~= nil and item.unlockTokens == true
+    for item in each() do
+        if item.unlockTokens then return true end
+    end
+    return false
 end
 
--- A point was just scored: stick this item's boosts onto it.
--- They STACK: every time the same point hits, it gets boosted again.
--- (Roll 19 three times with Run it Back and 19 is worth x1.1 x1.1 x1.1.)
-function luck.onPointScored(sum)
-    local item = held()
-    if item == nil then return end
-
-    if item.pointRunMult or item.pointRunFlat then
-        boosts.addRun(sum, item.pointRunMult, item.pointRunFlat)
+-- BIG WIN / MEGA WIN thresholds: the lowest any held item gives, or nil.
+function luck.bigWinShares()
+    local best = nil
+    for item in each() do
+        if item.bigWinShares and (best == nil or item.bigWinShares[1] < best[1]) then
+            best = item.bigWinShares
+        end
     end
-    if item.pointLevelMult then
-        boosts.addLevel(sum, item.pointLevelMult)
+    return best
+end
+
+-- The odds a die rolls with. Loaded Die stops die 1 from rolling 1 or 2.
+-- 'slot' is which of the 5 dice is being rolled.
+function luck.applyTo(weights, slot)
+    if slot ~= 1 then return weights end
+    for item in each() do
+        if item.loadedDie then
+            local loaded = {}
+            for f = 1, 6 do loaded[f] = weights[f] end
+            loaded[1], loaded[2] = 0, 0
+            return loaded
+        end
+    end
+    return weights
+end
+
+
+---------------------------------------------------------------------------
+-- ROUND BONUSES
+---------------------------------------------------------------------------
+
+-- Everything the 'check' functions might want to know about the 5 dice:
+--   values      - the 5 faces in slot order, e.g. {3, 5, 1, 5, 3}
+--   sum         - their total
+--   counts      - how many of each face: counts[5] = 2
+--   most        - the biggest pile of one face (5 = five of a kind)
+--   straight    - 4 or more in a row?
+--   noReroll    - KEEP was pressed without rerolling
+--   rerolled    - the player rerolled at least once
+--   points      - base points of the final sum
+--   firstPoints - base points of the first throw's sum (nil if unknown)
+function luck.diceFacts(values, extra)
+    local d = {
+        values = values, sum = 0, counts = { 0, 0, 0, 0, 0, 0 }, most = 0,
+        noReroll = extra.noReroll, rerolled = extra.rerolled,
+        points = extra.points, firstPoints = extra.firstPoints,
+    }
+    for _, v in ipairs(values) do
+        d.sum = d.sum + v
+        d.counts[v] = d.counts[v] + 1
+    end
+    for f = 1, 6 do
+        d.most = math.max(d.most, d.counts[f])
+    end
+    local c = d.counts
+    d.straight = (c[1] > 0 and c[2] > 0 and c[3] > 0 and c[4] > 0)
+        or (c[2] > 0 and c[3] > 0 and c[4] > 0 and c[5] > 0)
+        or (c[3] > 0 and c[4] > 0 and c[5] > 0 and c[6] > 0)
+    return d
+end
+
+-- Which held items pay out for these dice. Returns a list like
+--   { { name = "Sky High", mult = 1.5, flat = 0, coins = 0 }, ... }
+function luck.roundBonuses(d)
+    local list = {}
+    for item in each() do
+        local mult, flat, coins
+        if item.bonus then
+            mult, flat, coins = item.bonus(d)
+        elseif item.check and item.check(d) then
+            mult, flat, coins = item.mult or 1, item.flat or 0, item.coins or 0
+        end
+        if mult and (mult ~= 1 or flat ~= 0 or coins ~= 0) then
+            table.insert(list, { name = item.name, mult = mult, flat = flat, coins = coins })
+        end
+    end
+    return list
+end
+
+-- A round was just scored on 'sum': stick the held items' lasting boosts
+-- onto that point. They STACK: every time the same point hits, it gets
+-- boosted again. (Roll 19 three times with Run it Back and 19 is worth
+-- x1.1 x1.1 x1.1.)
+function luck.onPointScored(sum)
+    for item in each() do
+        if item.pointRunMult or item.pointRunFlat then
+            boosts.addRun(sum, item.pointRunMult, item.pointRunFlat)
+        end
+        if item.pointLevelMult then
+            boosts.addLevel(sum, item.pointLevelMult)
+        end
+    end
+    if luck.has("crowdFavourite") then
+        luck.crowdRounds = luck.crowdRounds + 1
     end
 end
 
 
 ---------------------------------------------------------------------------
--- THE SHOP
+-- THE MYSTERY MACHINE
 ---------------------------------------------------------------------------
 
 -- Pick a random item id. It's done in two steps:
---   1. pick a RARITY using a set of % chances - 'oddsKey' says which:
---        "shop"    = 40 / 30 / 20 / 9 / 1   (common ... legendary)
---        "mystery" = 20 / 35 / 25 / 15 / 5  (the Mystery Machine)
---   2. pick one item of that rarity, all equally likely.
--- 'exclude' is a list of ids that mustn't be picked (so the shop doesn't
--- show the same item twice).
--- 'level' (optional) - if given, rarities with a minShopLevel above it are
--- left out (no rare or epic in the shop before level 4).
-function luck.randomItem(oddsKey, exclude, level)
+--   1. pick a RARITY using the "mystery" % chances (30/30/22/13/5)
+--   2. pick one item of that rarity, using each item's weight.
+-- 'exclude' is a list of ids that mustn't be picked (ones you already
+-- hold, or that are already on another reel).
+function luck.randomItem(exclude)
     local skip = {}
     for _, id in ipairs(exclude or {}) do skip[id] = true end
 
     -- Sort the items that can be picked into lists, one per rarity.
-    local byRarity = {}
+    local byRarity, rarities = {}, {}
     for _, id in ipairs(luck.ORDER) do
         local rarity = luck.ITEMS[id].rarity
-        local info = luck.RARITIES[rarity]
-        local tooEarly = level and info.minShopLevel and level < info.minShopLevel
-        if not skip[id] and info[oddsKey] > 0 and not tooEarly then
-            byRarity[rarity] = byRarity[rarity] or {}
+        if not skip[id] and luck.RARITIES[rarity].mystery > 0 then
+            if byRarity[rarity] == nil then
+                byRarity[rarity] = {}
+                table.insert(rarities, rarity)
+            end
             table.insert(byRarity[rarity], id)
         end
     end
 
-    -- Step 1: same "ruler" idea as dicetypes.pickFace - lay the rarities'
-    -- chances end to end, pick a random spot, see whose stretch it's in.
-    -- (If some rarities were left out, the rest share the ruler between them.)
-    local total = 0
-    for rarity, _ in pairs(byRarity) do
-        total = total + luck.RARITIES[rarity][oddsKey]
-    end
-    local spot = love.math.random() * total
-    for rarity, list in pairs(byRarity) do
-        spot = spot - luck.RARITIES[rarity][oddsKey]
-        if spot < 0 then
-            -- Step 2: any item of that rarity.
-            return list[love.math.random(1, #list)]
+    -- Lay a set of chances end to end like a ruler, pick a random spot,
+    -- and see whose stretch it lands in.
+    local function pickWeighted(list, weightOf)
+        local total = 0
+        for _, x in ipairs(list) do total = total + weightOf(x) end
+        local spot = love.math.random() * total
+        for _, x in ipairs(list) do
+            spot = spot - weightOf(x)
+            if spot < 0 then return x end
         end
+        return list[#list]
     end
-    return "rabbitsFoot"   -- safety net; normally never reached
-end
 
--- The old luck items changed dice odds. None of the current ones do, but
--- dice.lua still asks, so this just hands the weights straight back.
-function luck.applyTo(weights)
-    return weights
+    if #rarities == 0 then return nil end
+    local rarity = pickWeighted(rarities, function(r) return luck.RARITIES[r].mystery end)
+    return pickWeighted(byRarity[rarity], function(id) return luck.ITEMS[id].weight or 1 end)
 end
 
 return luck

@@ -18,7 +18,8 @@ local confetti   = require("confetti")
 local animation  = require("animation")
 local dicetypes  = require("dicetypes")
 local player     = require("player")
-local luck       = require("luck")
+local luckart    = require("luckart")
+local luckrack   = require("luckrack")
 local crapstable = require("crapstable")
 local scoreboard = require("scoreboard")
 local banner     = require("banner")
@@ -38,10 +39,6 @@ local images = {}
 -- Every picture is loaded in draw.load(), so nothing is ever loaded mid-roll.
 local frames = {}
 
--- Luck item pictures, looked up by item id: luckImages.addict, ...
--- (Items without a picture, like Run it Back, just aren't in here.)
-local luckImages = {}
-
 
 ---------------------------------------------------------------------------
 -- SETUP
@@ -60,14 +57,9 @@ function draw.load()
         end
     end
 
-    -- Luck item pictures (placeholders for now - swap the PNGs in
-    -- assets/luck for real art any time; keep the same file names).
-    for _, id in ipairs(luck.ORDER) do
-        local item = luck.get(id)
-        if item.image then
-            luckImages[id] = love.graphics.newImage("assets/luck/" .. item.image .. ".png")
-        end
-    end
+    -- Luck item pictures (swap the PNGs in assets/luck for new art any
+    -- time; keep the same file names).
+    luckart.load()
 
     -- Every tumble/settle/landed frame that any roll pattern uses,
     -- for every colour. (About 70 pictures per colour.)
@@ -93,18 +85,6 @@ function draw.dieImage(typeId, face, x, y, size)
     local scale = size / image:getWidth()
     love.graphics.setColor(1, 1, 1)   -- white = draw the image's own colours
     love.graphics.draw(image, x, y, 0, scale, scale)
-end
-
--- Draw a luck item's picture, top-left at (x, y), 'size' pixels square.
--- Returns false if the item has no picture (so the caller can draw something else).
-function draw.luckImage(itemId, x, y, size)
-    local image = luckImages[itemId]
-    if image == nil then
-        return false
-    end
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.draw(image, x, y, 0, size / image:getWidth(), size / image:getHeight())
-    return true
 end
 
 -- Draw one tumble/landed frame CENTRED on (cx, cy), with the die's body
@@ -228,13 +208,15 @@ function draw.playScreen(state)
     if state == "play" and lightsOn then
         -- What KEEP would score right now (the keep bonus only if nothing's been rerolled).
         local keepNow = not dice.hasRerolled()
-        scoreboard.drawScoreLine(score.calculate(dice.total, keepNow), keepNow)
+        scoreboard.drawScoreLine(score.calculate(dice.values, keepNow, dice.hasRerolled(), dice.firstSum), keepNow)
     elseif state ~= "play" and not placing and score.lastRound then
         scoreboard.drawScoreLine(score.lastRound, score.lastRound.noReroll)
     end
+    luckrack.draw()          -- your luck items, right of the tray
     drawTrayDice()
     drawMovingDice()
     banner.draw(state)
+    luckrack.drawTooltip()   -- what the hovered luck item does, on top
 end
 
 -- Darken everything already drawn, so a big message on top stands out.

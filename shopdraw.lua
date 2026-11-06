@@ -1,8 +1,7 @@
 -- shopdraw.lua
 -- DRAWS the shop screen: a casino-carpet background, a marquee sign,
--- Vegas-style windows for DICE / LUCK / UPGRADES / YOUR DICE, the
--- MYSTERY MACHINE slot machine wrapped in chasing bulbs, and what you're
--- holding. Reads shop.lua (stock and positions), player.lua, luck.lua and
+-- Vegas-style windows for DICE / UPGRADES / YOUR LUCK / YOUR DICE, and the
+-- three-reel MYSTERY MACHINE wrapped in chasing bulbs. Reads shop.lua (stock and positions), player.lua, luck.lua and
 -- upgrades.lua - but never changes any of them.
 
 local config    = require("config")
@@ -13,7 +12,8 @@ local upgrades  = require("upgrades")
 local markers   = require("markers")
 local dicetypes = require("dicetypes")
 local score     = require("score")
-local draw      = require("draw")    -- for draw.dieImage and draw.luckImage
+local draw      = require("draw")    -- for draw.dieImage
+local luckart   = require("luckart") -- luck item pictures and SELL buttons
 local fonts     = require("fonts")
 local ui        = require("ui")
 
@@ -134,35 +134,6 @@ local function drawDiceCard(r, typeId, sold)
     drawPrice(r, dieType.price, sold)
 end
 
--- A luck item's picture, or a plain coin with an L if it has none.
-local function drawLuckPicture(itemId, x, y, size)
-    if not draw.luckImage(itemId, x, y, size) then
-        local color = luck.rarityColor(luck.get(itemId))
-        love.graphics.setColor(color)
-        love.graphics.circle("fill", x + size / 2, y + size / 2, size * 0.45)
-        ui.text("L", fonts.text, x, y + size / 2 - 12, size, "center", { 0, 0, 0 })
-    end
-end
-
--- A luck card: picture, rarity, name, what it does and how long it lasts.
-local function drawLuckCard(r, itemId, sold)
-    local item = luck.get(itemId)
-    local rarityColor = luck.rarityColor(item)
-    drawCardBox(r, sold, rarityColor)
-
-    drawLuckPicture(itemId, r.x + (r.w - 64) / 2, r.y + 8, 64)
-    ui.text(luck.RARITIES[item.rarity].label, fonts.hint, r.x, r.y + 76, r.w, "center", rarityColor)
-    ui.text(item.name, fonts.small, r.x + 6, r.y + 92, r.w - 12, "center", WHITE)
-
-    love.graphics.setFont(fonts.tiny)
-    love.graphics.setColor(DIM)
-    love.graphics.printf(item.about, r.x + 8, r.y + 116, r.w - 16, "center")
-    love.graphics.setColor(rarityColor)
-    love.graphics.printf(luck.durationText(item), r.x, r.y + r.h - 58, r.w, "center")
-
-    drawPrice(r, luck.price(item), sold)
-end
-
 -- An upgrade card: a big "x1.25" badge, its name and level, what it does.
 local function drawUpgradeCard(r, offer, sold)
     local def = upgrades.DEFS[offer.id]
@@ -202,6 +173,87 @@ end
 -- THE MYSTERY MACHINE
 ---------------------------------------------------------------------------
 
+-- One reel: its glass, the pictures scrolling past, and the prize under it.
+local function drawReel(k)
+    local machine = shop.machine
+    local reel = shop.reelRect(k)
+    love.graphics.setColor(0.95, 0.93, 0.88)
+    love.graphics.rectangle("fill", reel.x, reel.y, reel.w, reel.h, 8, 8)
+
+    -- A STENCIL cuts out the glass's shape so the item pictures scrolling
+    -- past only show up inside it.
+    love.graphics.stencil(function()
+        love.graphics.rectangle("fill", reel.x, reel.y, reel.w, reel.h, 8, 8)
+    end, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+
+    -- The strip of items: item n sits (n - 1 - position) cells below the centre.
+    local cell = 84
+    local size = 72
+    local position = shop.reelPosition(k)
+    local centreY = reel.y + reel.h / 2
+    for n, id in ipairs(machine.reels[k].strip) do
+        local cy = centreY + (n - 1 - position) * cell
+        if cy > reel.y - cell and cy < reel.y + reel.h + cell then
+            luckart.picture(id, reel.x + (reel.w - size) / 2, cy - size / 2, size)
+        end
+    end
+    -- Shading at the top and bottom of the glass, like a curved drum.
+    for i = 0, 24 do
+        local a = 0.55 * (1 - i / 24)
+        love.graphics.setColor(0, 0, 0, a)
+        love.graphics.rectangle("fill", reel.x, reel.y + i, reel.w, 1)
+        love.graphics.rectangle("fill", reel.x, reel.y + reel.h - 1 - i, reel.w, 1)
+    end
+    love.graphics.setStencilTest()
+
+    -- The rim. Once it has stopped on a prize it glows in the prize's
+    -- rarity colour; the prize you took glows brightest, the others fade.
+    local prize = machine.reels[k].prize
+    local stopped = shop.reelStopped(k) and prize ~= nil
+    local rimColor = { 1, 0.82, 0.3 }
+    local faded = stopped and machine.taken ~= nil and machine.taken ~= k
+    if stopped then
+        rimColor = luck.rarityColor(luck.get(prize))
+        local glow = 0.35
+        if machine.taken == k then glow = 0.75 end
+        if faded then glow = 0 end
+        if shop.hasUntakenPrizes() and ui.isHovered(shop.reelColumnRect(k)) then glow = 0.65 end
+        love.graphics.setColor(rimColor[1], rimColor[2], rimColor[3], glow)
+        love.graphics.rectangle("fill", reel.x - 6, reel.y - 6, reel.w + 12, reel.h + 12, 12, 12)
+    end
+    love.graphics.setColor(rimColor)
+    love.graphics.setLineWidth(4)
+    love.graphics.rectangle("line", reel.x, reel.y, reel.w, reel.h, 8, 8)
+    love.graphics.setLineWidth(1)
+
+    -- A prize that wasn't picked gets a dark veil.
+    if faded then
+        love.graphics.setColor(0, 0, 0, 0.6)
+        love.graphics.rectangle("fill", reel.x, reel.y, reel.w, reel.h, 8, 8)
+    end
+
+    -- Under the reel: the prize's rarity, name and what it does.
+    if stopped then
+        local y = reel.y + reel.h + 8
+        local item = luck.get(prize)
+        local alpha = faded and 0.35 or 1
+        ui.text(luck.RARITIES[item.rarity].label, fonts.hint, reel.x - 4, y, reel.w + 8, "center",
+            { rimColor[1], rimColor[2], rimColor[3], alpha }, not faded)
+        ui.text(item.name, fonts.tiny, reel.x - 4, y + 16, reel.w + 8, "center", { 1, 1, 1, alpha })
+        -- The words are clipped (setScissor) so a long one can't run into SPIN.
+        local bottom = shop.spinButtonRect().y - 4
+        love.graphics.setScissor(reel.x - 6, y + 32, reel.w + 12, math.max(0, bottom - (y + 32)))
+        love.graphics.setFont(fonts.tiny)
+        love.graphics.setColor(1, 1, 1, 0.75 * alpha)
+        love.graphics.printf(item.about, reel.x - 4, y + 34, reel.w + 8, "center")
+        love.graphics.setScissor()
+        if machine.taken == k then
+            ui.text("TAKEN!", fonts.heading, reel.x, reel.y + reel.h - 24, reel.w, "center", YELLOW, true)
+        end
+    end
+end
+
 local function drawMachine()
     local m = shop.machineRect()
     local machine = shop.machine
@@ -221,71 +273,39 @@ local function drawMachine()
     love.graphics.rectangle("line", m.x, m.y, m.w, m.h, 8, 8)
     love.graphics.setLineWidth(1)
 
-    -- Title plate
+    -- Title plate, with a line saying what to do next.
     love.graphics.setColor(0.08, 0.02, 0.04)
-    love.graphics.rectangle("fill", m.x + 14, m.y + 12, m.w - 28, 42, 8, 8)
-    ui.text("MYSTERY", fonts.heading, m.x, m.y + 14, m.w, "center", YELLOW, true)
-    ui.text("MACHINE", fonts.hint, m.x, m.y + 36, m.w, "center", WHITE)
-
-    -- The reel window. A STENCIL cuts out its shape so the item pictures
-    -- scrolling past only show up inside the glass.
-    local reel = shop.reelRect()
-    love.graphics.setColor(0.95, 0.93, 0.88)
-    love.graphics.rectangle("fill", reel.x, reel.y, reel.w, reel.h, 8, 8)
-
-    love.graphics.stencil(function()
-        love.graphics.rectangle("fill", reel.x, reel.y, reel.w, reel.h, 8, 8)
-    end, "replace", 1)
-    love.graphics.setStencilTest("greater", 0)
-
-    -- The strip of items: item k sits (k - 1 - position) cells below the centre.
-    local cell = 84
-    local position = shop.reelPosition()
-    local centreY = reel.y + reel.h / 2
-    for k, id in ipairs(machine.strip) do
-        local cy = centreY + (k - 1 - position) * cell
-        if cy > reel.y - cell and cy < reel.y + reel.h + cell then
-            drawLuckPicture(id, reel.x + (reel.w - 70) / 2, cy - 35, 70)
-        end
+    love.graphics.rectangle("fill", m.x + 14, m.y + 10, m.w - 28, 42, 8, 8)
+    ui.text("MYSTERY MACHINE", fonts.heading, m.x, m.y + 13, m.w, "center", YELLOW, true)
+    local sub = "SPIN, THEN KEEP ONE OF THE 3 PRIZES"
+    if shop.hasUntakenPrizes() then
+        sub = luck.isFull() and "SLOTS FULL - SELL ONE, THEN PICK" or "CLICK A REEL TO TAKE IT"
     end
-    -- Shading at the top and bottom of the glass, like a curved drum.
-    for i = 0, 30 do
-        local a = 0.55 * (1 - i / 30)
-        love.graphics.setColor(0, 0, 0, a)
-        love.graphics.rectangle("fill", reel.x, reel.y + i, reel.w, 1)
-        love.graphics.rectangle("fill", reel.x, reel.y + reel.h - 1 - i, reel.w, 1)
-    end
-    love.graphics.setStencilTest()
+    ui.text(sub, fonts.hint, m.x, m.y + 34, m.w, "center", WHITE)
 
-    -- Payline arrows and the glass rim.
+    for k = 1, shop.REELS do
+        drawReel(k)
+    end
+
+    -- Payline arrows either side of the reels.
+    local first, last = shop.reelRect(1), shop.reelRect(shop.REELS)
+    local centreY = first.y + first.h / 2
     love.graphics.setColor(1, 0.2, 0.2)
-    love.graphics.polygon("fill", reel.x - 14, centreY - 9, reel.x - 2, centreY, reel.x - 14, centreY + 9)
-    love.graphics.polygon("fill", reel.x + reel.w + 14, centreY - 9, reel.x + reel.w + 2, centreY,
-        reel.x + reel.w + 14, centreY + 9)
+    love.graphics.polygon("fill", first.x - 12, centreY - 8, first.x - 2, centreY, first.x - 12, centreY + 8)
+    love.graphics.polygon("fill", last.x + last.w + 12, centreY - 8, last.x + last.w + 2, centreY,
+        last.x + last.w + 12, centreY + 8)
 
-    -- When it has stopped on a prize, the rim glows in the prize's rarity colour.
-    local rimColor = { 1, 0.82, 0.3 }
-    if not machine.spinning and machine.prize then
-        rimColor = luck.rarityColor(luck.get(machine.prize))
-        love.graphics.setColor(rimColor[1], rimColor[2], rimColor[3], 0.35)
-        love.graphics.rectangle("fill", reel.x - 6, reel.y - 6, reel.w + 12, reel.h + 12, 12, 12)
-    end
-    love.graphics.setColor(rimColor)
-    love.graphics.setLineWidth(4)
-    love.graphics.rectangle("line", reel.x, reel.y, reel.w, reel.h, 8, 8)
-    love.graphics.setLineWidth(1)
-
-    -- Under the reel: what you won (or the odds before the first spin).
-    local labelY = reel.y + reel.h + 8
-    if not machine.spinning and machine.prize then
-        local item = luck.get(machine.prize)
-        ui.text(luck.RARITIES[item.rarity].label, fonts.hint, m.x, labelY, m.w, "center", rimColor, true)
-        ui.text(item.name, fonts.tiny, m.x + 8, labelY + 17, m.w - 16, "center", WHITE)
-    elseif not machine.spinning then
-        ui.text("A RANDOM LUCK ITEM!", fonts.hint, m.x, labelY + 6, m.w, "center", WHITE)
+    -- Before the first spin: what it does and the odds.
+    if machine.reels[1].prize == nil and not machine.spinning then
+        ui.text("3 RANDOM LUCK ITEMS - KEEP ONE!", fonts.hint, m.x, first.y + first.h + 22, m.w,
+            "center", WHITE)
+        ui.text("Common 30%   Uncommon 30%   Rare 22%   Epic 13%   Legendary 5%", fonts.tiny,
+            m.x, first.y + first.h + 46, m.w, "center", DIM)
+        ui.text("Luck items are permanent until you sell them.", fonts.tiny,
+            m.x, first.y + first.h + 66, m.w, "center", DIM)
     end
 
-    -- The lever on the right side. It's pulled down while the reel spins.
+    -- The lever on the right side. It's pulled down while the reels spin.
     local lx = m.x + m.w + 2
     local pulled = machine.spinning and math.max(0, 1 - machine.time * 2) or 0
     local knobY = m.y + 90 + pulled * 90
@@ -306,7 +326,7 @@ end
 
 
 ---------------------------------------------------------------------------
--- YOUR DICE, HOLDING, CONTINUE
+-- YOUR DICE, YOUR LUCK, MARKERS
 ---------------------------------------------------------------------------
 
 -- Your 5 equipped dice and your inventory, in one window.
@@ -344,24 +364,35 @@ local function drawYourDice()
     end
 end
 
--- The luck item you're holding right now.
-local function drawHolding()
-    local r = shop.holdingRect()
-    ui.vegasWindow(r, "HOLDING")
-    if luck.current == nil then
-        ui.text("No luck item", fonts.small, r.x, r.y + 60, r.w, "center", DIM)
-        return
+-- YOUR LUCK: one row per slot - picture, SELL button, rarity, name and
+-- what it does.
+local function drawYourLuck()
+    local r = shop.luckRect()
+    ui.vegasWindow(r, "YOUR LUCK  " .. #luck.held .. "/" .. luck.MAX_HELD)
+    for k = 1, luck.MAX_HELD do
+        local row = shop.luckRowRect(k)
+        if k > 1 then
+            love.graphics.setColor(1, 0.82, 0.3, 0.2)
+            love.graphics.rectangle("fill", row.x, row.y - 1, row.w, 1)
+        end
+        local id = luck.held[k]
+        if id then
+            local item = luck.get(id)
+            local color = luck.rarityColor(item)
+            luckart.picture(id, row.x + 4, row.y + 4, 56)
+            luckart.sellButton(shop.luckSellRect(k), luck.sellPrice(item))
+            local tx, tw = row.x + 76, row.w - 76
+            ui.text(luck.RARITIES[item.rarity].label, fonts.hint, tx, row.y + 4, tw, "left", color)
+            ui.text(item.name, fonts.small, tx, row.y + 18, tw, "left", WHITE)
+            love.graphics.setFont(fonts.tiny)
+            love.graphics.setColor(DIM)
+            love.graphics.printf(item.about, tx, row.y + 40, tw, "left")
+        else
+            ui.text("EMPTY SLOT", fonts.small, row.x, row.y + row.h / 2 - 20, row.w, "center", DIM)
+            ui.text("(win one from the Mystery Machine)", fonts.tiny, row.x, row.y + row.h / 2 + 2,
+                row.w, "center", DIM)
+        end
     end
-    local item = luck.get(luck.current)
-    local color = luck.rarityColor(item)
-    drawLuckPicture(item.id, r.x + 16, r.y + 34, 58)
-    local tx, tw = r.x + 86, r.w - 100
-    ui.text(luck.RARITIES[item.rarity].label, fonts.hint, tx, r.y + 26, tw, "left", color)
-    ui.text(item.name, fonts.small, tx, r.y + 42, tw, "left", WHITE)
-    ui.text(luck.timeLeftText(), fonts.tiny, tx, r.y + 64, tw, "left", color)
-    love.graphics.setFont(fonts.tiny)
-    love.graphics.setColor(DIM)
-    love.graphics.printf(item.about, tx, r.y + 80, tw, "left")
 end
 
 -- A white casino chip seen face-on (for the MARKERS window).
@@ -414,31 +445,32 @@ function shopdraw.screen()
     ui.text("NEXT UP: LEVEL " .. shop.nextLevel, fonts.heading, 20, 48, 400, "left", WHITE)
     ui.text(ui.controlsHint(), fonts.heading, W - 600, 48, 580, "right", YELLOW)
 
-    -- The three windows of cards
+    -- The two windows of cards
     ui.vegasWindow(shop.windowRect(1), "DICE")
-    ui.vegasWindow(shop.windowRect(2), "LUCK")
-    ui.vegasWindow(shop.windowRect(3), "UPGRADES")
+    ui.vegasWindow(shop.windowRect(2), "UPGRADES")
     for n = 1, 2 do
         drawDiceCard(shop.cardRect("dice", n), shop.stock.dice[n], shop.sold.dice[n])
-        drawLuckCard(shop.cardRect("luck", n), shop.stock.luck[n], shop.sold.luck[n])
     end
     for n = 1, 3 do
         drawUpgradeCard(shop.cardRect("upgrades", n), shop.stock.upgrades[n], shop.sold.upgrades[n])
     end
 
+    drawYourLuck()
     drawYourDice()
     drawMachine()
-    drawHolding()
     drawMarkers()
 
     -- A glossy green CONTINUE button, then the latest message under it.
     ui.glossyButton(shop.continueRect(), "CONTINUE", { 0.10, 0.65, 0.25 }, not shop.machine.spinning)
     local msg = shop.messageRect()
+    -- The message wraps onto as many lines as it needs (centred top-to-bottom).
     love.graphics.setFont(fonts.small)
-    love.graphics.setColor(0, 0, 0, 0.6)
-    love.graphics.printf(shop.message, msg.x + 1, msg.y + 2, msg.w, "center")
+    local _, lines = fonts.small:getWrap(shop.message, msg.w)
+    local textY = msg.y + math.max(0, (msg.h - #lines * fonts.small:getHeight()) / 2)
+    love.graphics.setColor(0, 0, 0, 0.7)
+    love.graphics.printf(shop.message, msg.x + 1, textY + 2, msg.w, "center")
     love.graphics.setColor(GOLD)
-    love.graphics.printf(shop.message, msg.x, msg.y, msg.w, "center")
+    love.graphics.printf(shop.message, msg.x, textY, msg.w, "center")
 end
 
 return shopdraw

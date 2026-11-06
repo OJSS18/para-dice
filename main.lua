@@ -14,7 +14,9 @@
 --   config.lua    - numbers you can tweak (sizes, rerolls, prices of things...)
 --   dicetypes.lua - every kind of die (White, Red, ...) and its odds
 --   player.lua    - coins, your 5 dice, your inventory
---   luck.lua      - luck items: one held at a time; rarities, effects, how long they last
+--   luck.lua      - luck items (perks): up to 3, permanent until sold; rarities and effects
+--   luckart.lua   - luck item pictures, SELL buttons and tooltips
+--   luckrack.lua  - your 3 luck slots on the play screen (sell from there)
 --   boosts.lua    - lasting boosts stuck onto POINTS tiles by luck items
 --   upgrades.lua  - shop upgrades: EVEN / ODD / LOWER 13 / UPPER 13 / HOT FOUR
 --   markers.lua   - the white chip placed on a tile each level (x1.5)
@@ -49,6 +51,7 @@ local dice      = require("dice")
 local score     = require("score")
 local player    = require("player")
 local luck      = require("luck")
+local luckrack  = require("luckrack")
 local markers   = require("markers")
 local boosts    = require("boosts")
 local upgrades  = require("upgrades")
@@ -85,7 +88,7 @@ local showOdds = false
 --   "levelClear"  - all rounds played and the target was reached; confetti!
 --   "victory"     - the LAST level was cleared: you beat the game!
 --   "gameOver"    - all rounds played and the target was missed
---   "shop"        - between levels: buy dice and luck, swap dice in
+--   "shop"        - between levels: buy dice and upgrades, spin for luck, swap dice in
 local state = "start"
 
 -- Set to true when the round is over but the dice are still animating.
@@ -108,7 +111,6 @@ local DRAG_DISTANCE = 12   -- pixels the mouse must move before it counts as a d
 
 -- Begin a new round: all 5 dice back in the tray, waiting to be thrown.
 local function startRound()
-    luck.useRoll()          -- a fresh roll counts toward the luck item wearing off
     -- Addict's automatic marker flips between 17 and 18 each round.
     markers.autoSum = luck.autoMarkerSum(score.round + 1)
     dice.newRound()
@@ -117,13 +119,11 @@ local function startRound()
 end
 
 -- Begin a level:
---   * luck items that only last until a certain level wear off,
 --   * "this level only" point boosts come off,
 --   * the marker from last level comes off the table,
 --   * and the player places a new one before the first roll - unless
 --     their luck item doesn't allow it (Addict), then we roll straight away.
 local function beginLevel()
-    luck.onLevelStart(score.level)
     boosts.clearLevel()
     markers.clear()
     markers.autoSum = nil
@@ -152,7 +152,8 @@ local function startGame()
     boosts.reset()          -- no point boosts
     upgrades.reset()        -- no shop upgrades
     markers.reset()         -- back to one marker
-    luck.give(luck.STARTER) -- everyone starts holding "Run it Back"
+    luck.reset()            -- no luck items...
+    luck.give(luck.STARTER) -- ...except "Run it Back", which everyone starts with
     beginLevel()
 end
 
@@ -173,18 +174,19 @@ end
 -- The dice are final: score them, pay any coins, then decide what's next.
 -- 'noReroll' is true if the player chose No Reroll (earns the points bonus).
 local function finishRound(noReroll)
-    local result = score.recordRound(dice.values, noReroll)
-    player.addCoins(result.coins)   -- coins from a Money Maker hand (0 if none)
+    local result = score.recordRound(dice.values, noReroll, dice.hasRerolled(), dice.firstSum)
+    player.addCoins(result.coins)   -- coins from a Money Maker hand and luck items (0 if none)
 
     -- A huge round (40% / 75% of the level goal in one go) is a BIG / MEGA WIN,
     -- which pays bonus coins on top.
-    result.winBonus = bigwin.check(result.points, score.getTarget())
+    -- (Jackpot Magnet lowers those thresholds.)
+    result.winBonus = bigwin.check(result.points, score.getTarget(), luck.bigWinShares())
     if result.winBonus > 0 then
         player.addCoins(result.winBonus)
         score.levelCoins = score.levelCoins + result.winBonus
     end
 
-    -- The held luck item may stick a lasting boost onto the point just scored.
+    -- The held luck items may stick a lasting boost onto the point just scored.
     -- (This happens AFTER scoring, so the boost counts from the next time.)
     luck.onPointScored(result.sum)
 
@@ -234,9 +236,6 @@ local function throwDice(how)
         return
     end
     local isReroll = dice.nextThrowIsReroll()
-    if isReroll then
-        luck.useRoll()          -- rerolls count toward the luck item too
-    end
     local thrown, which = dice.throw()
     if not thrown then
         animation.cancelHold()
@@ -317,6 +316,7 @@ function love.update(dt)
     animation.update(dt)
     confetti.update(dt)
     bigwin.update(dt)
+    luckrack.update(dt)
     if state == "shop" then
         shop.update(dt)     -- the Mystery Machine's reel
     end
@@ -477,7 +477,7 @@ function love.keypressed(key)
         end
 
     elseif state == "shop" then
-        if isEnter and not shop.machine.spinning then
+        if isEnter and shop.tryContinue() == "continue" then
             startNextLevel()
         end
 
@@ -527,6 +527,14 @@ function love.mousepressed(x, y, button, istouch)
     end
     if oddsguide.isOnTab(x, y) then
         showOdds = true
+        return
+    end
+
+    -- The luck rack (right of the tray): SELL a luck item any time the
+    -- dice aren't flying.
+    if (state == "placeMarker" or state == "play" or state == "roundOver")
+        and not animation.isRolling() and not animation.isHolding()
+        and luckrack.click(x, y) then
         return
     end
 
