@@ -21,6 +21,7 @@ local luck      = require("luck")
 local player    = require("player")
 local upgrades  = require("upgrades")
 local markers   = require("markers")
+local util      = require("util")
 
 local shop = {}
 
@@ -362,20 +363,14 @@ end
 --   | inventory   |  |        [SPIN]         |  message
 --   +-------------+  +-----------------------+  [CONTINUE]
 
-local function rect(x, y, w, h)
-    return { x = x, y = y, w = w, h = h }
-end
-
-local function isInside(px, py, r)
-    return px >= r.x and px <= r.x + r.w and py >= r.y and py <= r.y + r.h
-end
+local rect, isInside = util.rect, util.isInside
 
 -- The y of the top of the shop, so the whole thing is centred vertically.
 function shop.getTop()
     return math.max(8, (love.graphics.getHeight() - SHOP_HEIGHT) / 2)
 end
 
--- How many cards each card window holds (1 = dice, 2 = upgrades).
+-- How many cards each card window holds (window 1 = dice, 2 = upgrades).
 local CARDS_IN = { 2, 3 }
 
 -- Width of a window holding 'n' cards.

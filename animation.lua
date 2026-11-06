@@ -34,6 +34,7 @@
 
 local config = require("config")
 local layout = require("layout")
+local util   = require("util")
 
 local animation = {}
 
@@ -104,15 +105,7 @@ local function easeInOut(p)
     return 1 - (-2 * p + 2) ^ 2 / 2
 end
 
--- Blend from a to b. p = 0 gives a, p = 1 gives b, 0.5 is halfway.
-local function lerp(a, b, p)
-    return a + (b - a) * p
-end
-
--- A random number between lo and hi.
-local function randomBetween(lo, hi)
-    return lo + (hi - lo) * love.math.random()
-end
+local lerp, randomBetween = util.lerp, util.randomBetween
 
 -- Either 1 or -1, at random.
 local function randomSign()
@@ -164,8 +157,8 @@ end
 local function clampHoldPoint(x, y, count)
     local f = layout.felt()
     local reach = clusterReach(count)
-    x = math.max(f.x + 10 + reach, math.min(love.graphics.getWidth() - reach, x))
-    y = math.max(f.y + reach, math.min(love.graphics.getHeight() - reach, y))
+    x = util.clamp(x, f.x + 10 + reach, love.graphics.getWidth() - reach)
+    y = util.clamp(y, f.y + reach, love.graphics.getHeight() - reach)
 
     -- Over the tray? Lift it up above the tray instead.
     local t = layout.tray()
@@ -344,13 +337,9 @@ local function heldVelocity(h)
     return (last.x - first.x) / time, (last.y - first.y) / time
 end
 
--- Is a handful being held? Which dice are in it?
+-- Is a handful being held?
 function animation.isHolding()
     return held ~= nil
-end
-
-function animation.heldIndices()
-    return held and held.indices or {}
 end
 
 -- Drop the handful without throwing (e.g. the throw wasn't allowed).

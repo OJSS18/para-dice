@@ -25,6 +25,7 @@ local fonts  = require("fonts")
 local score  = require("score")
 local dice    = require("dice")
 local markers = require("markers")
+local ui      = require("ui")
 
 local scoreboard = {}
 
@@ -48,8 +49,7 @@ local EXAMPLE_DICE = {
     threeKind     = { 2, 2, 2 },
 }
 
--- Where the pips go on a mini die, as fractions of its size (like PIP_LAYOUTS
--- in the very first version of this game).
+-- Where the pips go on a mini die, as fractions of its size.
 local PIPS = {
     [1] = { {0.5, 0.5} },
     [2] = { {0.25, 0.25}, {0.75, 0.75} },
@@ -412,7 +412,6 @@ end
 --   SCORING  60  x 1.65  (marker x1.5, keep x1.1)  =  99 PTS
 -- 'r' is from score.calculate() or a saved round; 'noReroll' = KEEP bonus counts.
 function scoreboard.drawScoreLine(r, noReroll)
-    local ui = require("ui")
     local line = layout.scoreLine()
     local baseText, mult, sources = score.breakdown(r, noReroll)
     local text = "SCORING  " .. baseText .. "  x " .. score.formatMult(mult)

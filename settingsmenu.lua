@@ -9,19 +9,14 @@
 local settings = require("settings")
 local fonts    = require("fonts")
 local ui       = require("ui")
+local util     = require("util")
 
 local settingsmenu = {}
 
 -- true while the player is dragging the volume knob with the mouse.
 local dragging = false
 
-local function rect(x, y, w, h)
-    return { x = x, y = y, w = w, h = h }
-end
-
-local function isInside(px, py, r)
-    return px >= r.x and px <= r.x + r.w and py >= r.y and py <= r.y + r.h
-end
+local rect, isInside = util.rect, util.isInside
 
 
 ---------------------------------------------------------------------------
@@ -84,21 +79,8 @@ end
 -- The SETTINGS tab. Drawn on every screen.
 function settingsmenu.drawTab()
     local r = settingsmenu.tabRect()
-    local hover = ui.isHovered(r)
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.rectangle("fill", r.x + 3, r.y + 4, r.w, r.h, 0, 0)
-    if hover then
-        love.graphics.setColor(0.75, 0.08, 0.12)
-    else
-        love.graphics.setColor(0.55, 0.05, 0.08)
-    end
-    love.graphics.rectangle("fill", r.x, r.y - 10, r.w, r.h + 10, 10, 10)
-    love.graphics.setColor(1, 0.82, 0.3)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", r.x, r.y - 10, r.w, r.h + 10, 10, 10)
-    love.graphics.setLineWidth(1)
+    ui.tab(r, "SETTINGS")
     drawGear(r.x + 22, r.y + r.h / 2, 9, { 1, 0.85, 0.35 })
-    ui.text("SETTINGS", fonts.hint, r.x + 36, r.y + 12, r.w - 44, "center", { 1, 0.95, 0.85 })
 end
 
 -- The settings panel, over a dimmed screen.

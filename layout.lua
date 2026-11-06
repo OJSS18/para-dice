@@ -22,18 +22,12 @@
 -- Everything is worked out from the window size, so it fits any screen.
 
 local config = require("config")
+local util   = require("util")
 
 local layout = {}
 
--- A rectangle as a table: { x = left, y = top, w = width, h = height }.
-local function rect(x, y, w, h)
-    return { x = x, y = y, w = w, h = h }
-end
-
--- Is the point (px, py) inside rectangle r?
-function layout.isInside(px, py, r)
-    return px >= r.x and px <= r.x + r.w and py >= r.y and py <= r.y + r.h
-end
+local rect = util.rect
+layout.isInside = util.isInside   -- is the point (px, py) inside rectangle r?
 
 
 ---------------------------------------------------------------------------
@@ -44,7 +38,7 @@ end
 function layout.banner()
     local W, H = love.graphics.getWidth(), love.graphics.getHeight()
     local w = W * config.BANNER_FRACTION
-    w = math.max(config.BANNER_MIN_W, math.min(config.BANNER_MAX_W, w))
+    w = util.clamp(w, config.BANNER_MIN_W, config.BANNER_MAX_W)
     return rect(0, 0, math.floor(w), H)
 end
 
@@ -205,7 +199,7 @@ end
 -- THE DICE TRAY (bottom-left of the felt)
 ---------------------------------------------------------------------------
 
-local TRAY_NUMBER_SPACE = 22   -- room under the dice for their key numbers (1-5)
+local TRAY_NUMBER_SPACE = 22   -- room under the dice for the HELD labels
 
 function layout.tray()
     local f = layout.felt()
@@ -281,39 +275,6 @@ function layout.logoCenter()
     local z = layout.landingZone()
     return z.x + z.w / 2, z.y + z.h / 2
 end
-
--- Pick 'count' random landing spots (centres) that don't overlap each other.
--- Returns a list like { {x = 700, y = 350}, ... }.
-function layout.randomLandingSpots(count)
-    local z = layout.landingZone()
-    local half = config.TABLE_DIE_SIZE / 2
-    local minDistance = config.TABLE_DIE_SIZE * 1.15
-    local spots = {}
-
-    for n = 1, count do
-        local spot
-        -- Try up to 40 random spots and take the first that's clear of the
-        -- others. (If none are clear, the last try is used anyway.)
-        for _ = 1, 40 do
-            spot = {
-                x = z.x + half + love.math.random() * math.max(1, z.w - 2 * half),
-                y = z.y + half + love.math.random() * math.max(1, z.h - 2 * half),
-            }
-            local clear = true
-            for _, other in ipairs(spots) do
-                local dx, dy = spot.x - other.x, spot.y - other.y
-                if math.sqrt(dx * dx + dy * dy) < minDistance then
-                    clear = false
-                    break
-                end
-            end
-            if clear then break end
-        end
-        spots[n] = spot
-    end
-    return spots
-end
-
 
 ---------------------------------------------------------------------------
 -- BANNER BUTTONS (bottom of the banner)

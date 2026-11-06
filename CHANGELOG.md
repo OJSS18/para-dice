@@ -2,6 +2,10 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## Unreleased
+
+- Code clean-up: shared helpers moved into `util.lua`, the three top-right tabs share one drawing function, dead code removed. Nothing looks or plays any differently (checked screenshot-for-screenshot with `tools/regress`).
+
 ## v0.0.2 - 2026-11-06
 
 - Rolling dice now match the shop and tray dice: every tumble, settle and landing picture was re-made from the new glossy dice art.

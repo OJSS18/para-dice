@@ -7,9 +7,11 @@ A dice roguelite (Yahtzee meets craps) in LÖVE 11 / Lua. The owner is a beginne
 - `lovec.exe` (same folder) is the console build. Use it for headless checks, where it prints errors and `print` output.
 - Visual checks: put a small harness LÖVE project in the scratchpad. It loads `main_game.lua` (a copy of main.lua), calls `animation.autoThrow`, and saves `love.graphics.captureScreenshot` PNGs. Then crop and contact-sheet them with Python/PIL and look at the result. Enter on the marker screen doesn't throw until every marker is placed, so call the throw directly.
 - The ` key is godmode (wins the level / gives coins) for testing.
+- **Refactors must not change output.** Prove it with the regression harness: `bash tools/regress/run.sh archive/v0.0.2 before`, `bash tools/regress/run.sh . after`, then `bash tools/regress/compare.sh before after`. It must say IDENTICAL. The run is deterministic (fixed seed, fake clock and mouse); the script is `tools/regress/driver.lua`. It only catches errors on the paths it plays, so extend the script when you add features.
+- `archive/v0.0.2/` is a frozen copy of the code before the clean-up (also git tag `v0.0.2`). Never edit it.
 
 ## Code layout rules
-- main.lua's header lists every module. Logic files never draw, and drawing files never change game data.
+- main.lua's header lists every module. Shared helpers (rect, isInside, clamp, lerp, round, sum, countFaces, pickWeighted, randomBetween) live in `util.lua` - use them instead of writing local copies. Logic files never draw, and drawing files never change game data.
 - `config.lua` holds every tweakable number. `config.VERSION` shows bottom-right. Bump it and add a `CHANGELOG.md` entry (and update the README's "Current version") for each shipped change.
 - Dice results are chosen in `dice.lua` before a throw. `animation.lua` only moves the dice and picks pictures, so it must never change `dice.values`.
 

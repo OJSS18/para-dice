@@ -11,6 +11,7 @@ local dicetypes = require("dicetypes")
 local player    = require("player")
 local fonts     = require("fonts")
 local ui        = require("ui")
+local util      = require("util")
 local draw      = require("draw")   -- for draw.dieImage
 
 local oddsguide = {}
@@ -29,24 +30,12 @@ function oddsguide.tabRect()
 end
 
 function oddsguide.isOnTab(x, y)
-    local r = oddsguide.tabRect()
-    return x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h
+    return util.isInside(x, y, oddsguide.tabRect())
 end
 
 function oddsguide.drawTab()
     local r = oddsguide.tabRect()
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.rectangle("fill", r.x + 3, r.y + 4, r.w, r.h)
-    if ui.isHovered(r) then
-        love.graphics.setColor(0.75, 0.08, 0.12)
-    else
-        love.graphics.setColor(0.55, 0.05, 0.08)
-    end
-    love.graphics.rectangle("fill", r.x, r.y - 10, r.w, r.h + 10, 10, 10)
-    love.graphics.setColor(1, 0.82, 0.3)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", r.x, r.y - 10, r.w, r.h + 10, 10, 10)
-    love.graphics.setLineWidth(1)
+    ui.tab(r, "ODDS")
     -- A tiny die icon
     love.graphics.setColor(1, 0.85, 0.35)
     love.graphics.rectangle("fill", r.x + 12, r.y + 9, 20, 20, 4, 4)
@@ -54,7 +43,6 @@ function oddsguide.drawTab()
     love.graphics.circle("fill", r.x + 17, r.y + 14, 2.2)
     love.graphics.circle("fill", r.x + 22, r.y + 19, 2.2)
     love.graphics.circle("fill", r.x + 27, r.y + 24, 2.2)
-    ui.text("ODDS", fonts.hint, r.x + 36, r.y + 12, r.w - 44, "center", { 1, 0.95, 0.85 })
 end
 
 

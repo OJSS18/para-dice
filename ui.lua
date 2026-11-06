@@ -3,9 +3,12 @@
 -- shop and the overlays:
 --   ui.text(...)         - text with a drop shadow (and optional glow)
 --   ui.glossyButton(...) - a shiny, candy-like button
+--   ui.tab(...)          - a tab hanging from the top edge (SETTINGS, CONTROLS, ODDS)
+--   ui.bulb / ui.bulbBorder / ui.vegasWindow - Vegas light bulbs and windows
 -- Drawing only - nothing here changes game data.
 
 local fonts = require("fonts")
+local util  = require("util")
 
 local ui = {}
 
@@ -29,7 +32,7 @@ end
 -- Is the mouse over rectangle r? (Reading the mouse is fine in drawing code.)
 local function hovered(r)
     local mx, my = love.mouse.getPosition()
-    return mx >= r.x and mx <= r.x + r.w and my >= r.y and my <= r.y + r.h
+    return util.isInside(mx, my, r)
 end
 ui.isHovered = hovered
 
@@ -135,6 +138,24 @@ function ui.glossyButton(r, label, base, enabled)
     local textColor = enabled and { 1, 1, 1 } or { 0.65, 0.65, 0.68 }
     local textY = r.y + (r.h - fonts.button:getHeight()) / 2 + 2
     ui.text(label, fonts.button, r.x + 10, textY, r.w - 20, "center", textColor)
+end
+
+-- A red tab hanging from the top edge of the screen, with a gold rim and
+-- its label. The file that owns the tab draws its little icon on the left.
+function ui.tab(r, label)
+    love.graphics.setColor(0, 0, 0, 0.5)
+    love.graphics.rectangle("fill", r.x + 3, r.y + 4, r.w, r.h)
+    if hovered(r) then
+        love.graphics.setColor(0.75, 0.08, 0.12)
+    else
+        love.graphics.setColor(0.55, 0.05, 0.08)
+    end
+    love.graphics.rectangle("fill", r.x, r.y - 10, r.w, r.h + 10, 10, 10)
+    love.graphics.setColor(1, 0.82, 0.3)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", r.x, r.y - 10, r.w, r.h + 10, 10, 10)
+    love.graphics.setLineWidth(1)
+    ui.text(label, fonts.hint, r.x + 36, r.y + 12, r.w - 44, "center", { 1, 0.95, 0.85 })
 end
 
 -- One marquee light bulb facing us, centred on (x, y).

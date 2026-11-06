@@ -27,6 +27,7 @@ local shop     = require("shop")
 local animation = require("animation")
 local fonts    = require("fonts")
 local ui       = require("ui")
+local util     = require("util")
 
 local tutorial = {}
 
@@ -46,9 +47,7 @@ local PAD = 8             -- spotlight padding around a target
 -- TARGETS (the parts of the screen a step can shine its spotlight on)
 ---------------------------------------------------------------------------
 
-local function rect(x, y, w, h)
-    return { x = x, y = y, w = w, h = h }
-end
+local rect = util.rect
 
 local T = {}
 
@@ -342,17 +341,6 @@ function tutorial.update(screen)
     end
 end
 
--- Which step it's on and that step's title (handy for testing).
-function tutorial.where()
-    return k, STEPS[k] and STEPS[k].title
-end
-
--- Is a "next" step showing? (Then the game underneath ignores input.)
-function tutorial.isBlocking()
-    local step = current()
-    return step ~= nil and step.kind == "next"
-end
-
 
 ---------------------------------------------------------------------------
 -- LAYOUT OF THE BOX
@@ -411,8 +399,8 @@ local function boxRect(step)
     else
         x, y = t.x - gap - BOX_W, t.y + t.h / 2 - h / 2
     end
-    x = math.max(12, math.min(W - BOX_W - 12, x))
-    y = math.max(46, math.min(H - h - 12, y))
+    x = util.clamp(x, 12, W - BOX_W - 12)
+    y = util.clamp(y, 46, H - h - 12)
     return rect(x, y, BOX_W, h)
 end
 
@@ -423,6 +411,12 @@ end
 -- SKIP TUTORIAL, at the top of the screen (just right of the banner).
 local function skipRect()
     return rect(layout.banner().w + 30, 6, 190, 30)
+end
+
+local function drawSkipButton()
+    local s = skipRect()
+    ui.glossyButton(s, "", { 0.35, 0.35, 0.4 }, true)
+    ui.text("SKIP TUTORIAL", fonts.hint, s.x, s.y + 8, s.w, "center", CREAM)
 end
 
 
@@ -466,8 +460,7 @@ function tutorial.draw()
     if step == nil then
         -- Still running, just waiting for another screen: keep SKIP up.
         if tutorial.active and state ~= "start" then
-            ui.glossyButton(skipRect(), "", { 0.35, 0.35, 0.4 }, true)
-            ui.text("SKIP TUTORIAL", fonts.hint, skipRect().x, skipRect().y + 8, skipRect().w, "center", CREAM)
+            drawSkipButton()
         end
         return
     end
@@ -535,10 +528,7 @@ function tutorial.draw()
         ui.text("YOUR TURN!", fonts.hint, box.x + 16, box.y + box.h - 30, box.w - 32, "left", { 0.45, 1, 0.45 })
     end
 
-    -- SKIP TUTORIAL
-    local s = skipRect()
-    ui.glossyButton(s, "", { 0.35, 0.35, 0.4 }, true)
-    ui.text("SKIP TUTORIAL", fonts.hint, s.x, s.y + 8, s.w, "center", CREAM)
+    drawSkipButton()
 end
 
 
@@ -546,20 +536,16 @@ end
 -- INPUT (main.lua passes clicks and keys here first)
 ---------------------------------------------------------------------------
 
-local function inside(px, py, r)
-    return px >= r.x and px <= r.x + r.w and py >= r.y and py <= r.y + r.h
-end
-
 -- A click. Returns true if the tutorial used it (so the game shouldn't).
 function tutorial.mousepressed(x, y)
     if not tutorial.active or state == "start" then return false end
-    if inside(x, y, skipRect()) then
+    if util.isInside(x, y, skipRect()) then
         tutorial.stop()
         return true
     end
     local step = current()
     if step and step.kind == "next" then
-        if inside(x, y, nextButtonRect(boxRect(step))) then
+        if util.isInside(x, y, nextButtonRect(boxRect(step))) then
             advance()
         end
         return true   -- reading steps swallow every other click

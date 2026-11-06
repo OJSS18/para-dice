@@ -35,11 +35,6 @@ function boosts.addLevel(sum, mult)
     boosts.level[sum] = (boosts.level[sum] or 1) * mult
 end
 
--- Does this point already have a level boost?
-function boosts.hasLevel(sum)
-    return boosts.level[sum] ~= nil
-end
-
 -- Total multiplier on a point from all its boosts (1 if none).
 function boosts.multiplierFor(sum)
     local mult = boosts.level[sum] or 1

@@ -12,6 +12,7 @@
 -- The project is split into files (called "modules"):
 --   conf.lua      - window settings (full screen)
 --   config.lua    - numbers you can tweak (sizes, rerolls, prices of things...)
+--   util.lua      - small shared helpers (rectangles, rounding, weighted random...)
 --   dicetypes.lua - every kind of die (White, Red, ...) and its odds
 --   player.lua    - coins, your 5 dice, your inventory
 --   luck.lua      - luck items (perks): up to 3, permanent until sold; rarities and effects
@@ -98,6 +99,11 @@ local state = "start"
 -- love.update waits for the animation to finish, THEN scores the round,
 -- so the result never appears before the dice have stopped.
 local roundEndPending = false
+
+-- Are we on one of the screens that show the table with its dice?
+local function onTable()
+    return state == "placeMarker" or state == "play" or state == "roundOver"
+end
 
 -- The mouse went down on a tray die. If it's let go without moving, that
 -- holds / lets go of the die; if it's dragged, it picks up the dice to throw.
@@ -290,7 +296,7 @@ end
 
 -- GOD MODE (testing): what the ` key does depends on the screen.
 local function useGodMode()
-    if state == "placeMarker" or state == "play" or state == "roundOver" then
+    if onTable() then
         -- Stop anything half-finished and force the win.
         animation.stop()
         roundEndPending = false
@@ -351,7 +357,7 @@ function love.draw()
     -- Look at the state and draw the matching screen.
     if state == "start" then
         draw.startScreen()
-    elseif state == "placeMarker" or state == "play" or state == "roundOver" then
+    elseif onTable() then
         draw.playScreen(state)
     elseif state == "levelClear" then
         draw.levelClearScreen(state)
@@ -568,8 +574,7 @@ function love.mousepressed(x, y, button, istouch)
 
     -- The luck rack (right of the tray): SELL a luck item any time the
     -- dice aren't flying.
-    if (state == "placeMarker" or state == "play" or state == "roundOver")
-        and not animation.isRolling() and not animation.isHolding()
+    if onTable() and not animation.isRolling() and not animation.isHolding()
         and luckrack.click(x, y) then
         return
     end

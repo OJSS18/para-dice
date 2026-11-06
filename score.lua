@@ -25,6 +25,7 @@ local markers = require("markers")
 local boosts   = require("boosts")
 local luck     = require("luck")
 local upgrades = require("upgrades")
+local util     = require("util")
 
 local score = {}
 
@@ -67,7 +68,7 @@ score.NO_REROLL_MULTIPLIER = 1.1
 function score.keepMultiplier()
     -- Rounded to 2 decimals: computers store 1.1 + 0.1 as 1.2000000000000002,
     -- which would look silly on screen.
-    return math.floor(upgrades.keepMultiplier(score.NO_REROLL_MULTIPLIER) * 100 + 0.5) / 100
+    return util.round(upgrades.keepMultiplier(score.NO_REROLL_MULTIPLIER) * 100) / 100
 end
 
 
@@ -137,31 +138,7 @@ score.lastRound = nil
 -- HELPERS
 ---------------------------------------------------------------------------
 
--- Round a number to the nearest whole number. Lua has no built-in round(),
--- so we add 0.5 and chop off the decimals with math.floor.
--- e.g. 60.5 -> 61,   126.5 -> 127,   55.0 -> 55
-local function roundToWhole(n)
-    return math.floor(n + 0.5)
-end
-
--- Add up a list of dice values.
-local function sumOf(values)
-    local sum = 0
-    for _, v in ipairs(values) do
-        sum = sum + v
-    end
-    return sum
-end
-
--- Count how many of each face there are.
--- {6, 2, 6, 6, 2} -> counts[6] = 3, counts[2] = 2, everything else 0.
-local function countFaces(values)
-    local counts = { 0, 0, 0, 0, 0, 0 }
-    for _, v in ipairs(values) do
-        counts[v] = counts[v] + 1
-    end
-    return counts
-end
+local roundToWhole, sumOf = util.round, util.sum
 
 -- Are ALL of these faces present at least once?
 -- hasAll(counts, {2, 3, 4, 5}) checks for a 2, a 3, a 4 and a 5.
@@ -260,6 +237,13 @@ function score.calculate(values, noReroll, rerolled, firstSum)
     return r
 end
 
+-- A multiplier as short text: 2 decimals, then drop trailing zeros
+-- (1.50 -> "1.5", 2.00 -> "2").
+function score.formatMult(m)
+    local text = string.format("%.2f", m):gsub("0+$", ""):gsub("%.$", "")
+    return text
+end
+
 -- Spell out how a round's points were worked out, for the line under the
 -- POINTS block. 'r' is a table from score.calculate() (or a saved round
 -- from score.history - both have the same fields), 'noReroll' says whether
@@ -268,13 +252,6 @@ end
 --   mult     - every multiplier multiplied together, e.g. 1.65
 --   sources  - a list of where the multiplier came from, e.g.
 --              { "marker x1.5", "keep x1.1" }
-local function fmtMult(m)
-    -- 2 decimals, then drop trailing zeros: 1.50 -> "1.5", 2.00 -> "2"
-    local text = string.format("%.2f", m):gsub("0+$", ""):gsub("%.$", "")
-    return text
-end
-score.formatMult = fmtMult
-
 function score.breakdown(r, noReroll)
     local baseText = tostring(r.base)
     local flat = (r.flat or 0) + (r.perkFlat or 0)
@@ -285,7 +262,7 @@ function score.breakdown(r, noReroll)
     local function add(m, name)
         if m and m ~= 1 then
             mult = mult * m
-            table.insert(sources, name .. " x" .. fmtMult(m))
+            table.insert(sources, name .. " x" .. score.formatMult(m))
         end
     end
     add(r.boostMult, "boost")
@@ -320,7 +297,7 @@ end
 
 -- Does this list of 5 dice values make the hand with this id?
 function score.matchesHand(id, values)
-    local counts = countFaces(values)
+    local counts = util.countFaces(values)
 
     -- The biggest pile of matching faces, and whether there's a pair.
     local most, hasPair, hasThree = 0, false, false

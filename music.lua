@@ -27,9 +27,4 @@ function music.setVolume(volume)
     end
 end
 
--- Is the music playing right now? (handy for testing)
-function music.isPlaying()
-    return source ~= nil and source:isPlaying()
-end
-
 return music

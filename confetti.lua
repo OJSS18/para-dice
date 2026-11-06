@@ -6,6 +6,8 @@
 -- moves each piece a little. draw.lua then draws whatever is in the list.
 -- Like the other logic files, nothing in here draws.
 
+local util = require("util")
+
 local confetti = {}
 
 -- How many pieces are on screen at once.
@@ -25,11 +27,7 @@ local COLORS = {
 confetti.pieces = {}
 
 
--- A random decimal number between low and high.
--- (love.math.random() with no arguments gives a decimal from 0 to 1.)
-local function randomBetween(low, high)
-    return low + love.math.random() * (high - low)
-end
+local randomBetween = util.randomBetween
 
 -- Make one new confetti piece.
 -- If 'anywhereAbove' is true it starts somewhere in a tall band above the

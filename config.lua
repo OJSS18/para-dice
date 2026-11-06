@@ -21,9 +21,6 @@ config.TRAY_PADDING   = 12   -- wood-to-die space inside the tray
 config.MAX_REROLLS = 1   -- how many rerolls you get after each fresh roll
 
 -- Roll animation (visual only - it never changes the real dice values).
--- Each frame stays up a little longer than the last, like a die slowing down.
-config.ROLL_FIRST_FRAME_TIME     = 0.025  -- seconds for frame 1
-config.ROLL_LAST_SPIN_FRAME_TIME = 0.07   -- seconds for frame 20 (last spin frame)
 config.ROLL_SETTLE_FRAME_TIME    = 0.06   -- seconds for each of the 4 settle frames
 config.ROLL_REST_TIME            = 0.9    -- seconds dice sit on the felt after landing
 config.ROLL_RETURN_TIME          = 0.35   -- seconds to slide back into the tray
@@ -97,13 +94,11 @@ config.BULB_HEIGHT     = 12    -- how far a bulb sticks up off the felt (seen th
 -- Banner buttons (glossy red REROLL, glossy blue KEEP)
 config.BUTTON_H = 56
 
--- Luck items
-
--- God mode (testing only - see godmode.lua)
 -- The game's version, shown small in the bottom-right corner. Bump it
 -- (and add a line to CHANGELOG.md) whenever you put out a new version.
 config.VERSION = "0.0.2"
 
+-- God mode (testing only - see godmode.lua)
 config.GOD_MODE_ENABLED = true  -- set to false before you share the game
 config.GOD_MODE_COINS   = 100   -- coins given each time god mode is used
 

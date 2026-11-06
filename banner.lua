@@ -11,7 +11,6 @@
 -- It's styled like an old Vegas sign: a gold border with light bulbs.
 -- Drawing only - this never changes any game data.
 
-local config    = require("config")
 local layout    = require("layout")
 local fonts     = require("fonts")
 local ui        = require("ui")
@@ -117,9 +116,9 @@ local function divider(y)
     love.graphics.rectangle("fill", c.x, y, c.w, 1)
 end
 
--- "PRESS C FOR A LIST OF CONTROLS" in yellow, inside rectangle r.
--- Public so the other screens can show the same hint.
-function banner.drawControlsHint(r)
+-- "PRESS C FOR A LIST OF CONTROLS" in yellow, at the bottom of the banner.
+local function drawControlsHint()
+    local r = layout.controlsHint()
     love.graphics.setFont(fonts.hint)
     love.graphics.setColor(0, 0, 0, 0.7)
     love.graphics.printf(ui.controlsHint(), r.x + 1, r.y + 2, r.w, "center")
@@ -323,7 +322,7 @@ function banner.draw(state)
         ui.glossyButton(layout.keepButton(), keepLabel, BLUE_BUTTON, canKeep)
     end
 
-    banner.drawControlsHint(layout.controlsHint())
+    drawControlsHint()
 end
 
 -- Just the decorated banner with the controls hint (start screen).
@@ -332,7 +331,7 @@ function banner.drawFrameOnly()
     -- A big START button (Enter works too), and START WITH TUTORIAL (T).
     ui.glossyButton(layout.rerollButton(), "START", RED_BUTTON, true)
     ui.glossyButton(layout.keepButton(), "TUTORIAL", BLUE_BUTTON, true)
-    banner.drawControlsHint(layout.controlsHint())
+    drawControlsHint()
 end
 
 return banner

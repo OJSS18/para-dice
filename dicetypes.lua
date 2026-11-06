@@ -14,6 +14,8 @@
 --
 -- This file is pure LOGIC/data. It never draws (draw.lua loads the images).
 
+local util = require("util")
+
 local dicetypes = {}
 
 -- The types, keyed by id. dicetypes.TYPES.red gives the red die's info.
@@ -90,38 +92,13 @@ end
 -- What percent chance does face 'face' have with these weights?
 -- (weight / total of all weights * 100, rounded to a whole number)
 function dicetypes.percent(weights, face)
-    local total = 0
-    for f = 1, 6 do
-        total = total + weights[f]
-    end
-    return math.floor(weights[face] / total * 100 + 0.5)
+    return util.round(weights[face] / util.sum(weights) * 100)
 end
 
--- Pick a face (1-6) at random, using weights.
---
--- HOW WEIGHTED RANDOM WORKS: imagine the weights laid end to end on a
--- ruler. With {10,10,15,15,20,30} face 1 covers 0-10, face 2 covers 10-20,
--- face 3 covers 20-35 ... face 6 covers 70-100. Pick a random spot on the
--- ruler and see whose stretch it lands in. Bigger weight = bigger stretch
--- = more likely to be hit.
+-- Pick a face (1-6) at random, using weights (see util.pickWeighted).
+local FACES = { 1, 2, 3, 4, 5, 6 }
 function dicetypes.pickFace(weights)
-    local total = 0
-    for f = 1, 6 do
-        total = total + weights[f]
-    end
-
-    -- A random spot along the ruler, from 0 up to total.
-    local spot = love.math.random() * total
-
-    -- Walk along the ruler until we pass that spot.
-    local runningTotal = 0
-    for f = 1, 6 do
-        runningTotal = runningTotal + weights[f]
-        if spot < runningTotal then
-            return f
-        end
-    end
-    return 6   -- safety net for rounding; normally never reached
+    return util.pickWeighted(FACES, function(face) return weights[face] end)
 end
 
 return dicetypes

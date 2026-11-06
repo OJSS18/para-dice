@@ -249,9 +249,15 @@ local function drawConfetti()
     end
 end
 
--- A big glowing title, a line under it, a glossy button to carry on
--- (so it can be tapped on a phone), and the controls hint below.
-local function drawMessage(title, titleColor, line, buttonLabel)
+-- The finished level, dimmed, with (optional) confetti, a big glowing
+-- title, a line under it, a glossy button to carry on (so it can be tapped
+-- on a phone), and the controls hint below.
+local function drawEndScreen(state, withConfetti, title, titleColor, line, buttonLabel)
+    draw.playScreen(state)
+    drawDimOverlay()
+    if withConfetti then
+        drawConfetti()
+    end
     local W, H = love.graphics.getWidth(), love.graphics.getHeight()
     ui.text(title, fonts.logo, 0, H / 2 - 150, W, "center", titleColor, true)
     ui.text(line, fonts.text, 0, H / 2 - 10, W, "center", { 1, 0.97, 0.9 })
@@ -259,31 +265,23 @@ local function drawMessage(title, titleColor, line, buttonLabel)
     ui.text(ui.controlsHint(), fonts.heading, 0, H / 2 + 130, W, "center", { 1, 0.9, 0.2 })
 end
 
--- LEVEL CLEAR: the finished level, dimmed, with confetti and a message.
+-- LEVEL CLEAR: confetti, and on to the shop.
 function draw.levelClearScreen(state)
-    draw.playScreen(state)
-    drawDimOverlay()
-    drawConfetti()
-    drawMessage("LEVEL CLEAR!", { 1, 0.85, 0.1 },
+    drawEndScreen(state, true, "LEVEL CLEAR!", { 1, 0.85, 0.1 },
         "Level " .. score.level .. ":  " .. score.levelTotal .. "/" .. score.getTarget()
             .. "     +" .. score.levelCoins .. " coins this level", "VISIT THE SHOP")
 end
 
 -- VICTORY: the last level is cleared - the whole game is won.
 function draw.victoryScreen(state)
-    draw.playScreen(state)
-    drawDimOverlay()
-    drawConfetti()
-    drawMessage("YOU BEAT THE HOUSE!", { 1, 0.85, 0.1 },
+    drawEndScreen(state, true, "YOU BEAT THE HOUSE!", { 1, 0.85, 0.1 },
         "All " .. score.MAX_LEVEL .. " levels cleared  -  final total: " .. score.total .. " points",
         "PLAY AGAIN")
 end
 
--- GAME OVER: the finished level, dimmed, with a message.
+-- GAME OVER: the target was missed.
 function draw.gameOverScreen(state)
-    draw.playScreen(state)
-    drawDimOverlay()
-    drawMessage("GAME OVER", { 1, 0.3, 0.3 },
+    drawEndScreen(state, false, "GAME OVER", { 1, 0.3, 0.3 },
         "You scored " .. score.levelTotal .. " - you needed " .. score.getTarget(), "PLAY AGAIN")
 end
 

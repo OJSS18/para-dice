@@ -74,10 +74,6 @@ function bigwin.stop()
     if sound then sound:stop() end
 end
 
-function bigwin.isShowing()
-    return current ~= nil
-end
-
 
 ---------------------------------------------------------------------------
 -- DRAWING

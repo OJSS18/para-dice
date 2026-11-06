@@ -3,8 +3,7 @@
 -- the rubber "pyramid" walls inside them, the green felt, the faded
 -- Para-DICE logo, and the wooden dice tray.
 --
--- The camera is tilted 15 degrees (see config.VIEW_TILT_DEGREES and
--- layout.lua): we look down from a little south of the table, so we can
+-- The camera is tilted (see config.VIEW_TILT_DEGREES and layout.lua): we look down from a little south of the table, so we can
 -- see the inside face of the far (north) wall, a sliver of the west wall,
 -- and the front face of the dice tray.
 --
@@ -17,6 +16,7 @@
 local config = require("config")
 local layout = require("layout")
 local fonts  = require("fonts")
+local util   = require("util")
 
 local crapstable = {}
 
@@ -31,7 +31,7 @@ local builtForW, builtForH = 0, 0
 
 -- Keep a number between 0 and 1.
 local function clamp01(v)
-    return math.max(0, math.min(1, v))
+    return util.clamp(v, 0, 1)
 end
 
 -- A polished wooden rail, w x h pixels.

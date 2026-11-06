@@ -11,6 +11,7 @@
 -- Pure LOGIC/data - nothing in here draws. (settingsmenu.lua draws the panel.)
 
 local music = require("music")
+local util  = require("util")
 
 local settings = {}
 
@@ -24,7 +25,7 @@ settings.values = {
 
 -- Keep a number between 0 and 1.
 local function clamp01(v)
-    return math.max(0, math.min(1, v))
+    return util.clamp(v, 0, 1)
 end
 
 -- Change the music volume (0 to 1), apply it right away, and save it.

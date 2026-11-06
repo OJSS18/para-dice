@@ -13,6 +13,7 @@ local luckart = require("luckart")
 local player  = require("player")
 local fonts   = require("fonts")
 local ui      = require("ui")
+local util    = require("util")
 
 local luckrack = {}
 
@@ -29,9 +30,7 @@ local note, noteTime = "", 0
 -- LAYOUT
 ---------------------------------------------------------------------------
 
-local function rect(x, y, w, h)
-    return { x = x, y = y, w = w, h = h }
-end
+local rect = util.rect
 
 -- The whole rack: just right of the tray, the same height as it.
 function luckrack.rect()

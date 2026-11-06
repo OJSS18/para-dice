@@ -43,6 +43,7 @@
 -- Pure LOGIC/data - nothing in here draws.
 
 local boosts = require("boosts")
+local util   = require("util")
 
 local luck = {}
 
@@ -399,7 +400,7 @@ function luck.reset()
     luck.streak = 0
 end
 
--- Loop over the held items: for item in luck.each() do ... end
+-- Loop over the held items: for item in each() do ... end
 local function each()
     local k = 0
     return function()
@@ -408,7 +409,14 @@ local function each()
         return id and luck.ITEMS[id]
     end
 end
-luck.each = each
+
+-- Does any held item have this field set?
+local function anyHeld(field)
+    for item in each() do
+        if item[field] then return true end
+    end
+    return false
+end
 
 
 ---------------------------------------------------------------------------
@@ -427,10 +435,7 @@ end
 
 -- Can the player place their own marker?
 function luck.blocksMarker()
-    for item in each() do
-        if item.noMarker then return true end
-    end
-    return false
+    return anyHeld("noMarker")
 end
 
 -- The automatic marker's sum for this round (round = 1, 2, 3...), or nil.
@@ -476,18 +481,12 @@ end
 
 -- Extra coins for scoring a point worth 'points' (F*** You Pay Me).
 function luck.payMeCoins(points)
-    for item in each() do
-        if item.payMe then return points end
-    end
-    return 0
+    return anyHeld("payMe") and points or 0
 end
 
 -- Does a held item hand out Unlock Tokens?
 function luck.givesUnlockTokens()
-    for item in each() do
-        if item.unlockTokens then return true end
-    end
-    return false
+    return anyHeld("unlockTokens")
 end
 
 -- BIG WIN / MEGA WIN thresholds: the lowest any held item gives, or nil.
@@ -533,14 +532,10 @@ end
 --   firstPoints - base points of the first throw's sum (nil if unknown)
 function luck.diceFacts(values, extra)
     local d = {
-        values = values, sum = 0, counts = { 0, 0, 0, 0, 0, 0 }, most = 0,
+        values = values, sum = util.sum(values), counts = util.countFaces(values), most = 0,
         noReroll = extra.noReroll, rerolled = extra.rerolled,
         points = extra.points, firstPoints = extra.firstPoints,
     }
-    for _, v in ipairs(values) do
-        d.sum = d.sum + v
-        d.counts[v] = d.counts[v] + 1
-    end
     for f = 1, 6 do
         d.most = math.max(d.most, d.counts[f])
     end
@@ -614,22 +609,9 @@ function luck.randomItem(exclude)
         end
     end
 
-    -- Lay a set of chances end to end like a ruler, pick a random spot,
-    -- and see whose stretch it lands in.
-    local function pickWeighted(list, weightOf)
-        local total = 0
-        for _, x in ipairs(list) do total = total + weightOf(x) end
-        local spot = love.math.random() * total
-        for _, x in ipairs(list) do
-            spot = spot - weightOf(x)
-            if spot < 0 then return x end
-        end
-        return list[#list]
-    end
-
     if #rarities == 0 then return nil end
-    local rarity = pickWeighted(rarities, function(r) return luck.RARITIES[r].mystery end)
-    return pickWeighted(byRarity[rarity], function(id) return luck.ITEMS[id].weight or 1 end)
+    local rarity = util.pickWeighted(rarities, function(r) return luck.RARITIES[r].mystery end)
+    return util.pickWeighted(byRarity[rarity], function(id) return luck.ITEMS[id].weight or 1 end)
 end
 
 return luck
