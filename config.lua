@@ -96,7 +96,7 @@ config.BUTTON_H = 56
 
 -- The game's version, shown small in the bottom-right corner. Bump it
 -- (and add a line to CHANGELOG.md) whenever you put out a new version.
-config.VERSION = "0.0.2"
+config.VERSION = "0.1.0"
 
 -- The ONLINE leaderboard (a free Supabase project - see README.md).
 -- Leave these empty and the leaderboard only shows runs from this device.

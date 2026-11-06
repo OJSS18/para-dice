@@ -59,6 +59,7 @@ function net.request(method, url, headers, body, done)
     local id = nextId
     waiting[id] = done
     if onWeb then
+        love.filesystem.write("net_ready.txt", "")   -- makes sure the save folder exists
         print("@@PD@@" .. json.encode({
             kind = "http", id = id, method = method, url = url, headers = headers, body = body,
             reply = love.filesystem.getSaveDirectory() .. "/net_" .. id .. ".txt",
@@ -67,7 +68,9 @@ function net.request(method, url, headers, body, done)
     end
     -- A computer: the body goes in a file, so it needs no quoting.
     startThread()
-    local parts = { "curl -s -m 15 -w " .. quote("\n%{http_code}") .. " -X " .. method }
+    -- -w makes curl add a new line and the status number at the end.
+    -- ("\\n" is a backslash and an n, which curl turns into a new line.)
+    local parts = { "curl -s -m 15 -w " .. quote("\\n%{http_code}") .. " -X " .. method }
     for k, v in pairs(headers or {}) do
         table.insert(parts, "-H " .. quote(k .. ": " .. v))
     end
@@ -99,6 +102,7 @@ function net.paste(prompt, done)
     if onWeb then
         nextId = nextId + 1
         waiting[nextId] = function(_, text) done(text or "") end
+        love.filesystem.write("net_ready.txt", "")   -- makes sure the save folder exists
         print("@@PD@@" .. json.encode({
             kind = "paste", id = nextId, prompt = prompt,
             reply = love.filesystem.getSaveDirectory() .. "/net_" .. nextId .. ".txt",

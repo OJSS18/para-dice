@@ -2,6 +2,23 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.1.0 - 2026-11-06
+
+- New MAIN MENU on a blue felt table, with the big Para-DICE logo in marquee lights:
+  PLAY, REPLAY, SETTINGS, LOGIN / STATS and LEADERBOARD.
+- PLAY menu: TUTORIAL, NORMAL (level goals x1.25) or HARD (level goals x1.5).
+- ENDLESS: after level 10 you can keep going. Each endless level's goal is x2,
+  and from level 11 you can hold a 4th luck item.
+- REPLAY CODES: every finished run gives a code (COPY CODE to share it). Paste one
+  into REPLAY to watch that exact run, with pause, rewind / skip a round,
+  restart and 0.5x-4x speed.
+- LOGIN with a username to keep stats (best run, best round, highest level,
+  Mystery Machine spins, 5 of a Kinds, BIG / MEGA WINs and more).
+- LEADERBOARD ranked by highest level, then points, with a WATCH button on every
+  run. It works on this device; the shared online board switches on once a
+  Supabase project is set up (see README).
+- Escape during a run now asks first (press it twice to go back to the menu).
+
 ## Unreleased
 
 - Code clean-up: shared helpers moved into `util.lua`, the three top-right tabs share one drawing function, dead code removed. Nothing looks or plays any differently (checked screenshot-for-screenshot with `tools/regress`).

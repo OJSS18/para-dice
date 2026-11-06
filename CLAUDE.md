@@ -7,13 +7,14 @@ A dice roguelite (Yahtzee meets craps) in LÖVE 11 / Lua. The owner is a beginne
 - `lovec.exe` (same folder) is the console build. Use it for headless checks, where it prints errors and `print` output.
 - Visual checks: put a small harness LÖVE project in the scratchpad. It loads `main_game.lua` (a copy of main.lua), calls `animation.autoThrow`, and saves `love.graphics.captureScreenshot` PNGs. Then crop and contact-sheet them with Python/PIL and look at the result. Enter on the marker screen doesn't throw until every marker is placed, so call the throw directly.
 - The ` key is godmode (wins the level / gives coins) for testing.
-- **Refactors must not change output.** Prove it with the regression harness: `bash tools/regress/run.sh archive/v0.0.2 before`, `bash tools/regress/run.sh . after`, then `bash tools/regress/compare.sh before after`. It must say IDENTICAL. The run is deterministic (fixed seed, fake clock and mouse); the script is `tools/regress/driver.lua`. It only catches errors on the paths it plays, so extend the script when you add features.
+- **Refactors must not change output.** Prove it with the regression harness: record `bash tools/regress/run.sh <copy of the code before the change> before`, then `bash tools/regress/run.sh . after`, then `bash tools/regress/compare.sh before after`. (Since v0.1.0 the archive in `archive/v0.0.2` can't be compared any more - the menus and RNG changed.) It must say IDENTICAL. The run is deterministic (fixed seed, fake clock and mouse); the script is `tools/regress/driver.lua`. It only catches errors on the paths it plays, so extend the script when you add features.
 - Balance testing: `bash tools/strategy-sim/run.sh [games] [seed] [strategy numbers]` plays bot strategies (`tools/strategy-sim/strategies.lua`) through the real logic modules, headless. `TRACE=1` prints each game's result and luck items. As of v0.0.2 the best bot wins ~56%, driven by stacking luck items (Show Me The Money, Rabbit's Leg).
 - `archive/v0.0.2/` is a frozen copy of the code before the clean-up (also git tag `v0.0.2`). Never edit it.
 
 ## Code layout rules
 - main.lua's header lists every module. Shared helpers (rect, isInside, clamp, lerp, round, sum, countFaces, pickWeighted, randomBetween) live in `util.lua` - use them instead of writing local copies. Logic files never draw, and drawing files never change game data.
 - `config.lua` holds every tweakable number. `config.VERSION` shows bottom-right. Bump it and add a `CHANGELOG.md` entry (and update the README's "Current version") for each shipped change.
+- **Replays depend on two rules:** every game-changing player input must go through `game.act(name, arg)` (main.lua never changes game data directly), and all game randomness must use `rng.random` (seeded per run), never `love.math.random` (that's for animations only). `game.ACTION_NAMES` order is part of the replay-code format: only ever add to the end.
 - Dice results are chosen in `dice.lua` before a throw. `animation.lua` only moves the dice and picks pictures, so it must never change `dice.values`.
 
 ## Dice art

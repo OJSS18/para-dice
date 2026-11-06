@@ -108,9 +108,47 @@
         if (e.target.tagName === "CANVAS") e.preventDefault();
       }, { passive: false });
 
+      // THE GAME <-> PAGE BRIDGE. LÖVE in a browser can't fetch web pages or
+      // use the clipboard itself, so the game prints a line starting with
+      // "@@PD@@" and a JSON message (see net.lua). We do the job here and,
+      // when there's an answer, write it as a file into the game's save
+      // folder, where the game picks it up: first line = status, then text.
+      var PD = {
+        reply: function (path, status, text) {
+          var slash = path.lastIndexOf("/");
+          try { Module.FS_createPath("/", path.slice(1, slash), true, true); } catch (e) {}
+          try { Module.FS_unlink(path); } catch (e) {}
+          Module.FS_createDataFile(path.slice(0, slash), path.slice(slash + 1),
+            status + "\n" + text, true, true);
+        },
+        handle: function (msg) {
+          if (msg.kind === "http") {
+            fetch(msg.url, { method: msg.method, headers: msg.headers || {}, body: msg.body || undefined })
+              .then(function (r) { return r.text().then(function (t) { PD.reply(msg.reply, r.status, t); }); })
+              .catch(function (e) { PD.reply(msg.reply, 0, String(e)); });
+          } else if (msg.kind === "copy") {
+            var fallback = function () { window.prompt("Copy your replay code:", msg.text); };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(msg.text).catch(fallback);
+            } else {
+              fallback();
+            }
+          } else if (msg.kind === "paste") {
+            PD.reply(msg.reply, 200, window.prompt(msg.prompt || "Paste here:", "") || "");
+          }
+        }
+      };
+
       var Module = {
         arguments: ["./game.love"],
         INITIAL_MEMORY: 268435456,
+        print: function (text) {
+          if (typeof text === "string" && text.indexOf("@@PD@@") === 0) {
+            try { PD.handle(JSON.parse(text.slice(6))); } catch (e) { console.error(e); }
+            return;
+          }
+          console.log(text);
+        },
         printErr: console.error.bind(console),
         canvas: (function() {
           var canvas = document.getElementById('canvas');
