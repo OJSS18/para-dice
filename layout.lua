@@ -152,6 +152,15 @@ function layout.placeGrid()
     return rect(f.x + 10 + (f.w - 10 - w) / 2, f.y + config.TABLE_MARGIN, w, h), boxW, boxH
 end
 
+-- The strip just under the POINTS block where this roll's score is spelled
+-- out: "SCORING 60 x 1.65 (marker x1.5, keep x1.1) = 99".
+layout.SCORE_LINE_H = 30
+
+function layout.scoreLine()
+    local grid = layout.placeGrid()
+    return rect(grid.x, grid.y + grid.h + 8, grid.w, layout.SCORE_LINE_H)
+end
+
 -- POINTS box number k (1-26), in order: box 1 is sum 5, box 26 is sum 30.
 function layout.placeBox(k)
     local grid, boxW, boxH = layout.placeGrid()
@@ -172,7 +181,7 @@ function layout.propPanel()
 
     -- Centre it top-to-bottom in the space under the POINTS block.
     local grid = layout.placeGrid()
-    local top = grid.y + grid.h + 24
+    local top = grid.y + grid.h + layout.SCORE_LINE_H + 24
     local bottom = love.graphics.getHeight() - config.TABLE_MARGIN
     local y = math.max(top, top + (bottom - top - h) / 2)
     local x = f.x + f.w - config.TABLE_MARGIN - w
@@ -262,7 +271,7 @@ function layout.landingZone()
     local points = layout.placeGrid()
     local left = f.x + 16 + config.TABLE_MARGIN          -- clear of the west wall sliver
     local right = layout.propPanel().x - 20
-    local top = points.y + points.h + 24
+    local top = points.y + points.h + layout.SCORE_LINE_H + 24
     local bottom = layout.tray().y - 40
     return rect(left, top, right - left, bottom - top)
 end

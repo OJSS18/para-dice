@@ -407,4 +407,27 @@ function scoreboard.draw(lightsOn, placing)
     end
 end
 
+
+-- The line under the POINTS block that spells out this roll's score:
+--   SCORING  60  x 1.65  (marker x1.5, keep x1.1)  =  99 PTS
+-- 'r' is from score.calculate() or a saved round; 'noReroll' = KEEP bonus counts.
+function scoreboard.drawScoreLine(r, noReroll)
+    local ui = require("ui")
+    local line = layout.scoreLine()
+    local baseText, mult, sources = score.breakdown(r, noReroll)
+    local text = "SCORING  " .. baseText .. "  x " .. score.formatMult(mult)
+    if #sources > 0 then
+        text = text .. "  (" .. table.concat(sources, ", ") .. ")"
+    else
+        text = text .. "  (no bonuses)"
+    end
+    text = text .. "  =  " .. r.points .. " PTS"
+
+    -- A dark strip behind it so it reads on the felt.
+    love.graphics.setColor(0, 0, 0, 0.35)
+    love.graphics.rectangle("fill", line.x, line.y, line.w, line.h, 8, 8)
+    ui.text(text, fonts.heading, line.x + 10, line.y + (line.h - fonts.heading:getHeight()) / 2,
+        line.w - 20, "center", NUMBER_ON)
+end
+
 return scoreboard

@@ -264,6 +264,10 @@ function banner.draw(state)
         if r.payMe > 0 then
             table.insert(lines, "Pay Me: +" .. r.payMe .. " coins")
         end
+        if (r.winBonus or 0) > 0 then
+            local name = r.winBonus >= 25 and "MEGA WIN" or "BIG WIN"
+            table.insert(lines, name .. ": +" .. r.winBonus .. " coins")
+        end
         for n, line in ipairs(lines) do
             ui.text(line, fonts.small, c.x, y + 8 + n * 24, c.w, "left", CREAM)
         end

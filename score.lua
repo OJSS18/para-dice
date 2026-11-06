@@ -206,6 +206,7 @@ end
 --   { base = 55, flat = 100, boostMult = 1.1, marker = true, luckMult = 1, points = 285 }
 function score.calculate(sum, noReroll)
     local r = {
+        sum         = sum,
         base        = score.pointsForSum(sum),
         flat        = boosts.flatFor(sum),
         boostMult   = boosts.multiplierFor(sum),
@@ -219,6 +220,43 @@ function score.calculate(sum, noReroll)
     end
     r.points = roundToWhole((r.base + r.flat) * multiplier)
     return r
+end
+
+-- Spell out how a round's points were worked out, for the line under the
+-- POINTS block. 'r' is a table from score.calculate() (or a saved round
+-- from score.history - both have the same fields), 'noReroll' says whether
+-- the KEEP bonus counts. Returns three things:
+--   baseText - "60" or "(60 + 100)" when there's a flat bonus
+--   mult     - every multiplier multiplied together, e.g. 1.65
+--   sources  - a list of where the multiplier came from, e.g.
+--              { "marker x1.5", "keep x1.1" }
+local function fmtMult(m)
+    -- 2 decimals, then drop trailing zeros: 1.50 -> "1.5", 2.00 -> "2"
+    local text = string.format("%.2f", m):gsub("0+$", ""):gsub("%.$", "")
+    return text
+end
+score.formatMult = fmtMult
+
+function score.breakdown(r, noReroll)
+    local baseText = tostring(r.base)
+    if (r.flat or 0) > 0 then
+        baseText = "(" .. r.base .. " + " .. r.flat .. ")"
+    end
+    local mult, sources = 1, {}
+    local function add(m, name)
+        if m and m ~= 1 then
+            mult = mult * m
+            table.insert(sources, name .. " x" .. fmtMult(m))
+        end
+    end
+    add(r.boostMult, "boost")
+    add(r.upgradeMult, "upgrades")
+    add(r.luckMult, r.sum and r.sum % 2 == 0 and "Even Steven" or "That's Odd")
+    local marked = r.marker
+    if marked == nil then marked = r.markerPoints end
+    if marked then add(markers.MULTIPLIER, "marker") end
+    if noReroll then add(score.keepMultiplier(), "keep") end
+    return baseText, mult, sources
 end
 
 -- Every possible sum in order, with its points - one entry per box on the table:

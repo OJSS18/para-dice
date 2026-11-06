@@ -34,6 +34,7 @@
 --   controlsguide.lua - the list of controls shown when you press C
 --   oddsguide.lua - the dice odds panel shown when you press O
 --   music.lua     - the looping background music
+--   bigwin.lua    - BIG WIN / MEGA WIN: jackpot sound, huge letters, bonus coins
 --   settings.lua  - the player's settings (music volume), saved to disk
 --   settingsmenu.lua - the SETTINGS tab and panel
 --   shopdraw.lua  - DRAWING for the shop
@@ -64,6 +65,7 @@ local ui            = require("ui")
 local settings      = require("settings")
 local settingsmenu  = require("settingsmenu")
 local music         = require("music")
+local bigwin        = require("bigwin")
 
 -- true while the controls list (press C) is showing on top of the screen.
 local showControls = false
@@ -144,6 +146,7 @@ end
 -- Start a brand new game from zero.
 local function startGame()
     confetti.stop()
+    bigwin.stop()
     score.reset()
     player.reset()          -- 0 coins, 5 white dice, empty inventory
     boosts.reset()          -- no point boosts
@@ -172,6 +175,14 @@ end
 local function finishRound(noReroll)
     local result = score.recordRound(dice.values, noReroll)
     player.addCoins(result.coins)   -- coins from a Money Maker hand (0 if none)
+
+    -- A huge round (40% / 75% of the level goal in one go) is a BIG / MEGA WIN,
+    -- which pays bonus coins on top.
+    result.winBonus = bigwin.check(result.points, score.getTarget())
+    if result.winBonus > 0 then
+        player.addCoins(result.winBonus)
+        score.levelCoins = score.levelCoins + result.winBonus
+    end
 
     -- The held luck item may stick a lasting boost onto the point just scored.
     -- (This happens AFTER scoring, so the boost counts from the next time.)
@@ -291,6 +302,7 @@ function love.load()
     love.graphics.setBackgroundColor(0.05, 0.3, 0.15)
 
     draw.load()      -- make the fonts and load the dice images
+    bigwin.load(config.DISPLAY_FONT)   -- the jackpot sound and its big letters
     dice.rollAll()   -- fill the dice so they're never empty
 
     settings.load()                            -- remembered settings (if any)
@@ -303,6 +315,7 @@ function love.update(dt)
     -- (If nothing is animating, these do nothing.)
     animation.update(dt)
     confetti.update(dt)
+    bigwin.update(dt)
     if state == "shop" then
         shop.update(dt)     -- the Mystery Machine's reel
     end
@@ -330,6 +343,9 @@ function love.draw()
     elseif state == "shop" then
         shopdraw.screen()
     end
+
+    -- BIG WIN / MEGA WIN letters, over whatever screen is showing.
+    bigwin.draw()
 
     -- The SETTINGS tab is on every screen; the panels go on top of everything.
     settingsmenu.drawTab()

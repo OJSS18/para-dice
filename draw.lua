@@ -219,7 +219,17 @@ function draw.playScreen(state)
     -- The boxes stay dark until all 5 dice have been thrown and landed (and
     -- before the first roll, while the marker is being placed).
     local placing = (state == "placeMarker")
-    scoreboard.draw(not placing and dice.allThrown() and not animation.isTumbling(), placing)
+    local lightsOn = not placing and dice.allThrown() and not animation.isTumbling()
+    scoreboard.draw(lightsOn, placing)
+
+    -- This roll's score, spelled out under the POINTS block.
+    if state == "play" and lightsOn then
+        -- What KEEP would score right now (the keep bonus only if nothing's been rerolled).
+        local keepNow = not dice.hasRerolled()
+        scoreboard.drawScoreLine(score.calculate(dice.total, keepNow), keepNow)
+    elseif state ~= "play" and not placing and score.lastRound then
+        scoreboard.drawScoreLine(score.lastRound, score.lastRound.noReroll)
+    end
     drawTrayDice()
     drawMovingDice()
     banner.draw(state)
