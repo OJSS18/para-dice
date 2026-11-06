@@ -18,6 +18,11 @@ The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right 
   run. It works on this device; the shared online board switches on once a
   Supabase project is set up (see README).
 - Escape during a run now asks first (press it twice to go back to the menu).
+- Every finished run goes on the leaderboard straight away (as "Guest" if you're not
+  logged in; god mode runs stay on this device, marked). The online board refreshes
+  by itself every 20 seconds.
+- Anti-cheat: every online run is checked by replaying its code before it's shown, so
+  made-up scores, re-posted codes and god mode runs never appear.
 
 ## Unreleased
 

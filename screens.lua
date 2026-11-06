@@ -205,6 +205,12 @@ function screens.drawBoard()
         end
     end
     local rows = screens.boardRows()
+    if b.which == "online" and not status then
+        local waiting = leaderboard.unchecked(b.mode)
+        local note = waiting > 0 and ("Checking " .. waiting .. " runs by replaying them...")
+            or "Every run here was checked by replaying its code."
+        ui.text(note, fonts.hint, p.x, p.y + p.h - 100, p.w, "center", DIM)
+    end
     if status then
         ui.text(status, fonts.small, p.x, p.y + p.h / 2 - 20, p.w, "center", CREAM)
     elseif #rows == 0 then
@@ -221,7 +227,8 @@ function screens.drawBoard()
             local color = mine and GOLD or CREAM
             local ty = y + (rowH - 6 - fonts.small:getHeight()) / 2
             ui.text(tostring(n), fonts.heading, cols[1], ty, 50, "left", n <= 3 and GOLD or CREAM)
-            ui.text(run.name or "?", fonts.small, cols[2], ty, 280, "left", color)
+            local name = (run.name or "?") .. (run.god and "  (god mode)" or "")
+            ui.text(name, fonts.small, cols[2], ty, 280, "left", run.god and DIM or color)
             ui.text(tostring(run.level), fonts.small, cols[3], ty, 110, "left", color)
             ui.text(tostring(run.points), fonts.small, cols[4], ty, 220, "left", color)
             if run.code then

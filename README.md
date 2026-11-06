@@ -43,6 +43,12 @@ create index runs_rank on public.runs (mode, level desc, points desc);
    into `config.ONLINE_URL` and `config.ONLINE_KEY` in `config.lua`. (The anon key is
    meant to be public: the rules above only let people read runs and add new ones.)
 
+Anyone could post a made-up row to the table, so the game never trusts one: before
+showing an online run it replays the run's code (instantly) and only shows it if it
+really reaches the level and points it claims (`verify.lua`). Only runs from the same
+game version are fetched, since a code only replays on its own version - so each new
+version starts a fresh leaderboard season.
+
 On a computer the game talks to Supabase with the built-in `curl` program; in a browser,
 `docs/index.html` does it for the game (see `net.lua`).
 

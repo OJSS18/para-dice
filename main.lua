@@ -43,6 +43,7 @@
 --   leaderboard.lua - the best runs, on this device and online
 --   replaycode.lua  - turning a run into a shareable REPLAY CODE and back
 --   replay.lua    - WATCHING a replay: a bot plays the code's actions back
+--   verify.lua    - checks an online leaderboard run is real by replaying its code
 --   net.lua       - web requests (online leaderboard) and the clipboard
 --   json.lua      - reading and writing JSON, the web's text format
 --   controlsguide.lua - the list of controls shown when you press C
@@ -220,15 +221,18 @@ game.events.spin = function()
 end
 
 game.events.runEnd = function()
-    if replay.active then return end
+    if replay.active or game.verifying then return end
     lastRun.code = game.isReplayable()
         and replaycode.encode(game.mode, game.seed, game.log, score.level, score.total) or nil
-    if not counts() then return end
-    local won = score.level > score.MAX_LEVEL or game.state == "finished"
-    profiles.recordRun({ points = score.total, level = score.level, won = won, mode = game.mode })
-    if profiles.current then
-        leaderboard.submit({ name = profiles.current, mode = game.mode, level = score.level,
-            points = score.total, code = lastRun.code })
+    if screen ~= "game" or game.mode == "tutorial" then return end
+    -- Every finished run goes on the leaderboard straight away: under your
+    -- username, or as "Guest" if you're not logged in. God mode runs are
+    -- marked, and only kept on this device (not the online board).
+    leaderboard.submit({ name = profiles.current or "Guest", mode = game.mode, level = score.level,
+        points = score.total, code = lastRun.code, god = game.unranked or nil })
+    if counts() then
+        local won = score.level > score.MAX_LEVEL or game.state == "finished"
+        profiles.recordRun({ points = score.total, level = score.level, won = won, mode = game.mode })
     end
 end
 
@@ -252,8 +256,23 @@ local function inRun()
     return screen == "game" or screen == "replay"
 end
 
+-- While the leaderboard is open, check the online board for new runs
+-- every so often, so other players' runs pop up by themselves.
+local refreshTimer = 0
+local REFRESH_EVERY = 20   -- seconds
+
 function love.update(dt)
     net.update()
+    if screen == "leaderboard" then
+        leaderboard.update()   -- check downloaded runs are real (see verify.lua)
+    end
+    if screen == "leaderboard" and screens.board.which == "online" then
+        refreshTimer = refreshTimer + dt
+        if refreshTimer >= REFRESH_EVERY and leaderboard.onlineStatus ~= "loading" then
+            refreshTimer = 0
+            leaderboard.fetchOnline(screens.board.mode, true)
+        end
+    end
     -- A replay can run faster or slower; the animations follow its speed.
     local speed = replay.active and replay.speed() or 1
     if replay.active and replay.paused then speed = 0 end
