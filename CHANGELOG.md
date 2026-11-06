@@ -2,6 +2,11 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.2.1 - 2026-11-06
+
+- Placeholder pictures for the 11 new luck items, in the same style as the others (made by
+  `python tools/make-luck-icons.py`; swap in real art any time with the same file names).
+
 ## v0.2.0 - 2026-11-06
 
 Luck item shake-up (a new leaderboard season, since old replays would play differently):
