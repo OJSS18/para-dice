@@ -24,7 +24,7 @@ local SECTIONS = {
     { title = "PLACING YOUR MARKERS (start of each level)", items = {
         { "Click a tile",        "Put a white chip there (x1.5 if it hits); click again to pick it up" },
         { "CLEAR CHIPS",         "Take all your chips back off the table" },
-        { "Enter  /  ROLL",      "Start rolling (chips are optional)" },
+        { "Enter  /  ROLL",      "Start rolling (once ALL your chips are placed)" },
     } },
     { title = "ROLLING", items = {
         { "Click a die  /  1-5", "Mark that die to keep (again to un-mark)" },

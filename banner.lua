@@ -188,8 +188,13 @@ function banner.draw(state)
             "Put your white chips on any",
             "POINTS or MONEY MAKER tiles.",
             "Each marked tile pays x" .. markers.MULTIPLIER .. "!",
-            chipsLeft .. " of " .. markers.owned .. " chips left to place.",
         }
+        -- The level can't start until every chip is down.
+        if chipsLeft > 0 then
+            table.insert(lines, "Place " .. chipsLeft .. " more chip" .. (chipsLeft == 1 and "" or "s") .. " to roll.")
+        else
+            table.insert(lines, "All chips placed - ROLL!")
+        end
         for n, line in ipairs(lines) do
             ui.text(line, fonts.small, c.x, y + 8 + n * 24, c.w, "left", CREAM)
         end
@@ -250,7 +255,8 @@ function banner.draw(state)
     if placing then
         -- Before the first roll: ROLL starts the level (chip or no chip),
         -- and the blue button takes the chip back off the table.
-        ui.glossyButton(layout.rerollButton(), "ROLL", RED_BUTTON, true)
+        -- ROLL stays grey until every chip is on the table.
+        ui.glossyButton(layout.rerollButton(), "ROLL", RED_BUTTON, markers.allPlaced())
         ui.glossyButton(layout.keepButton(), "CLEAR CHIPS", BLUE_BUTTON, markers.count() > 0)
     else
         -- Neither works while dice are moving.

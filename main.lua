@@ -362,8 +362,9 @@ function love.keypressed(key)
         end
 
     elseif state == "placeMarker" then
-        if isEnter then
-            startRound()        -- the marker is optional: Enter rolls either way
+        -- Every chip has to be on the table before the level can start.
+        if isEnter and markers.allPlaced() then
+            startRound()
         end
 
     elseif state == "play" then
@@ -476,14 +477,15 @@ function love.mousepressed(x, y, button, istouch)
         return
     end
 
-    -- Placing the marker: click a tile to put the chip there; ROLL starts
-    -- the level; the blue button takes the chip back off.
+    -- Placing markers: click a tile to put a chip there (or pick it up);
+    -- ROLL starts the level once every chip is placed; the blue button
+    -- takes all the chips back off.
     if state == "placeMarker" then
         local kind, k = layout.getTileAt(x, y)
         if kind then
             placeMarkerAt(kind, k)
-        elseif layout.isOnRerollButton(x, y) then
-            startRound()
+        elseif layout.isOnRerollButton(x, y) and markers.allPlaced() then
+            startRound()        -- ROLL only works once every chip is placed
         elseif layout.isOnKeepButton(x, y) then
             markers.clear()
         end

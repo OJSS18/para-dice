@@ -52,6 +52,12 @@ function markers.count()
     return #markers.placed
 end
 
+-- Are ALL the player's markers on the table? The level can't start until
+-- they are (unless a luck item like Addict skips placing altogether).
+function markers.allPlaced()
+    return #markers.placed >= markers.owned
+end
+
 -- Where in the 'placed' list a tile's marker is (or nil if it has none).
 local function findTile(kind, key)
     for i, m in ipairs(markers.placed) do
