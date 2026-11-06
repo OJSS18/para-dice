@@ -110,6 +110,16 @@ end
 -- Draw one tumble/landed frame CENTRED on (cx, cy), with the die's body
 -- 'size' pixels across, turned by 'angle' (radians).
 local function drawFrame(color, frameId, cx, cy, size, angle)
+    -- A die at REST (frames 17-22) is drawn with the flat picture of its
+    -- face, seen straight from above: just the one face, no sides showing.
+    if frameId >= 17 and frameId <= 22 then
+        local flat = images[color][frameId - 16]
+        local s = size / flat:getWidth()
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(flat, cx, cy, angle, s, s, flat:getWidth() / 2, flat:getHeight() / 2)
+        return
+    end
+
     local image = frames[color][frameId]
     -- Scale so the die BODY (not the whole see-through picture) is 'size' wide.
     local scale = size / config.TUMBLE_BODY_SIZE
@@ -120,15 +130,18 @@ local function drawFrame(color, frameId, cx, cy, size, angle)
     love.graphics.draw(image, cx, cy, angle, scale, scale, half, half)
 end
 
--- The dice sitting in the tray (the ones that aren't moving), with a
--- glowing highlight on the ones being kept.
+-- The dice sitting in the tray (the ones that aren't out on the felt or
+-- in your hand). Dice picked to throw glow gold; dice not thrown yet this
+-- round are shown dimmed (they still show last round's face).
 local function drawTrayDice()
     for i = 1, config.NUM_DICE do
         local slot = layout.traySlot(i)
 
-        if not animation.isRolling(i) then
-            -- Kept dice: a soft gold glow behind the die...
-            if dice.kept[i] then
+        if animation.getDraw(i) == nil then
+            local picked = dice.selected[i]
+
+            -- Picked dice: a soft gold glow behind the die...
+            if picked then
                 love.graphics.setColor(1, 0.8, 0.2, 0.25)
                 love.graphics.rectangle("fill", slot.x - 8, slot.y - 8, slot.w + 16, slot.h + 16, 14, 14)
             end
@@ -137,29 +150,47 @@ local function drawTrayDice()
             drawFrame(player.loadout[i], animation.landedFrameId(dice.values[i]),
                 cx, cy, config.TRAY_DIE_SIZE, 0)
 
-            -- ...then a gold outline and a "KEEP" tag above the tray.
-            if dice.kept[i] then
+            -- Not thrown yet: darken it, so the old face doesn't look like a result.
+            if not dice.thrown[i] then
+                love.graphics.setColor(0.05, 0.12, 0.07, 0.6)
+                love.graphics.rectangle("fill", slot.x + 4, slot.y + 4, slot.w - 8, slot.h - 8, 10, 10)
+            end
+
+            -- ...then a gold outline.
+            if picked then
                 love.graphics.setColor(1, 0.85, 0.1)
                 love.graphics.setLineWidth(4)
                 love.graphics.rectangle("line", slot.x - 4, slot.y - 4, slot.w + 8, slot.h + 8, 10, 10)
                 love.graphics.setLineWidth(1)
-                ui.text("KEEP", fonts.heading, slot.x - 10, layout.tray().y - 32, slot.w + 20, "center",
-                    { 1, 0.85, 0.1 }, true)
             end
         end
     end
+
+    -- A "THROW" / "REROLL" tag above the tray when any die is picked.
+    if dice.countSelected() > 0 and not animation.isHolding() then
+        local t = layout.tray()
+        local label = dice.allThrown() and "REROLL" or "THROW"
+        ui.text(label .. " " .. dice.countSelected(), fonts.heading, t.x, t.y - 32, t.w, "center",
+            { 1, 0.85, 0.1 }, true)
+    end
 end
 
--- The dice that are out on the felt or flying back to the tray.
--- Drawn after the tray so they pass OVER it.
+-- The dice that are in your hand, out on the felt, or flying back to the
+-- tray. Drawn after the tray so they pass OVER it.
 local function drawMovingDice()
     for i = 1, config.NUM_DICE do
         local a = animation.getDraw(i)
         if a then
-            -- A soft shadow on the felt under the die.
-            love.graphics.setColor(0, 0, 0, 0.25)
-            love.graphics.ellipse("fill", a.x + 4, a.y + a.size * 0.45, a.size * 0.45, a.size * 0.15)
-            drawFrame(a.color, a.frameId, a.x, a.y, a.size, a.angle)
+            -- A soft shadow on the felt under the die. The higher the die
+            -- is, the smaller and fainter its shadow.
+            local high = math.min(1, a.z / 250)
+            love.graphics.setColor(0, 0, 0, 0.3 - 0.18 * high)
+            love.graphics.ellipse("fill", a.x + 3, a.y + a.size * 0.3,
+                a.size * (0.5 - 0.15 * high), a.size * (0.22 - 0.07 * high))
+            -- The die itself: lifted up the screen by its height (we look at
+            -- the table from a tilt), and a bit bigger when it's nearer to us.
+            local lift = a.z * math.cos(layout.tiltRadians())
+            drawFrame(a.color, a.frameId, a.x, a.y - lift, a.size * (1 + a.z / 600), a.angle)
         end
     end
 end
@@ -185,10 +216,10 @@ end
 -- Reading state is fine here - we just never CHANGE it in draw.lua.
 function draw.playScreen(state)
     crapstable.draw()
-    -- The boxes stay dark until every die has landed (and before the
-    -- first roll, while the marker is being placed).
+    -- The boxes stay dark until all 5 dice have been thrown and landed (and
+    -- before the first roll, while the marker is being placed).
     local placing = (state == "placeMarker")
-    scoreboard.draw(not placing and not animation.isTumbling(), placing)
+    scoreboard.draw(not placing and dice.allThrown() and not animation.isTumbling(), placing)
     drawTrayDice()
     drawMovingDice()
     banner.draw(state)

@@ -12,10 +12,10 @@ local config = {}
 
 -- Dice
 config.NUM_DICE       = 5    -- how many dice we roll
-config.TRAY_DIE_SIZE  = 80   -- dice sitting in the tray (bottom-left), in pixels
-config.TABLE_DIE_SIZE = 95   -- dice rolling / resting out on the felt
-config.TRAY_GAP       = 14   -- space between dice in the tray
-config.TRAY_PADDING   = 14   -- wood-to-die space inside the tray
+config.TRAY_DIE_SIZE  = 60   -- dice sitting in the tray (bottom-left), in pixels
+config.TABLE_DIE_SIZE = 50   -- dice rolling / resting out on the felt
+config.TRAY_GAP       = 12   -- space between dice in the tray
+config.TRAY_PADDING   = 12   -- wood-to-die space inside the tray
 
 -- Rules
 config.MAX_REROLLS = 1   -- how many rerolls you get after each fresh roll
@@ -25,8 +25,27 @@ config.MAX_REROLLS = 1   -- how many rerolls you get after each fresh roll
 config.ROLL_FIRST_FRAME_TIME     = 0.025  -- seconds for frame 1
 config.ROLL_LAST_SPIN_FRAME_TIME = 0.07   -- seconds for frame 20 (last spin frame)
 config.ROLL_SETTLE_FRAME_TIME    = 0.06   -- seconds for each of the 4 settle frames
-config.ROLL_REST_TIME            = 0.6    -- seconds dice sit on the felt after landing
+config.ROLL_REST_TIME            = 0.9    -- seconds dice sit on the felt after landing
 config.ROLL_RETURN_TIME          = 0.35   -- seconds to slide back into the tray
+
+-- Throwing, like a real craps roll: the dice fly through the air, bounce
+-- on the felt, slam into the walls (the back wall's rubber pyramids kick
+-- them off at odd angles), then roll out and stop.
+-- Speeds are in pixels per second.
+config.THROW_MIN_SPEED      = 1700  -- even a gentle throw goes at least this fast...
+config.THROW_MAX_SPEED      = 4200  -- ...and the hardest throw is capped here
+config.THROW_FLICK_BOOST    = 1.6   -- your flick speed is multiplied by this
+config.THROW_AUTO_SPEED     = 2900  -- speed of a THROW / REROLL button throw (no dragging)
+config.THROW_SPREAD_DEGREES = 10    -- each die flies up to this many degrees off your throw
+config.THROW_SPEED_SPREAD   = 0.12  -- and up to 12% faster or slower
+config.THROW_RELEASE_HEIGHT = 70    -- how high off the felt your hand lets go
+config.THROW_RELEASE_LIFT   = 420   -- how fast the dice rise as you let go (an arc, not a slide)
+config.DIE_GRAVITY          = 2600  -- pulls airborne dice down to the felt
+config.DIE_FELT_BOUNCE      = 0.42  -- how much of its fall speed a die keeps when it bounces on the felt
+config.DIE_BOUNCE_SLOWDOWN  = 0.84  -- each bounce on the felt keeps this much of its forward speed
+config.DIE_WALL_BOUNCE      = 0.6   -- 0 = dead stop on a wall, 1 = perfect bounce
+config.DIE_ROLL_FRICTION    = 1150  -- how hard the felt slows a rolling die (per second)
+config.DIE_ROLL_DRAG        = 0.9   -- extra slowing that's stronger the faster it rolls
 
 -- The tumble pictures are 192x192, with the die body about 130 pixels wide
 -- in the middle. They're scaled so that body is the die size we want.

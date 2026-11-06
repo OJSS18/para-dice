@@ -18,11 +18,11 @@
 --   boosts.lua    - lasting boosts stuck onto POINTS tiles by luck items
 --   upgrades.lua  - shop upgrades: EVEN / ODD / LOWER 13 / UPPER 13 / HOT FOUR
 --   markers.lua   - the white chip placed on a tile each level (x1.5)
---   dice.lua      - dice LOGIC: rolling, keeping, rerolling, the sum
+--   dice.lua      - dice LOGIC: picking dice to throw, rolling, rerolling, the sum
 --   score.lua     - SCORING: points table, Money Maker coin hands, level targets
 --   shop.lua      - the SHOP: stock, buying, swapping dice, and its layout
 --   godmode.lua   - testing cheat: ` wins the level / gives coins
---   animation.lua - the tumbling roll that settles onto each die's real face
+--   animation.lua - THROWING: real physics, dice bounce off walls and each other
 --   confetti.lua  - the falling confetti on the LEVEL CLEAR screen
 --   layout.lua    - WHERE things are on the play screen (banner, rails, felt, tray...)
 --   fonts.lua     - every font, loaded once
@@ -77,7 +77,8 @@ local showOdds = false
 -- 'state' tells us which screen we're on. It's just a string:
 --   "start"       - the title screen
 --   "placeMarker" - start of a level: put your white chip on a tile (or not), then ROLL
---   "play"        - dice are rolled; the player keeps some and rerolls, or KEEPs all
+--   "play"        - the player throws the dice (1-5 at a time), then can
+--                   reroll some of them, or KEEP all 5
 --   "roundOver"   - the round has been scored; Space starts the next one
 --   "levelClear"  - all rounds played and the target was reached; confetti!
 --   "victory"     - the LAST level was cleared: you beat the game!
@@ -90,6 +91,12 @@ local state = "start"
 -- so the result never appears before the dice have stopped.
 local roundEndPending = false
 
+-- The mouse went down on a tray die. If it's let go without moving, that
+-- picks / un-picks the die; if it's dragged, it picks the die up to throw.
+-- { i = which die, x, y = where the press started }, or nil.
+local pendingPress = nil
+local DRAG_DISTANCE = 12   -- pixels the mouse must move before it counts as a drag
+
 
 ---------------------------------------------------------------------------
 -- GAME FLOW
@@ -97,15 +104,13 @@ local roundEndPending = false
 -- These small functions connect the modules together and move between
 -- states. They're the "rules of the game".
 
--- Begin a new round: fresh roll, back to choosing.
--- The real values are rolled first; the animation then tumbles each die
--- and settles it onto that real value.
+-- Begin a new round: all 5 dice back in the tray, waiting to be thrown.
 local function startRound()
     luck.useRoll()          -- a fresh roll counts toward the luck item wearing off
     -- Addict's automatic marker flips between 17 and 18 each round.
     markers.autoSum = luck.autoMarkerSum(score.round + 1)
-    dice.rollAll()
-    animation.startAll(dice.values, player.loadout)
+    dice.newRound()
+    pendingPress = nil
     state = "play"
 end
 
@@ -194,20 +199,51 @@ local function finishRound(noReroll)
     end
 end
 
--- Try to reroll every die that isn't kept. Only the rerolled dice animate.
--- If that used up the last reroll, the round ends - but not until the
--- animation has finished (see love.update).
-local function tryReroll()
-    if not dice.canReroll() or dice.countToReroll() == 0 then
+-- The list of dice picked to throw, e.g. {1, 3, 4}.
+local function selectedDice()
+    local list = {}
+    for i = 1, config.NUM_DICE do
+        if dice.selected[i] then
+            table.insert(list, i)
+        end
+    end
+    return list
+end
+
+-- Throw the picked dice. 'how' is "hand" (letting go of the handful held
+-- under the mouse) or "auto" (THROW / REROLL button, or Enter).
+-- The real results are decided first (in dice.lua); the physics then
+-- sends the dice across the table and each settles onto its result.
+-- Once all 5 are out, a throw is a REROLL. If that used up the last
+-- reroll, the round ends - but not until the dice have stopped (see love.update).
+local function throwDice(how)
+    if not dice.canThrow() then
+        animation.cancelHold()
         return
     end
-    luck.useRoll()          -- rerolls count toward the luck item too
-    local rerolled, which = dice.rerollUnkept()
-    if rerolled then
-        animation.start(which, dice.values, player.loadout)
-        if not dice.canReroll() then
-            roundEndPending = true
-        end
+    local isReroll = dice.nextThrowIsReroll()
+    if isReroll then
+        luck.useRoll()          -- rerolls count toward the luck item too
+    end
+    local thrown, which = dice.throwSelected()
+    if not thrown then
+        animation.cancelHold()
+        return
+    end
+    if how == "hand" then
+        animation.release(dice.values)
+    else
+        animation.autoThrow(which, dice.values, player.loadout)
+    end
+    if isReroll and not dice.canReroll() then
+        roundEndPending = true
+    end
+end
+
+-- Pick up every picked die into a handful under the mouse at (x, y).
+local function grabDice(x, y)
+    if dice.canThrow() then
+        animation.grab(selectedDice(), player.loadout, x, y)
     end
 end
 
@@ -394,20 +430,22 @@ function love.keypressed(key)
 
     elseif state == "play" then
         -- Ignore every key while the dice are rolling.
-        if animation.isRolling() then
+        if animation.isRolling() or animation.isHolding() then
             return
         end
 
         if isEnter then
-            tryReroll()
+            throwDice("auto")   -- the THROW / REROLL button
         elseif key == "k" then
             tryNoReroll()       -- K = the KEEP button
+        elseif key == "a" then
+            dice.selectAll()    -- A = pick all (again = un-pick all)
         else
             -- tonumber turns the text "3" into the number 3.
             -- For keys that aren't numbers (like "a") it gives nil.
             local n = tonumber(key)
             if n and n >= 1 and n <= config.NUM_DICE then
-                dice.toggleKeep(n)
+                dice.toggleSelect(n)
             end
         end
 
@@ -523,31 +561,71 @@ function love.mousepressed(x, y, button, istouch)
         return
     end
 
-    -- Below here: the play screen. Not while rolling.
-    if state ~= "play" or animation.isRolling() then
+    -- Below here: the play screen. Not while dice are out on the felt.
+    if state ~= "play" or animation.isRolling() or animation.isHolding() then
         return
     end
 
     -- layout tells us WHAT was clicked; main/dice decide what that DOES.
     local i = layout.getDieAt(x, y)
     if i then
-        dice.toggleKeep(i)
+        -- Wait and see: a click picks it, a drag picks it up (love.mousemoved).
+        pendingPress = { i = i, x = x, y = y }
     elseif layout.isOnRerollButton(x, y) then
-        tryReroll()
+        throwDice("auto")
     elseif layout.isOnKeepButton(x, y) then
         tryNoReroll()
+    elseif layout.isInside(x, y, layout.felt()) then
+        -- Pressing on the felt picks up the picked dice into your hand.
+        grabDice(x, y)
     end
 end
 
 -- The mouse moved (LÖVE calls this every time it does).
--- Used to drag the volume knob in the settings panel.
+-- Used to drag the volume knob in the settings panel, and to carry the
+-- dice in your hand.
 function love.mousemoved(x, y)
     if showSettings then
         settingsmenu.mousemoved(x)
+        return
     end
+
+    -- Dragging off a tray die: pick it (if it isn't already) and pick up
+    -- the whole handful of picked dice.
+    if pendingPress then
+        local dx, dy = x - pendingPress.x, y - pendingPress.y
+        if dx * dx + dy * dy > DRAG_DISTANCE * DRAG_DISTANCE then
+            if not dice.selected[pendingPress.i] then
+                dice.toggleSelect(pendingPress.i)
+            end
+            pendingPress = nil
+            grabDice(x, y)
+        end
+    end
+
+    animation.moveHold(x, y)   -- does nothing if no dice are held
 end
 
--- A mouse button was let go: stop dragging the volume knob.
+-- A mouse button was let go: stop dragging the volume knob, or let go of
+-- the dice (THROW!), or finish a click on a tray die.
 function love.mousereleased(x, y, button)
     settingsmenu.mousereleased()
+    if button ~= 1 then
+        return
+    end
+
+    if pendingPress then
+        if state == "play" then
+            dice.toggleSelect(pendingPress.i)
+        end
+        pendingPress = nil
+    end
+
+    if animation.isHolding() then
+        if state == "play" then
+            throwDice("hand")
+        else
+            animation.cancelHold()
+        end
+    end
 end

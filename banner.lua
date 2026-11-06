@@ -200,6 +200,24 @@ function banner.draw(state)
         end
     end
 
+    -- HOW TO THROW, while choosing (before KEEP / the reroll is used up).
+    if choosing and not dice.decided and (not dice.allThrown() or dice.canReroll()) then
+        local title = dice.allThrown() and "REROLL?" or "THROW THE DICE"
+        ui.text(title, fonts.heading, c.x, y + 4, c.w, "left", GOLD, true)
+        local lines = {
+            "Pick dice: click them or 1-5",
+            "(A picks all of them).",
+            "Hold the mouse on the felt,",
+            "then fling and let go!",
+        }
+        if dice.allThrown() then
+            table.insert(lines, "Or KEEP all 5 as they are.")
+        end
+        for n, line in ipairs(lines) do
+            ui.text(line, fonts.small, c.x, y + 8 + n * 24, c.w, "left", CREAM)
+        end
+    end
+
     -- Last round's result (once the round is over)
     local r = score.lastRound
     if r and not choosing and not placing then
@@ -260,16 +278,19 @@ function banner.draw(state)
         ui.glossyButton(layout.keepButton(), "CLEAR CHIPS", BLUE_BUTTON, markers.count() > 0)
     else
         -- Neither works while dice are moving.
-        local ready = choosing and not busy
-        local canReroll = ready and dice.canReroll() and dice.countToReroll() > 0
-        local canKeep   = ready and dice.canKeep()
+        local ready = choosing and not busy and not animation.isHolding()
+        local canThrow = ready and dice.canThrow()
+        local canKeep  = ready and dice.canKeep()
 
         if state == "roundOver" then
             -- Between rounds the red button starts the next round
             -- (so it can be tapped on a phone - no Space bar there).
             ui.glossyButton(layout.rerollButton(), "NEXT ROUND", RED_BUTTON, true)
+        elseif choosing and not dice.allThrown() then
+            -- Some dice still in the tray: the red button throws the picked ones.
+            ui.glossyButton(layout.rerollButton(), "THROW", RED_BUTTON, canThrow)
         else
-            ui.glossyButton(layout.rerollButton(), "REROLL", RED_BUTTON, canReroll)
+            ui.glossyButton(layout.rerollButton(), "REROLL", RED_BUTTON, canThrow)
         end
 
         -- Show the bonus on KEEP while it can still be earned.
