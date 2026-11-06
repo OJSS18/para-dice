@@ -214,7 +214,7 @@ function banner.draw(state)
                 "All 5 dice go on the first throw.",
                 "Hold the mouse on the felt,",
                 "then fling and let go!",
-                "(or press THROW)",
+                "(or just press Enter / THROW)",
             }
         end
         for n, line in ipairs(lines) do

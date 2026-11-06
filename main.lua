@@ -251,6 +251,14 @@ local function throwDice(how)
     end
 end
 
+-- Start a round and throw all 5 dice at once, skipping the (just for
+-- fun) part where you fling them yourself. Enter does this, so keyboard
+-- players can hotkey straight through a round.
+local function startRoundAndThrow()
+    startRound()
+    throwDice("auto")
+end
+
 -- Pick up every die that's about to be thrown into a handful under the mouse at (x, y).
 local function grabDice(x, y)
     if dice.canThrow() then
@@ -441,8 +449,9 @@ function love.keypressed(key)
 
     elseif state == "placeMarker" then
         -- Every chip has to be on the table before the level can start.
+        -- Enter skips the throwing part: it starts the round AND throws.
         if isEnter and markers.allPlaced() then
-            startRound()
+            startRoundAndThrow()
         end
 
     elseif state == "play" then
@@ -468,7 +477,9 @@ function love.keypressed(key)
 
     elseif state == "roundOver" then
         if key == "space" then
-            startRound()
+            startRound()            -- dice back in the tray, ready to fling
+        elseif isEnter then
+            startRoundAndThrow()    -- skip the fling: throw all 5 straight away
         end
 
     elseif state == "levelClear" then

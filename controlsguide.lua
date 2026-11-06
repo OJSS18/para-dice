@@ -25,10 +25,11 @@ local SECTIONS = {
     { title = "PLACING YOUR MARKERS (start of each level)", items = {
         { "Click a tile",        "Put a white chip there (x1.5 if it hits); click again to pick it up" },
         { "CLEAR CHIPS",         "Take all your chips back off the table" },
-        { "Enter  /  ROLL",      "Start rolling (once ALL your chips are placed)" },
+        { "ROLL",                "Start the level - then fling the dice yourself" },
+        { "Enter",               "Start the level AND throw all 5 at once" },
     } },
     { title = "ROLLING", items = {
-        { "First throw",         "Always throws all 5 dice" },
+        { "First throw",         "Always throws all 5 dice (flinging is optional)" },
         { "Click a die  /  1-5", "After the first throw: HOLD that die (again to let it go)" },
         { "A",                   "Hold all the dice (again to let them all go)" },
         { "Hold on the felt, fling, let go", "Throw the dice that aren't held that way" },
@@ -36,7 +37,8 @@ local SECTIONS = {
         { "K  /  KEEP",          "Keep all 5 dice (x1.1 points if you haven't rerolled)" },
     } },
     { title = "BETWEEN ROUNDS", items = {
-        { "Space  /  NEXT ROUND",     "Roll the next round" },
+        { "Space  /  NEXT ROUND",     "Next round - then fling the dice yourself" },
+        { "Enter",                    "Next round AND throw all 5 at once (no fling)" },
         { "Space  /  VISIT THE SHOP", "After LEVEL CLEAR: go to the shop" },
     } },
     { title = "SHOP", items = {
