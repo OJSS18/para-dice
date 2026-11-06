@@ -48,6 +48,8 @@ end
 local function key(k) G.kp(k); frame() end
 local function move(x, y) mx, my = x, y; G.mm(x, y, 0, 0, false); frame() end
 local function click(x, y)
+    -- Like a person, wait for a screen slide (transition.lua) to finish first.
+    while require("transition").isActive() do frame() end
     mx, my = x, y; G.mm(x, y, 0, 0, false)
     G.mp(x, y, 1, false); frame()
     G.mr(x, y, 1, false); frame()
