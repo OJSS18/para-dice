@@ -65,14 +65,13 @@ end
 local script = coroutine.wrap(function()
     wait(3); shot("start")
     key("c"); shot("controls"); key("c")
-    key("o"); shot("odds"); key("escape")
     key("s"); shot("settings"); key("right"); key("left"); key("left"); shot("settings_vol"); key("escape")
     move(center(require("settingsmenu").tabRect())); shot("hover_settings_tab")
     move(center(require("controlsguide").tabRect())); shot("hover_controls_tab")
-    move(center(layout.rerollButton())); shot("hover_start")
+    move(center(require("menu").mainButtonRect(1))); shot("hover_play")
 
     -- TUTORIAL
-    key("t"); shot("tut_welcome")
+    key("return"); shot("play_menu"); key("1"); shot("tut_welcome")
     key("return"); shot("tut_points")
     key("return"); shot("tut_money")
     key("return"); shot("tut_marker")
@@ -170,14 +169,16 @@ local script = coroutine.wrap(function()
     shot("level10")
     key("`"); wait(30); shot("victory")
     wait(60); shot("victory_later")
-    clickR(layout.overlayButton()); shot("new_game_place")
+    clickR(layout.endButtons("victory")[2].rect); shot("finished")
+    clickR(layout.endButtons("finished")[3].rect); shot("back_to_menu")    -- MAIN MENU
+    key("return"); key("2"); shot("new_game_place")                          -- PLAY > NORMAL
 
     -- A plain game played with Enter + KEEP until it ends.
     clickR(layout.placeBox(14)); key("return"); settle("plain1"); key("k"); wait(5)
     for _ = 2, 5 do key("return"); settle("plain"); key("k"); wait(5) end
     wait(30); shot("plain_end")
     -- A rigged losing level: GAME OVER.
-    clickR(layout.overlayButton()); wait(2); key("return"); wait(2)
+    clickR(layout.endButtons("levelClear")[1].rect); wait(2); key("return"); wait(2)
     clickR(layout.placeBox(1)); clickR(layout.rerollButton()); wait(2)
     for r = 1, 5 do
         dice.rig = { 3, 3, 4, 4, 3 }
@@ -192,6 +193,7 @@ end)
 
 function love.load()
     love.math.setRandomSeed(12345)
+    require("rng").setSeed(12345)
     math.randomseed(12345)
     G.load()
 end

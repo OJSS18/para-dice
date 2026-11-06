@@ -22,6 +22,7 @@ local player    = require("player")
 local upgrades  = require("upgrades")
 local markers   = require("markers")
 local util      = require("util")
+local rng       = require("rng")
 
 local shop = {}
 
@@ -105,7 +106,7 @@ local function pickDifferent(list, count)
     end
     local picked = {}
     for _ = 1, math.min(count, #pool) do
-        table.insert(picked, table.remove(pool, love.math.random(1, #pool)))
+        table.insert(picked, table.remove(pool, rng.random(1, #pool)))
     end
     return picked
 end
@@ -427,10 +428,15 @@ function shop.luckRowRect(k)
     return rect(r.x + 12, r.y + shop.WINDOW_HEAD + (k - 1) * rowH, r.w - 24, rowH)
 end
 
+-- How big the item pictures are: smaller when there are 4 rows (endless).
+function shop.luckPictureSize()
+    return luck.MAX_HELD > 3 and 40 or 56
+end
+
 -- Row k's SELL button, under its picture.
 function shop.luckSellRect(k)
     local row = shop.luckRowRect(k)
-    return rect(row.x, row.y + 62, 64, 22)
+    return rect(row.x, row.y + shop.luckPictureSize() + 6, 64, 22)
 end
 
 -- The bottom row starts here.
@@ -538,55 +544,35 @@ function shop.tryContinue()
     return "continue"
 end
 
--- Handle a left-click at (px, py).
--- Returns "continue" if the Continue button was clicked (and it's OK to
--- leave), so main.lua can start the next level. Everything else is
--- handled right here.
+-- What a left-click at (px, py) means, as a game ACTION and its number,
+-- e.g. "buyDice", 2. (main.lua passes it to game.act, so it gets recorded
+-- for replays.) Returns nil if the click wasn't on anything.
 function shop.click(px, py)
     for n = 1, 2 do
-        if isInside(px, py, shop.cardRect("dice", n)) then shop.buyDice(n); return nil end
+        if isInside(px, py, shop.cardRect("dice", n)) then return "buyDice", n end
     end
     for n = 1, 3 do
-        if isInside(px, py, shop.cardRect("upgrades", n)) then shop.buyUpgrade(n); return nil end
+        if isInside(px, py, shop.cardRect("upgrades", n)) then return "buyUpgrade", n end
     end
-
     for k = 1, luck.MAX_HELD do
-        if luck.held[k] and isInside(px, py, shop.luckSellRect(k)) then
-            shop.sellLuck(k)
-            return nil
-        end
+        if luck.held[k] and isInside(px, py, shop.luckSellRect(k)) then return "sellShop", k end
     end
-
-    if isInside(px, py, shop.markersRect()) then
-        shop.buyMarker()
-        return nil
-    end
-
-    if isInside(px, py, shop.spinButtonRect()) then
-        shop.pullMystery()
-        return nil
-    end
+    if isInside(px, py, shop.markersRect()) then return "buyMarker" end
+    if isInside(px, py, shop.spinButtonRect()) then return "spin" end
     for k = 1, shop.REELS do
         if isInside(px, py, shop.reelColumnRect(k)) then
             -- Once the reels have landed, clicking one takes its prize.
-            if shop.hasUntakenPrizes() then
-                shop.takePrize(k)
-            end
+            if shop.hasUntakenPrizes() then return "take", k end
             return nil
         end
     end
-
     for i = 1, config.NUM_DICE do
-        if isInside(px, py, shop.slotRect(i)) then shop.equipTo(i); return nil end
+        if isInside(px, py, shop.slotRect(i)) then return "equip", i end
     end
-
     for j = 1, #player.inventory do
-        if isInside(px, py, shop.inventoryRect(j)) then shop.selectInventory(j); return nil end
+        if isInside(px, py, shop.inventoryRect(j)) then return "selectInv", j end
     end
-
-    if isInside(px, py, shop.continueRect()) then
-        return shop.tryContinue()
-    end
+    if isInside(px, py, shop.continueRect()) then return "continue" end
     return nil
 end
 

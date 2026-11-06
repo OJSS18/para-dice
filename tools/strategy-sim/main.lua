@@ -21,7 +21,7 @@ function love.load(args)
             for l = 0, 10 do cleared[l] = 0 end
             local list = {}
             for g = 1, N do
-                love.math.setRandomSeed(seed + g)
+                require("rng").setSeed(seed + g)
                 local levels = sim.playGame(s)
                 if os.getenv("TRACE") then
                     local luck, score = require("luck"), require("score")

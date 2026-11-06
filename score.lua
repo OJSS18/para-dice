@@ -109,10 +109,17 @@ score.ROUNDS_PER_LEVEL = 5
 score.MAX_LEVEL = 10
 
 -- Points needed to clear level 1, and how much bigger each level's
--- target is than the one before (1.25 = 25% more each level):
+-- target is than the one before. NORMAL is 1.25 (25% more each level):
 --   L1 500   L2 625   L3 781   L4 977   L5 1221 ...   L10 3725
+-- HARD is 1.5. game.lua sets score.growth when a run starts.
 score.FIRST_TARGET  = 500
 score.TARGET_GROWTH = 1.25
+score.growth        = score.TARGET_GROWTH
+
+-- ENDLESS: after level 10 a run can keep going. Each endless level's goal
+-- is this many times the one before. game.lua sets score.endless.
+score.ENDLESS_GROWTH = 2.0
+score.endless        = false
 
 
 ---------------------------------------------------------------------------
@@ -406,21 +413,20 @@ function score.recordRound(values, noReroll, rerolled, firstSum)
 end
 
 -- Points needed to clear a level:
---   FIRST_TARGET x TARGET_GROWTH ^ (level - 1), rounded to a whole number.
+--   FIRST_TARGET x growth ^ (level - 1), rounded to a whole number,
+-- and after level 10, x ENDLESS_GROWTH for every level past it.
 -- '^' means "to the power of": 1.25 ^ 2 = 1.25 x 1.25 = 1.5625.
 -- A luck item (Addict) can lower the CURRENT level's goal.
 function score.getTarget(level)
     level = level or score.level   -- no level given? use the current one
-    local target = score.FIRST_TARGET * score.TARGET_GROWTH ^ (level - 1)
+    local normalLevels = math.min(level, score.MAX_LEVEL)
+    local endlessLevels = math.max(0, level - score.MAX_LEVEL)
+    local target = score.FIRST_TARGET * score.growth ^ (normalLevels - 1)
+        * score.ENDLESS_GROWTH ^ endlessLevels
     if level == score.level then
         target = target * luck.targetMultiplier()
     end
     return roundToWhole(target)
-end
-
--- Is this the last level? Clearing it wins the game.
-function score.isFinalLevel()
-    return score.level >= score.MAX_LEVEL
 end
 
 -- Have all the rounds in this level been played?

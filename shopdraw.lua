@@ -379,14 +379,17 @@ local function drawYourLuck()
         if id then
             local item = luck.get(id)
             local color = luck.rarityColor(item)
-            luckart.picture(id, row.x + 4, row.y + 4, 56)
+            luckart.picture(id, row.x + 4, row.y + 4, shop.luckPictureSize())
             luckart.sellButton(shop.luckSellRect(k), luck.sellPrice(item))
             local tx, tw = row.x + 76, row.w - 76
             ui.text(luck.RARITIES[item.rarity].label, fonts.hint, tx, row.y + 4, tw, "left", color)
             ui.text(item.name, fonts.small, tx, row.y + 18, tw, "left", WHITE)
+            -- The words are clipped to the row, so a long one can't run into the next.
+            love.graphics.setScissor(tx, row.y + 38, tw, math.max(0, row.h - 40))
             love.graphics.setFont(fonts.tiny)
             love.graphics.setColor(DIM)
             love.graphics.printf(item.about, tx, row.y + 40, tw, "left")
+            love.graphics.setScissor()
         else
             ui.text("EMPTY SLOT", fonts.small, row.x, row.y + row.h / 2 - 20, row.w, "center", DIM)
             ui.text("(win one from the Mystery Machine)", fonts.tiny, row.x, row.y + row.h / 2 + 2,

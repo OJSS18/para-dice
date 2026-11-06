@@ -116,19 +116,26 @@ end
 -- CLICKS
 ---------------------------------------------------------------------------
 
--- Handle a click at (px, py). Returns true if it was on the rack (so
--- main.lua doesn't also treat it as a click on the felt).
+-- What a click at (px, py) is on: the number of the SELL button it hit,
+-- true for anywhere else on the rack (so main.lua doesn't also treat it as
+-- a click on the felt), or nil if it missed the rack.
 function luckrack.click(px, py)
     for k = 1, luck.MAX_HELD do
         if luck.held[k] and layout.isInside(px, py, luckrack.sellRect(k)) then
-            local name = luck.get(luck.held[k]).name
-            local coins = luck.sell(k)
-            player.addCoins(coins)
-            note, noteTime = "Sold " .. name .. "  +" .. coins .. " coins", 3
-            return true
+            return k
         end
     end
-    return layout.isInside(px, py, luckrack.rect())
+    return layout.isInside(px, py, luckrack.rect()) or nil
+end
+
+-- Sell the item in slot k (game.lua calls this). Returns true if it sold.
+function luckrack.sell(k)
+    if luck.held[k] == nil then return false end
+    local name = luck.get(luck.held[k]).name
+    local coins = luck.sell(k)
+    player.addCoins(coins)
+    note, noteTime = "Sold " .. name .. "  +" .. coins .. " coins", 3
+    return true
 end
 
 return luckrack

@@ -184,22 +184,6 @@ end
 -- SCREENS (main.lua calls these)
 ---------------------------------------------------------------------------
 
--- The start screen: the empty table, with the title on the felt.
-function draw.startScreen()
-    crapstable.draw()
-    scoreboard.draw(false)   -- all the betting boxes, lights off
-    banner.drawFrameOnly()
-
-    local _, cy = layout.logoCenter()
-    local f = layout.felt()
-    ui.text(ui.controlsHint(), fonts.heading, f.x, cy + 90, f.w, "center",
-        { 1, 0.9, 0.2 }, true)
-    if not ui.touchMode then
-        ui.text("ENTER = START      T = START WITH TUTORIAL", fonts.heading, f.x, cy + 122, f.w, "center",
-            { 1, 0.95, 0.85 }, true)
-    end
-end
-
 -- The play screen. main.lua passes in 'state' ("play", "roundOver", ...).
 -- Reading state is fine here - we just never CHANGE it in draw.lua.
 function draw.playScreen(state)
@@ -249,40 +233,55 @@ local function drawConfetti()
     end
 end
 
--- The finished level, dimmed, with (optional) confetti, a big glowing
--- title, a line under it, a glossy button to carry on (so it can be tapped
--- on a phone), and the controls hint below.
-local function drawEndScreen(state, withConfetti, title, titleColor, line, buttonLabel)
+-- The screens at the end of a level or a run: the table dimmed, with
+-- confetti for a win, a big glowing title, a line under it, and glossy
+-- buttons (layout.endButtons). When a run is over it also shows the
+-- REPLAY CODE. 'info' = { code = the replay code or nil, copied = true
+-- once COPY was pressed, buttons = false to hide the buttons (replays) }.
+function draw.endScreen(state, info)
     draw.playScreen(state)
     drawDimOverlay()
-    if withConfetti then
+    local W, H = love.graphics.getWidth(), love.graphics.getHeight()
+    local title, color, line
+    if state == "levelClear" then
+        title, color = "LEVEL CLEAR!", { 1, 0.85, 0.1 }
+        line = "Level " .. score.level .. ":  " .. score.levelTotal .. "/" .. score.getTarget()
+            .. "     +" .. score.levelCoins .. " coins this level"
+    elseif state == "victory" then
+        title, color = "YOU BEAT THE HOUSE!", { 1, 0.85, 0.1 }
+        line = "All " .. score.MAX_LEVEL .. " levels cleared (" .. score.total
+            .. " points). Keep going? ENDLESS goals x2 each level - and a 4th luck slot."
+    elseif state == "finished" then
+        title, color = "YOU BEAT THE HOUSE!", { 1, 0.85, 0.1 }
+        line = "Run finished after level " .. score.level .. "  -  final total: " .. score.total .. " points"
+    else
+        title, color = "GAME OVER", { 1, 0.3, 0.3 }
+        line = "Level " .. score.level .. ": you scored " .. score.levelTotal .. " - you needed "
+            .. score.getTarget() .. ".   Run total: " .. score.total .. " points"
+    end
+    if state ~= "gameOver" then
         drawConfetti()
     end
-    local W, H = love.graphics.getWidth(), love.graphics.getHeight()
-    ui.text(title, fonts.logo, 0, H / 2 - 150, W, "center", titleColor, true)
-    ui.text(line, fonts.text, 0, H / 2 - 10, W, "center", { 1, 0.97, 0.9 })
-    ui.glossyButton(layout.overlayButton(), buttonLabel, { 0.10, 0.65, 0.25 }, true)
-    ui.text(ui.controlsHint(), fonts.heading, 0, H / 2 + 130, W, "center", { 1, 0.9, 0.2 })
-end
-
--- LEVEL CLEAR: confetti, and on to the shop.
-function draw.levelClearScreen(state)
-    drawEndScreen(state, true, "LEVEL CLEAR!", { 1, 0.85, 0.1 },
-        "Level " .. score.level .. ":  " .. score.levelTotal .. "/" .. score.getTarget()
-            .. "     +" .. score.levelCoins .. " coins this level", "VISIT THE SHOP")
-end
-
--- VICTORY: the last level is cleared - the whole game is won.
-function draw.victoryScreen(state)
-    drawEndScreen(state, true, "YOU BEAT THE HOUSE!", { 1, 0.85, 0.1 },
-        "All " .. score.MAX_LEVEL .. " levels cleared  -  final total: " .. score.total .. " points",
-        "PLAY AGAIN")
-end
-
--- GAME OVER: the target was missed.
-function draw.gameOverScreen(state)
-    drawEndScreen(state, false, "GAME OVER", { 1, 0.3, 0.3 },
-        "You scored " .. score.levelTotal .. " - you needed " .. score.getTarget(), "PLAY AGAIN")
+    ui.text(title, fonts.logo, 0, H / 2 - 170, W, "center", color, true)
+    ui.text(line, fonts.text, 40, H / 2 - 30, W - 80, "center", { 1, 0.97, 0.9 })
+    if info.buttons ~= false then
+        for _, b in ipairs(layout.endButtons(state)) do
+            local label = b.label
+            if b.id == "copy" and info.copied then label = "COPIED!" end
+            ui.glossyButton(b.rect, label, b.color, b.id ~= "copy" or info.code ~= nil)
+        end
+    end
+    if info.code then
+        local shown = #info.code > 48 and (info.code:sub(1, 44) .. "...") or info.code
+        ui.text("REPLAY CODE (" .. #info.code .. " characters):  " .. shown, fonts.small,
+            40, H / 2 + 118, W - 80, "center", { 1, 0.85, 0.3 })
+        ui.text("Share it - anyone can watch this run from REPLAY on the main menu.", fonts.hint,
+            40, H / 2 + 146, W - 80, "center", { 1, 1, 1, 0.7 })
+    elseif state == "gameOver" or state == "finished" then
+        ui.text("(Tutorial runs don't get a replay code.)", fonts.hint, 40, H / 2 + 120, W - 80,
+            "center", { 1, 1, 1, 0.7 })
+    end
+    ui.text(ui.controlsHint(), fonts.heading, 0, H - 60, W, "center", { 1, 0.9, 0.2 })
 end
 
 return draw

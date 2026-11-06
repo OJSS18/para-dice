@@ -18,11 +18,13 @@ local SECTIONS = {
         { "C  /  CONTROLS tab", "Show / hide this list (tap anywhere to close it)" },
         { "S  /  SETTINGS tab", "Settings: music volume (Left / Right arrows or drag the slider)" },
         { "O  /  ODDS tab",     "See how likely each face is on each of your 5 dice" },
-        { "Esc",     "Close this list - or quit the game" },
+        { "Esc",     "Close this list; in a run, twice = back to the menu" },
     } },
-    { title = "START", items = {
-        { "Enter  /  START",   "Start a new game" },
-        { "T  /  TUTORIAL",    "Start a new game with the tutorial (SKIP TUTORIAL to stop it)" },
+    { title = "MAIN MENU", items = {
+        { "Enter  /  PLAY",    "Pick a game: TUTORIAL, NORMAL or HARD (keys 1-3)" },
+        { "R  /  REPLAY",      "Paste a replay code and watch that run" },
+        { "L  /  LEADERBOARD", "The best runs - WATCH any of them" },
+        { "LOGIN / STATS",     "Pick a username to keep your stats" },
     } },
     { title = "PLACING YOUR MARKERS (start of each level)", items = {
         { "Click a tile",        "Put a white chip there (x1.5 if it hits); click again to pick it up" },
@@ -52,8 +54,16 @@ local SECTIONS = {
         { "Click inventory die, then one of your dice", "Swap it in" },
         { "Enter  /  CONTINUE",         "Start the next level" },
     } },
-    { title = "GAME OVER / YOU WIN", items = {
-        { "Enter  /  PLAY AGAIN",   "Play again" },
+    { title = "AFTER LEVEL 10 / GAME OVER", items = {
+        { "Enter  /  KEEP GOING",   "After level 10: go ENDLESS (goals x2 per level, 4th luck slot)" },
+        { "F  /  FINISH RUN",       "After level 10: end the run there" },
+        { "COPY CODE",              "Copy the run's replay code to share it" },
+        { "Enter  /  PLAY AGAIN",   "Play again (M = main menu)" },
+    } },
+    { title = "WATCHING A REPLAY", items = {
+        { "Space  /  PAUSE",        "Pause or play" },
+        { "Left / Right",           "Back a round / skip to the next round" },
+        { "Up / Down  /  SPEED",    "Faster or slower (0.5x to 4x)" },
     } },
 }
 

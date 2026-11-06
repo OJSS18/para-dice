@@ -315,7 +315,7 @@ function sim.playGame(s)
         if not score.hasPassedLevel() then
             return score.level - 1, score.levelTotal / score.getTarget()
         end
-        if score.isFinalLevel() then
+        if score.level >= score.MAX_LEVEL then
             return score.MAX_LEVEL, score.levelTotal / score.getTarget()
         end
         visitShop()

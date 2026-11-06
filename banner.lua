@@ -152,8 +152,9 @@ function banner.draw(state)
     if choosing or placing then
         roundNumber = score.round + 1
     end
-    ui.text("LEVEL " .. score.level .. "/" .. score.MAX_LEVEL
-        .. "   ROUND " .. roundNumber .. "/" .. score.ROUNDS_PER_LEVEL,
+    local levelText = score.level > score.MAX_LEVEL and ("LEVEL " .. score.level .. " ENDLESS")
+        or ("LEVEL " .. score.level .. "/" .. score.MAX_LEVEL)
+    ui.text(levelText .. "   ROUND " .. roundNumber .. "/" .. score.ROUNDS_PER_LEVEL,
         fonts.heading, c.x, c.y + 84, c.w, "left", CREAM)
     divider(c.y + 116)
 
@@ -322,15 +323,6 @@ function banner.draw(state)
         ui.glossyButton(layout.keepButton(), keepLabel, BLUE_BUTTON, canKeep)
     end
 
-    drawControlsHint()
-end
-
--- Just the decorated banner with the controls hint (start screen).
-function banner.drawFrameOnly()
-    drawFrame()
-    -- A big START button (Enter works too), and START WITH TUTORIAL (T).
-    ui.glossyButton(layout.rerollButton(), "START", RED_BUTTON, true)
-    ui.glossyButton(layout.keepButton(), "TUTORIAL", BLUE_BUTTON, true)
     drawControlsHint()
 end
 

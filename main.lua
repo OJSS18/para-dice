@@ -13,17 +13,19 @@
 --   conf.lua      - window settings (full screen)
 --   config.lua    - numbers you can tweak (sizes, rerolls, prices of things...)
 --   util.lua      - small shared helpers (rectangles, rounding, weighted random...)
+--   rng.lua       - the GAME's seeded random numbers (so runs can be replayed)
+--   game.lua      - one RUN: its screens and every action the player can take
 --   dicetypes.lua - every kind of die (White, Red, ...) and its odds
 --   player.lua    - coins, your 5 dice, your inventory
---   luck.lua      - luck items (perks): up to 3, permanent until sold; rarities and effects
+--   luck.lua      - luck items (perks): up to 3 (4 in endless), rarities and effects
 --   luckart.lua   - luck item pictures, SELL buttons and tooltips
---   luckrack.lua  - your 3 luck slots on the play screen (sell from there)
---   tutorial.lua  - START WITH TUTORIAL: spotlights, arrows and steps over a real game
+--   luckrack.lua  - your luck slots on the play screen (sell from there)
+--   tutorial.lua  - the TUTORIAL: spotlights, arrows and steps over a real game
 --   boosts.lua    - lasting boosts stuck onto POINTS tiles by luck items
 --   upgrades.lua  - shop upgrades: EVEN / ODD / LOWER 13 / UPPER 13 / HOT FOUR
---   markers.lua   - the white chip placed on a tile each level (x1.5)
+--   markers.lua   - the white chips placed on tiles each level (x1.5)
 --   dice.lua      - dice LOGIC: picking dice to throw, rolling, rerolling, the sum
---   score.lua     - SCORING: points table, Money Maker coin hands, level targets
+--   score.lua     - SCORING: points table, Money Maker coin hands, level goals
 --   shop.lua      - the SHOP: stock, buying, swapping dice, and its layout
 --   godmode.lua   - testing cheat: ` wins the level / gives coins
 --   animation.lua - THROWING: real physics, dice bounce off walls and each other
@@ -34,7 +36,15 @@
 --   crapstable.lua- DRAWING of the table: wood rails, felt, Para-DICE logo, dice tray
 --   scoreboard.lua- DRAWING of the lit-up POINTS / COINS betting boxes on the felt
 --   banner.lua    - DRAWING of the info banner and buttons on the left
---   ui.lua        - shared drawing helpers: glossy buttons, shadowed text
+--   ui.lua        - shared drawing helpers: glossy buttons, shadowed text, bulbs
+--   menu.lua      - the MAIN MENU and the PLAY menu (pick a game type)
+--   screens.lua   - the text entry, STATS and LEADERBOARD screens
+--   profiles.lua  - LOGIN (a username) and each player's stats, saved to disk
+--   leaderboard.lua - the best runs, on this device and online
+--   replaycode.lua  - turning a run into a shareable REPLAY CODE and back
+--   replay.lua    - WATCHING a replay: a bot plays the code's actions back
+--   net.lua       - web requests (online leaderboard) and the clipboard
+--   json.lua      - reading and writing JSON, the web's text format
 --   controlsguide.lua - the list of controls shown when you press C
 --   oddsguide.lua - the dice odds panel shown when you press O
 --   music.lua     - the looping background music
@@ -43,28 +53,24 @@
 --   settingsmenu.lua - the SETTINGS tab and panel
 --   shopdraw.lua  - DRAWING for the shop
 --   main.lua      - this file: which screen we're on, and turning input
---                   (keys and clicks) into calls to the other modules
+--                   (keys and clicks) into menu steps and game actions
 --
 -- Logic files never draw, and drawing files never change data.
 
 -- require loads another file and gives back the table it returned.
-local config    = require("config")
-local dice      = require("dice")
-local score     = require("score")
-local player    = require("player")
-local luck      = require("luck")
-local luckrack  = require("luckrack")
-local tutorial  = require("tutorial")
-local markers   = require("markers")
-local boosts    = require("boosts")
-local upgrades  = require("upgrades")
-local shop      = require("shop")
-local godmode   = require("godmode")
-local confetti  = require("confetti")
-local animation = require("animation")
-local layout    = require("layout")
-local draw      = require("draw")
-local shopdraw  = require("shopdraw")
+local config        = require("config")
+local game          = require("game")
+local dice          = require("dice")
+local score         = require("score")
+local player        = require("player")
+local luckrack      = require("luckrack")
+local tutorial      = require("tutorial")
+local shop          = require("shop")
+local confetti      = require("confetti")
+local animation     = require("animation")
+local layout        = require("layout")
+local draw          = require("draw")
+local shopdraw      = require("shopdraw")
 local controlsguide = require("controlsguide")
 local oddsguide     = require("oddsguide")
 local ui            = require("ui")
@@ -73,245 +79,156 @@ local settings      = require("settings")
 local settingsmenu  = require("settingsmenu")
 local music         = require("music")
 local bigwin        = require("bigwin")
+local menu          = require("menu")
+local screens       = require("screens")
+local profiles      = require("profiles")
+local leaderboard   = require("leaderboard")
+local replaycode    = require("replaycode")
+local replay        = require("replay")
+local net           = require("net")
+local godmode       = require("godmode")
 
--- true while the controls list (press C) is showing on top of the screen.
-local showControls = false
+-- Which screen is showing:
+--   "menu"        - the main menu
+--   "playMenu"    - pick a game type (tutorial / normal / hard)
+--   "game"        - a run is being played (game.state says which part)
+--   "replay"      - watching a replay (game.state again, played by the bot)
+--   "entry"       - typing a username or pasting a replay code
+--   "stats"       - the logged-in player's stats
+--   "leaderboard" - the best runs
+local screen = "menu"
 
--- true while the settings panel (S, or the SETTINGS tab) is open.
-local showSettings = false
+-- The panels that can open on top of any screen.
+local showControls, showSettings, showOdds = false, false, false
 
--- true while the dice odds panel (O, or the ODDS tab) is open.
-local showOdds = false
+-- The run that just ended: its replay code, and whether COPY was pressed.
+local lastRun = { code = nil, copied = false }
 
--- 'state' tells us which screen we're on. It's just a string:
---   "start"       - the title screen
---   "placeMarker" - start of a level: put your white chip on a tile (or not), then ROLL
---   "play"        - the player throws the dice (1-5 at a time), then can
---                   reroll some of them, or KEEP all 5
---   "roundOver"   - the round has been scored; Space starts the next one
---   "levelClear"  - all rounds played and the target was reached; confetti!
---   "victory"     - the LAST level was cleared: you beat the game!
---   "gameOver"    - all rounds played and the target was missed
---   "shop"        - between levels: buy dice and upgrades, spin for luck, swap dice in
-local state = "start"
+-- Where EXIT on a replay goes back to ("menu" or "leaderboard").
+local replayReturn = "menu"
 
--- Set to true when the round is over but the dice are still animating.
--- love.update waits for the animation to finish, THEN scores the round,
--- so the result never appears before the dice have stopped.
-local roundEndPending = false
-
--- Are we on one of the screens that show the table with its dice?
-local function onTable()
-    return state == "placeMarker" or state == "play" or state == "roundOver"
-end
+-- Escape during a run asks first: pressing it again before this time leaves.
+local leaveUntil = 0
 
 -- The mouse went down on a tray die. If it's let go without moving, that
 -- holds / lets go of the die; if it's dragged, it picks up the dice to throw.
--- { i = which die, x, y = where the press started }, or nil.
 local pendingPress = nil
 local DRAG_DISTANCE = 12   -- pixels the mouse must move before it counts as a drag
 
 
 ---------------------------------------------------------------------------
--- GAME FLOW
+-- MOVING BETWEEN SCREENS
 ---------------------------------------------------------------------------
--- These small functions connect the modules together and move between
--- states. They're the "rules of the game".
 
--- Begin a new round: all 5 dice back in the tray, waiting to be thrown.
-local function startRound()
-    -- Addict's automatic marker flips between 17 and 18 each round.
-    markers.autoSum = luck.autoMarkerSum(score.round + 1)
-    dice.newRound()
+-- Start a new run of a game type ("tutorial", "normal" or "hard").
+local function startRun(mode)
+    game.new(mode)
+    lastRun = { code = nil, copied = false }
     pendingPress = nil
-    state = "play"
+    leaveUntil = 0
+    screen = "game"
 end
 
--- Begin a level:
---   * "this level only" point boosts come off,
---   * the marker from last level comes off the table,
---   * and the player places a new one before the first roll - unless
---     their luck item doesn't allow it (Addict), then we roll straight away.
-local function beginLevel()
-    boosts.clearLevel()
-    markers.clear()
-    markers.autoSum = nil
-    if luck.blocksMarker() then
-        startRound()
-    else
-        state = "placeMarker"
-    end
-end
-
--- Click a tile while placing markers: put a marker there, or pick it back up.
-local function placeMarkerAt(kind, k)
-    if kind == "points" then
-        markers.toggle("points", score.sumBoxes()[k].sum)
-    else
-        markers.toggle("coins", score.COIN_HANDS[k].id)
-    end
-end
-
--- Start a brand new game from zero. 'withTutorial' = true runs the tutorial
--- over it (START WITH TUTORIAL on the title screen).
-local function startGame(withTutorial)
-    if withTutorial then
-        tutorial.start()
-    else
-        tutorial.stop()
-    end
+-- Back to the main menu (a run in progress is left behind).
+local function toMenu()
+    if replay.active then replay.stop() end
+    game.active = false
+    tutorial.stop()
+    animation.stop()
     confetti.stop()
     bigwin.stop()
-    score.reset()
-    player.reset()          -- 0 coins, 5 white dice, empty inventory
-    boosts.reset()          -- no point boosts
-    upgrades.reset()        -- no shop upgrades
-    markers.reset()         -- back to one marker
-    luck.reset()            -- no luck items...
-    luck.give(luck.STARTER) -- ...except "Run it Back", which everyone starts with
-    beginLevel()
+    screen = "menu"
 end
 
--- Go to the shop (after clearing a level).
-local function openShop()
-    confetti.stop()
-    shop.open(score.level + 1)   -- fresh stock every visit, for the level coming up
-    state = "shop"
+-- Open the text entry screen for a username ("name") or a replay code ("code").
+local function openEntry(kind)
+    screens.entry = { kind = kind, text = "", message = "" }
+    love.keyboard.setTextInput(true)
+    screen = "entry"
 end
 
--- Leave the shop and start the next level.
--- The level score resets to 0; the game total, coins and dice are kept.
-local function startNextLevel()
-    score.startNextLevel()
-    beginLevel()
-end
-
--- The dice are final: score them, pay any coins, then decide what's next.
--- 'noReroll' is true if the player chose No Reroll (earns the points bonus).
-local function finishRound(noReroll)
-    local result = score.recordRound(dice.values, noReroll, dice.hasRerolled(), dice.firstSum)
-    player.addCoins(result.coins)   -- coins from a Money Maker hand and luck items (0 if none)
-
-    -- A huge round (40% / 75% of the level goal in one go) is a BIG / MEGA WIN,
-    -- which pays bonus coins on top.
-    -- (Jackpot Magnet lowers those thresholds.)
-    result.winBonus = bigwin.check(result.points, score.getTarget(), luck.bigWinShares())
-    if result.winBonus > 0 then
-        player.addCoins(result.winBonus)
-        score.levelCoins = score.levelCoins + result.winBonus
-    end
-
-    -- The held luck items may stick a lasting boost onto the point just scored.
-    -- (This happens AFTER scoring, so the boost counts from the next time.)
-    luck.onPointScored(result.sum)
-
-    -- Unlock Token: one token for each level beaten while holding it.
-    if score.isLevelOver() and score.hasPassedLevel() and luck.givesUnlockTokens() then
-        player.unlockTokens = player.unlockTokens + 1
-    end
-
-    if not score.isLevelOver() then
-        -- More rounds to go in this level.
-        state = "roundOver"
-    elseif score.hasPassedLevel() and score.isFinalLevel() then
-        -- The last level is cleared: the whole game is won!
-        state = "victory"
-        confetti.start()
-    elseif score.hasPassedLevel() then
-        -- Last round done, and the target was reached: celebrate.
-        state = "levelClear"
-        confetti.start()
-    else
-        -- Last round done, and the target was missed.
-        state = "gameOver"
+local function openLeaderboard()
+    screen = "leaderboard"
+    if screens.board.which == "online" then
+        leaderboard.fetchOnline(screens.board.mode)
     end
 end
 
--- The list of dice the next throw will send, e.g. {1, 3, 4}
--- (all 5 on the first throw, then every die that isn't held).
-local function diceToThrow()
-    local list = {}
-    for i = 1, config.NUM_DICE do
-        if dice.willThrow(i) then
-            table.insert(list, i)
+-- Leave a replay: back to where it was started from.
+local function exitReplay()
+    toMenu()
+    if replayReturn == "leaderboard" then openLeaderboard() end
+end
+
+-- Watch a replay from its code. Returns false and a reason if the code is bad.
+local function watch(code, returnTo)
+    local run, why = replaycode.decode(code)
+    if not run then return false, why end
+    replayReturn = returnTo or "menu"
+    replay.start(run)
+    screen = "replay"
+    return true
+end
+
+-- OK on the text entry screen.
+local function submitEntry()
+    local e = screens.entry
+    local text = e.text:gsub("^%s+", ""):gsub("%s+$", "")
+    if e.kind == "name" then
+        if not profiles.isValidName(text) then
+            e.message = "Use 3 to 16 letters, numbers or _ (no spaces)."
+            return
         end
-    end
-    return list
-end
-
--- Throw the dice (all 5, or the ones not held). 'how' is "hand" (letting go of the handful held
--- under the mouse) or "auto" (THROW / REROLL button, or Enter).
--- The real results are decided first (in dice.lua); the physics then
--- sends the dice across the table and each settles onto its result.
--- Once all 5 are out, a throw is a REROLL. If that used up the last
--- reroll, the round ends - but not until the dice have stopped (see love.update).
-local function throwDice(how)
-    if not dice.canThrow() then
-        animation.cancelHold()
-        return
-    end
-    local isReroll = dice.nextThrowIsReroll()
-    local thrown, which = dice.throw()
-    if not thrown then
-        animation.cancelHold()
-        return
-    end
-    if how == "hand" then
-        animation.release(dice.values)
+        profiles.login(text)
+        love.keyboard.setTextInput(false)
+        screen = "menu"
     else
-        animation.autoThrow(which, dice.values, player.loadout)
-    end
-    if isReroll and not dice.canReroll() then
-        roundEndPending = true
-    end
-end
-
--- Start a round and throw all 5 dice at once, skipping the (just for
--- fun) part where you fling them yourself. Enter does this, so keyboard
--- players can hotkey straight through a round.
-local function startRoundAndThrow()
-    startRound()
-    throwDice("auto")
-end
-
--- Pick up every die that's about to be thrown into a handful under the mouse at (x, y).
-local function grabDice(x, y)
-    if dice.canThrow() then
-        animation.grab(diceToThrow(), player.loadout, x, y)
-    end
-end
-
--- KEEP (all): keep all the dice as they are and end the round.
--- (In the code this is still called "no reroll", because that's what it is.)
--- The points bonus only counts if the player hasn't rerolled anything.
-local function tryNoReroll()
-    -- Check BEFORE calling dice.noReroll(), because it sets rerollsLeft
-    -- to 0, which would make it look like the player had rerolled.
-    local earnedBonus = not dice.hasRerolled()
-
-    if dice.noReroll() then
-        finishRound(earnedBonus)
-    end
-end
-
--- GOD MODE (testing): what the ` key does depends on the screen.
-local function useGodMode()
-    if onTable() then
-        -- Stop anything half-finished and force the win.
-        animation.stop()
-        roundEndPending = false
-        godmode.winLevel()
-        if score.isFinalLevel() then
-            state = "victory"           -- that was the last level
-            confetti.start()
+        local ok, why = watch(text, "menu")
+        if ok then
+            love.keyboard.setTextInput(false)
         else
-            openShop()
+            e.message = why
         end
-    elseif state == "levelClear" then
-        openShop()              -- already won; just skip ahead
-    elseif state == "shop" then
-        godmode.giveCoins()     -- more money to test buying
-        shop.message = "God mode: +" .. config.GOD_MODE_COINS .. " coins."
+    end
+end
+
+local function pasteIntoEntry()
+    local prompt = screens.entry.kind == "name" and "Type a username:" or "Paste the replay code:"
+    net.paste(prompt, function(text)
+        if screen == "entry" then
+            screens.entry.text = screens.entry.text .. text:gsub("[\r\n]", "")
+        end
+    end)
+end
+
+
+---------------------------------------------------------------------------
+-- STATS AND THE LEADERBOARD (game.lua tells us what happened)
+---------------------------------------------------------------------------
+
+-- Does this run count for stats? Not replays, the tutorial or god mode.
+local function counts()
+    return screen == "game" and not replay.active and game.mode ~= "tutorial" and not game.unranked
+end
+
+game.events.round = function(result)
+    if counts() then profiles.recordRound(result) end
+end
+
+game.events.spin = function()
+    if counts() then profiles.recordSpin() end
+end
+
+game.events.runEnd = function()
+    if replay.active then return end
+    lastRun.code = game.isReplayable()
+        and replaycode.encode(game.mode, game.seed, game.log, score.level, score.total) or nil
+    if not counts() then return end
+    local won = score.level > score.MAX_LEVEL or game.state == "finished"
+    profiles.recordRun({ points = score.total, level = score.level, won = won, mode = game.mode })
+    if profiles.current then
+        leaderboard.submit({ name = profiles.current, mode = game.mode, level = score.level,
+            points = score.total, code = lastRun.code })
     end
 end
 
@@ -321,84 +238,131 @@ end
 ---------------------------------------------------------------------------
 
 function love.load()
-    -- A dark green background, like a casino table.
     love.graphics.setBackgroundColor(0.05, 0.3, 0.15)
-
-    draw.load()      -- make the fonts and load the dice images
+    draw.load()                        -- the fonts and the dice pictures
     bigwin.load(config.DISPLAY_FONT)   -- the jackpot sound and its big letters
-    dice.rollAll()   -- fill the dice so they're never empty
+    dice.rollAll()                     -- fill the dice so they're never empty
+    settings.load()                    -- remembered settings (if any)
+    profiles.load()                    -- who's logged in, and everyone's stats
+    leaderboard.load()                 -- the runs saved on this device
+    music.start(settings.values.musicVolume)
+end
 
-    settings.load()                            -- remembered settings (if any)
-    music.start(settings.values.musicVolume)   -- start the looping music
+local function inRun()
+    return screen == "game" or screen == "replay"
 end
 
 function love.update(dt)
-    -- 'dt' (delta time) is how many seconds passed since the last frame.
-    -- Anything that moves over time is updated here.
-    -- (If nothing is animating, these do nothing.)
-    animation.update(dt)
+    net.update()
+    -- A replay can run faster or slower; the animations follow its speed.
+    local speed = replay.active and replay.speed() or 1
+    if replay.active and replay.paused then speed = 0 end
+    animation.update(dt * speed)
     confetti.update(dt)
-    bigwin.update(dt)
+    bigwin.update(dt * speed)
     luckrack.update(dt)
-    tutorial.update(state)  -- moves the tutorial on once you've done what it asked
-    if state == "shop" then
-        shop.update(dt)     -- the Mystery Machine's reel
+    tutorial.update(screen == "game" and game.state or "start")
+    if inRun() then
+        game.update(dt * speed)
     end
-
-    -- The round ended while dice were rolling. Once they've all stopped,
-    -- score it. The flag is cleared first so this only happens once.
-    if roundEndPending and not animation.isRolling() then
-        roundEndPending = false
-        finishRound(false)   -- false = no No Reroll bonus (they rerolled)
-    end
+    replay.update(dt)
 end
 
 function love.draw()
-    -- Look at the state and draw the matching screen.
-    if state == "start" then
-        draw.startScreen()
-    elseif onTable() then
-        draw.playScreen(state)
-    elseif state == "levelClear" then
-        draw.levelClearScreen(state)
-    elseif state == "victory" then
-        draw.victoryScreen(state)
-    elseif state == "gameOver" then
-        draw.gameOverScreen(state)
-    elseif state == "shop" then
-        shopdraw.screen()
+    if screen == "menu" then
+        menu.drawMain()
+    elseif screen == "playMenu" then
+        menu.drawPlay()
+    elseif screen == "entry" then
+        screens.drawEntry()
+    elseif screen == "stats" then
+        screens.drawStats()
+    elseif screen == "leaderboard" then
+        screens.drawBoard()
+    else
+        local s = game.state
+        if game.onTable() then
+            draw.playScreen(s)
+        elseif s == "shop" then
+            shopdraw.screen()
+        else
+            draw.endScreen(s, { code = lastRun.code, copied = lastRun.copied, buttons = screen == "game" })
+        end
+        bigwin.draw()       -- BIG WIN / MEGA WIN letters, over whatever is showing
+        tutorial.draw()     -- the tutorial's spotlight, arrow and words (if running)
+        replay.draw()       -- the replay controls (if watching one)
+        if love.timer.getTime() < leaveUntil then
+            ui.text("Press Esc again to leave this run (it won't be saved)", fonts.heading,
+                0, 90, love.graphics.getWidth(), "center", { 1, 0.4, 0.35 }, true)
+        end
     end
-
-    -- BIG WIN / MEGA WIN letters, over whatever screen is showing.
-    bigwin.draw()
-
-    -- The tutorial's spotlight, arrow and words (only while it's running).
-    tutorial.draw()
 
     -- The version number, small, in the bottom-right corner.
     local W, H = love.graphics.getWidth(), love.graphics.getHeight()
     ui.text("v" .. config.VERSION, fonts.hint, W - 110, H - 20, 100, "right", { 1, 1, 1, 0.35 })
 
-    -- The SETTINGS tab is on every screen; the panels go on top of everything.
-    settingsmenu.drawTab()
-    controlsguide.drawTab()
-    oddsguide.drawTab()
-    if showSettings then
-        settingsmenu.draw()
+    -- The tabs are on the game screens; the panels go on top of everything.
+    if inRun() then
+        settingsmenu.drawTab()
+        controlsguide.drawTab()
+        oddsguide.drawTab()
     end
-    if showOdds then
-        oddsguide.draw()
+    if showSettings then settingsmenu.draw() end
+    if showOdds then oddsguide.draw() end
+    if showControls then controlsguide.draw() end
+end
+
+-- Typed letters (only used on the text entry screen).
+function love.textinput(t)
+    if screen ~= "entry" then return end
+    local e = screens.entry
+    local allowed = e.kind == "name" and "[%w_]" or "[%w%-_%.]"
+    local limit = e.kind == "name" and 16 or 8000
+    for c in t:gmatch(allowed) do
+        if #e.text < limit then e.text = e.text .. c end
     end
-    if showControls then
-        controlsguide.draw()
+end
+
+-- The keys for each part of a run (game.state). Each turns into an action.
+local function runKey(key)
+    local isEnter = (key == "return" or key == "kpenter")
+    local s = game.state
+    if s == "placeMarker" then
+        -- Enter skips the throwing part: it starts the round AND throws.
+        if isEnter then game.act("roll", 1) end
+    elseif s == "play" then
+        if animation.isRolling() or animation.isHolding() then return end
+        if isEnter then
+            game.act("throw")            -- the THROW / REROLL button
+        elseif key == "k" then
+            game.act("keep")             -- K = the KEEP button
+        elseif key == "a" then
+            game.act("holdAll")          -- A = hold all (again = let them all go)
+        else
+            local n = tonumber(key)      -- 1-5 = hold / let go of that die
+            if n and n >= 1 and n <= config.NUM_DICE then game.act("hold", n) end
+        end
+    elseif s == "roundOver" then
+        if key == "space" then
+            game.act("nextRound", 0)     -- dice back in the tray, ready to fling
+        elseif isEnter then
+            game.act("nextRound", 1)     -- skip the fling: throw all 5 straight away
+        end
+    elseif s == "levelClear" then
+        if key == "space" or isEnter then game.act("openShop") end
+    elseif s == "shop" then
+        if isEnter then game.act("continue") end
+    elseif s == "victory" then
+        if isEnter then game.act("endless") elseif key == "f" then game.act("finish") end
+    elseif s == "gameOver" or s == "finished" then
+        if isEnter then startRun(game.mode) elseif key == "m" then toMenu() end
     end
 end
 
 function love.keypressed(key)
     ui.touchMode = false   -- a key was pressed, so hints talk about keys again
 
-    -- While SETTINGS is open: left/right change the volume, S or Escape
-    -- closes it, and every other key is ignored.
+    -- While SETTINGS is open: left/right change the volume, S or Escape closes it.
     if showSettings then
         if key == "left" then
             settings.changeMusicVolume(-0.05)
@@ -410,260 +374,257 @@ function love.keypressed(key)
         return
     end
 
-    -- While the tutorial is showing a "read this" step, it takes the keys
-    -- (Enter / Space = NEXT) and the game underneath ignores them.
-    if tutorial.keypressed(key) then
-        return
-    end
-
-    -- C opens and closes the controls list, from any screen.
-    if key == "c" then
-        showControls = not showControls
-        showOdds = false
-        return
-    end
-
-    -- O opens and closes the dice odds panel, from any screen.
-    if key == "o" then
-        showOdds = not showOdds
-        showControls = false
-        return
-    end
-
-    -- While the odds panel is open, Escape closes it and other keys are ignored.
-    if showOdds then
-        if key == "escape" then
-            showOdds = false
+    -- Typing a name or code: every key goes to the text box.
+    if screen == "entry" then
+        local e = screens.entry
+        if key == "backspace" then
+            e.text = e.text:sub(1, -2)
+        elseif key == "return" or key == "kpenter" then
+            submitEntry()
+        elseif key == "escape" then
+            love.keyboard.setTextInput(false)
+            screen = "menu"
+        elseif key == "v" and love.keyboard.isDown("lctrl", "rctrl", "lgui", "rgui") then
+            pasteIntoEntry()
         end
         return
     end
 
-    -- S opens the settings (unless the controls list is open).
-    if key == "s" and not showControls then
+    -- Escape during a run: press it twice to leave (the first press warns).
+    if screen == "game" and key == "escape" and not (showOdds or showControls) then
+        if not game.active or love.timer.getTime() < leaveUntil then
+            toMenu()
+        else
+            leaveUntil = love.timer.getTime() + 2.5
+        end
+        return
+    end
+
+    -- While the tutorial is showing a "read this" step, it takes the keys.
+    if screen == "game" and tutorial.keypressed(key) then return end
+
+    -- C and O open and close the controls list and the dice odds.
+    if key == "c" then
+        showControls, showOdds = not showControls, false
+        return
+    end
+    if key == "o" and inRun() then
+        showOdds, showControls = not showOdds, false
+        return
+    end
+    if showOdds or showControls then
+        if key == "escape" then showOdds, showControls = false, false end
+        return
+    end
+    if key == "s" then
         showSettings = true
         return
     end
 
-    -- While the list is open, Escape closes it and every other key is ignored.
-    if showControls then
-        if key == "escape" then
-            showControls = false
+    if screen == "menu" then
+        if key == "return" or key == "kpenter" or key == "p" then
+            screen = "playMenu"
+        elseif key == "r" then
+            openEntry("code")
+        elseif key == "l" then
+            openLeaderboard()
+        elseif key == "escape" and love.system.getOS() ~= "Web" then
+            love.event.quit()   -- (in a browser, "quitting" would just freeze the page)
         end
-        return
-    end
-
-    -- Escape quits from any screen - except in a web browser, where
-    -- "quitting" would just freeze the page.
-    if key == "escape" then
-        if love.system.getOS() ~= "Web" then
-            love.event.quit()
+    elseif screen == "playMenu" then
+        local n = tonumber(key)
+        if n and menu.GAME_TYPES[n] then
+            startRun(menu.GAME_TYPES[n].id)
+        elseif key == "escape" then
+            screen = "menu"
         end
-        return
-    end
-
-    -- God mode works from any screen it makes sense on.
-    if godmode.isTrigger(key) then
-        useGodMode()
-        return
-    end
-
-    -- "return" is the main Enter key; "kpenter" is the number-pad Enter.
-    local isEnter = (key == "return" or key == "kpenter")
-
-    -- What a key does depends on which screen we're on.
-    if state == "start" then
-        if isEnter then
-            startGame()
-        elseif key == "t" then
-            startGame(true)     -- T = START WITH TUTORIAL
-        end
-
-    elseif state == "placeMarker" then
-        -- Every chip has to be on the table before the level can start.
-        -- Enter skips the throwing part: it starts the round AND throws.
-        if isEnter and markers.allPlaced() then
-            startRoundAndThrow()
-        end
-
-    elseif state == "play" then
-        -- Ignore every key while the dice are rolling.
-        if animation.isRolling() or animation.isHolding() then
+    elseif screen == "stats" or screen == "leaderboard" then
+        if key == "escape" then screen = "menu" end
+    elseif screen == "replay" then
+        if key == "space" then replay.togglePause()
+        elseif key == "left" then replay.rewind()
+        elseif key == "right" then replay.forward()
+        elseif key == "up" then replay.faster()
+        elseif key == "down" then replay.slower()
+        elseif key == "escape" then exitReplay() end
+    elseif screen == "game" then
+        if godmode.isTrigger(key) then
+            game.act("god")
             return
         end
-
-        if isEnter then
-            throwDice("auto")   -- the THROW / REROLL button
-        elseif key == "k" then
-            tryNoReroll()       -- K = the KEEP button
-        elseif key == "a" then
-            dice.holdAll()      -- A = hold all (again = let them all go)
-        else
-            -- tonumber turns the text "3" into the number 3.
-            -- For keys that aren't numbers (like "a") it gives nil.
-            local n = tonumber(key)
-            if n and n >= 1 and n <= config.NUM_DICE then
-                dice.toggleHold(n)  -- 1-5 = hold / let go of that die
-            end
-        end
-
-    elseif state == "roundOver" then
-        if key == "space" then
-            startRound()            -- dice back in the tray, ready to fling
-        elseif isEnter then
-            startRoundAndThrow()    -- skip the fling: throw all 5 straight away
-        end
-
-    elseif state == "levelClear" then
-        if key == "space" then
-            openShop()
-        end
-
-    elseif state == "shop" then
-        if isEnter and shop.tryContinue() == "continue" then
-            startNextLevel()
-        end
-
-    elseif state == "gameOver" or state == "victory" then
-        if isEnter then
-            startGame()   -- start over from level 1
-        end
+        runKey(key)
     end
 end
 
--- x, y   = where the mouse was clicked
--- button = which mouse button (1 = left, 2 = right, 3 = middle)
--- 'istouch' is true when the "click" was really a finger on a touch screen
--- (LÖVE turns taps into mouse clicks for us, so tapping just works).
-function love.mousepressed(x, y, button, istouch)
-    if button ~= 1 then
-        return   -- only the left button does anything
+-- Pick up every die that's about to be thrown, into a handful under the mouse.
+local function grabDice(x, y)
+    if dice.canThrow() then
+        animation.grab(game.diceToThrow(), player.loadout, x, y)
     end
+end
 
-    -- Remember whether the player is using touch, so hints can say "tap".
-    ui.touchMode = istouch == true
-
-    -- Clicking anywhere closes the controls list or the odds panel
-    -- (and does nothing else).
-    if showControls or showOdds then
-        showControls = false
-        showOdds = false
-        return
-    end
-
-    -- The settings panel handles its own clicks while it's open.
-    if showSettings then
-        if settingsmenu.mousepressed(x, y) == "close" then
-            showSettings = false
-        end
-        return
-    end
-
-    -- The SETTINGS and CONTROLS tabs, on every screen.
-    if settingsmenu.isOnTab(x, y) then
-        showSettings = true
-        return
-    end
-    if controlsguide.isOnTab(x, y) then
-        showControls = true
-        return
-    end
-    if oddsguide.isOnTab(x, y) then
-        showOdds = true
-        return
-    end
+-- A click during a run (screen "game").
+local function runClick(x, y)
+    local s = game.state
 
     -- The luck rack (right of the tray): SELL a luck item any time the
     -- dice aren't flying.
-    if onTable() and not animation.isRolling() and not animation.isHolding()
-        and luckrack.click(x, y) then
-        return
+    if game.onTable() and not animation.isRolling() and not animation.isHolding() then
+        local hit = luckrack.click(x, y)
+        if type(hit) == "number" then game.act("sellRack", hit) end
+        if hit then return end
     end
 
-    -- Screens that used to need a key now have a button too, so the whole
-    -- game can be played by tapping on a phone.
     -- The tutorial's NEXT / SKIP buttons (and, on a "read this" step, it
     -- swallows every other click).
-    if tutorial.mousepressed(x, y) then
+    if tutorial.mousepressed(x, y) then return end
+
+    -- The end-of-level and end-of-run screens.
+    if s == "levelClear" or s == "victory" or s == "gameOver" or s == "finished" then
+        local id = layout.endButtonAt(s, x, y)
+        if id == "shop" then game.act("openShop")
+        elseif id == "endless" then game.act("endless")
+        elseif id == "finish" then game.act("finish")
+        elseif id == "copy" and lastRun.code then
+            net.copy(lastRun.code)
+            lastRun.copied = true
+        elseif id == "again" then startRun(game.mode)
+        elseif id == "menu" then toMenu() end
         return
     end
 
-    if state == "start" then
-        if layout.isOnRerollButton(x, y) then
-            startGame()                  -- the START button
-        elseif layout.isOnKeepButton(x, y) then
-            startGame(true)              -- START WITH TUTORIAL
-        end
-        return
-    elseif state == "roundOver" then
-        if layout.isOnRerollButton(x, y) then
-            startRound()                 -- the NEXT ROUND button
-        end
-        return
-    elseif state == "levelClear" then
-        if layout.isInside(x, y, layout.overlayButton()) then
-            openShop()                   -- VISIT THE SHOP
-        end
-        return
-    elseif state == "gameOver" or state == "victory" then
-        if layout.isInside(x, y, layout.overlayButton()) then
-            startGame()                  -- PLAY AGAIN
-        end
+    if s == "shop" then
+        -- shop.lua says WHAT was clicked; game.act does it (and records it).
+        local action, arg = shop.click(x, y)
+        if action then game.act(action, arg) end
         return
     end
 
-    if state == "shop" then
-        -- shop.lua handles buying and swapping itself; it only tells us
-        -- when Continue was clicked, because changing screens is main's job.
-        if shop.click(x, y) == "continue" then
-            startNextLevel()
-        end
+    if s == "roundOver" then
+        if layout.isOnRerollButton(x, y) then game.act("nextRound", 0) end   -- NEXT ROUND
         return
     end
 
     -- Placing markers: click a tile to put a chip there (or pick it up);
-    -- ROLL starts the level once every chip is placed; the blue button
-    -- takes all the chips back off.
-    if state == "placeMarker" then
+    -- ROLL starts the level once every chip is placed; CLEAR CHIPS takes
+    -- them all back off. (Coin tiles are numbered after the 26 points tiles.)
+    if s == "placeMarker" then
         local kind, k = layout.getTileAt(x, y)
         if kind then
-            placeMarkerAt(kind, k)
-        elseif layout.isOnRerollButton(x, y) and markers.allPlaced() then
-            startRound()        -- ROLL only works once every chip is placed
+            game.act("marker", kind == "points" and k or 26 + k)
+        elseif layout.isOnRerollButton(x, y) then
+            game.act("roll", 0)
         elseif layout.isOnKeepButton(x, y) then
-            markers.clear()
+            game.act("clearMarkers")
         end
         return
     end
 
-    -- Below here: the play screen. Not while dice are out on the felt.
-    if state ~= "play" or animation.isRolling() or animation.isHolding() then
-        return
-    end
-
-    -- layout tells us WHAT was clicked; main/dice decide what that DOES.
+    -- The play screen. Not while dice are out on the felt.
+    if s ~= "play" or animation.isRolling() or animation.isHolding() then return end
     local i = layout.getDieAt(x, y)
     if i then
-        -- Wait and see: a click picks it, a drag picks it up (love.mousemoved).
+        -- Wait and see: a click holds it, a drag picks up the dice (love.mousemoved).
         pendingPress = { i = i, x = x, y = y }
     elseif layout.isOnRerollButton(x, y) then
-        throwDice("auto")
+        game.act("throw")
     elseif layout.isOnKeepButton(x, y) then
-        tryNoReroll()
+        game.act("keep")
     elseif layout.isInside(x, y, layout.felt()) then
-        -- Pressing on the felt picks up the picked dice into your hand.
-        grabDice(x, y)
+        grabDice(x, y)   -- pressing on the felt picks up the dice into your hand
     end
 end
 
--- The mouse moved (LÖVE calls this every time it does).
--- Used to drag the volume knob in the settings panel, and to carry the
--- dice in your hand.
+-- x, y = where the mouse was clicked; button 1 = left. 'istouch' is true
+-- when the "click" was really a finger (LÖVE turns taps into clicks).
+function love.mousepressed(x, y, button, istouch)
+    if button ~= 1 then return end
+    ui.touchMode = istouch == true
+
+    -- Clicking anywhere closes the controls list or the odds panel.
+    if showControls or showOdds then
+        showControls, showOdds = false, false
+        return
+    end
+    -- The settings panel handles its own clicks while it's open.
+    if showSettings then
+        if settingsmenu.mousepressed(x, y) == "close" then showSettings = false end
+        return
+    end
+    -- The tabs along the top, on the game screens.
+    if inRun() then
+        if settingsmenu.isOnTab(x, y) then showSettings = true; return end
+        if controlsguide.isOnTab(x, y) then showControls = true; return end
+        if oddsguide.isOnTab(x, y) then showOdds = true; return end
+    end
+
+    if screen == "menu" then
+        local id = menu.mainButtonAt(x, y)
+        if id == "play" then
+            screen = "playMenu"
+        elseif id == "replay" then
+            openEntry("code")
+        elseif id == "settings" then
+            showSettings = true
+        elseif id == "login" then
+            if profiles.current then screen = "stats" else openEntry("name") end
+        elseif id == "leaderboard" then
+            openLeaderboard()
+        end
+    elseif screen == "playMenu" then
+        local id = menu.typeAt(x, y)
+        if id then
+            startRun(id)
+        elseif layout.isInside(x, y, menu.backRect()) then
+            screen = "menu"
+        end
+    elseif screen == "entry" then
+        local id = screens.entryButtonAt(x, y)
+        if id == "ok" then
+            submitEntry()
+        elseif id == "paste" then
+            pasteIntoEntry()
+        elseif id == "cancel" then
+            love.keyboard.setTextInput(false)
+            screen = "menu"
+        end
+    elseif screen == "stats" then
+        local id = screens.statsButtonAt(x, y)
+        if id == "logout" then profiles.logout() end
+        if id then screen = "menu" end
+    elseif screen == "leaderboard" then
+        local what, value = screens.boardClick(x, y)
+        if what == "tab" then
+            if value == "online" or value == "device" then
+                screens.board.which = value
+            else
+                screens.board.mode = value
+            end
+            openLeaderboard()
+        elseif what == "watch" then
+            watch(value.code, "leaderboard")
+        elseif what == "back" then
+            screen = "menu"
+        end
+    elseif screen == "replay" then
+        local id = replay.buttonAt(x, y)
+        if id == "restart" then replay.restart()
+        elseif id == "rewind" then replay.rewind()
+        elseif id == "pause" then replay.togglePause()
+        elseif id == "forward" then replay.forward()
+        elseif id == "speed" then replay.cycleSpeed()
+        elseif id == "exit" then exitReplay() end
+    elseif screen == "game" then
+        runClick(x, y)
+    end
+end
+
+-- The mouse moved: drag the volume knob, or carry the dice in your hand.
 function love.mousemoved(x, y)
     if showSettings then
         settingsmenu.mousemoved(x)
         return
     end
-
     -- Dragging off a tray die picks up the whole handful about to be thrown.
     if pendingPress then
         local dx, dy = x - pendingPress.x, y - pendingPress.y
@@ -672,28 +633,23 @@ function love.mousemoved(x, y)
             grabDice(x, y)
         end
     end
-
     animation.moveHold(x, y)   -- does nothing if no dice are held
 end
 
--- A mouse button was let go: stop dragging the volume knob, or let go of
--- the dice (THROW!), or finish a click on a tray die.
+-- A mouse button was let go: stop dragging the volume knob, let go of the
+-- dice (THROW!), or finish a click on a tray die (HOLD it).
 function love.mousereleased(x, y, button)
     settingsmenu.mousereleased()
-    if button ~= 1 then
-        return
-    end
-
+    if button ~= 1 then return end
     if pendingPress then
-        if state == "play" then
-            dice.toggleHold(pendingPress.i)   -- a click holds / lets go of the die
+        if screen == "game" and game.state == "play" then
+            game.act("hold", pendingPress.i)
         end
         pendingPress = nil
     end
-
     if animation.isHolding() then
-        if state == "play" then
-            throwDice("hand")
+        if screen == "game" and game.state == "play" then
+            game.act("throw", 1)
         else
             animation.cancelHold()
         end

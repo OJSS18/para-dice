@@ -98,6 +98,12 @@ config.BUTTON_H = 56
 -- (and add a line to CHANGELOG.md) whenever you put out a new version.
 config.VERSION = "0.0.2"
 
+-- The ONLINE leaderboard (a free Supabase project - see README.md).
+-- Leave these empty and the leaderboard only shows runs from this device.
+-- The key is the project's PUBLIC "anon" key, which is safe to share.
+config.ONLINE_URL = ""
+config.ONLINE_KEY = ""
+
 -- God mode (testing only - see godmode.lua)
 config.GOD_MODE_ENABLED = true  -- set to false before you share the game
 config.GOD_MODE_COINS   = 100   -- coins given each time god mode is used

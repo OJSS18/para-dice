@@ -296,10 +296,37 @@ function layout.rerollButton()
     return rect(kb.x, kb.y - 16 - config.BUTTON_H, kb.w, config.BUTTON_H)
 end
 
--- The big button on the LEVEL CLEAR / GAME OVER / YOU WIN screens.
-function layout.overlayButton()
+-- The buttons on the LEVEL CLEAR / YOU WIN / GAME OVER screens, in a row:
+-- a list of { id, label, color, rect }.
+local END_BUTTONS = {
+    levelClear = { { "shop", "VISIT THE SHOP", { 0.10, 0.65, 0.25 } } },
+    victory    = { { "endless", "KEEP GOING (ENDLESS)", { 0.10, 0.65, 0.25 } },
+                   { "finish", "FINISH RUN", { 0.85, 0.10, 0.12 } } },
+    gameOver   = { { "copy", "COPY CODE", { 0.95, 0.62, 0.10 } },
+                   { "again", "PLAY AGAIN", { 0.10, 0.65, 0.25 } },
+                   { "menu", "MAIN MENU", { 0.12, 0.38, 0.95 } } },
+}
+END_BUTTONS.finished = END_BUTTONS.gameOver
+
+function layout.endButtons(state)
     local W, H = love.graphics.getWidth(), love.graphics.getHeight()
-    return rect((W - 320) / 2, H / 2 + 40, 320, 64)
+    local list = END_BUTTONS[state] or {}
+    local w, gap = 320, 20
+    local total = #list * w + (#list - 1) * gap
+    local out = {}
+    for n, b in ipairs(list) do
+        table.insert(out, { id = b[1], label = b[2], color = b[3],
+            rect = rect((W - total) / 2 + (n - 1) * (w + gap), H / 2 + 30, w, 64) })
+    end
+    return out
+end
+
+-- Which end-screen button is at (px, py)? Its id, or nil.
+function layout.endButtonAt(state, px, py)
+    for _, b in ipairs(layout.endButtons(state)) do
+        if layout.isInside(px, py, b.rect) then return b.id end
+    end
+    return nil
 end
 
 -- Where the yellow controls hint goes (under the buttons).

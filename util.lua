@@ -2,6 +2,8 @@
 -- Small helpers that lots of files need. Pure maths - nothing here draws
 -- or changes game data.
 
+local rng = require("rng")
+
 local util = {}
 
 -- A rectangle as a table: { x = left, y = top, w = width, h = height }.
@@ -65,7 +67,7 @@ end
 function util.pickWeighted(list, weightOf)
     local total = 0
     for _, x in ipairs(list) do total = total + weightOf(x) end
-    local spot = love.math.random() * total
+    local spot = rng.random() * total   -- the GAME's random numbers (see rng.lua)
     for _, x in ipairs(list) do
         spot = spot - weightOf(x)
         if spot < 0 then return x end

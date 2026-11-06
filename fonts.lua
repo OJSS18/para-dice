@@ -28,7 +28,8 @@ function fonts.load()
     fonts.tiny  = love.graphics.newFont(text, 13)   -- the small white payout text on the felt
 
     -- Limelight, the Vegas marquee font
-    fonts.logo = love.graphics.newFont(config.VEGAS_FONT, config.LOGO_FONT_SIZE)
+    fonts.logo    = love.graphics.newFont(config.VEGAS_FONT, config.LOGO_FONT_SIZE)
+    fonts.logoBig = love.graphics.newFont(config.VEGAS_FONT, 150)   -- the main menu
 
     -- Ultra, the heavy craps-table numbers
     fonts.number    = love.graphics.newFont(config.NUMBER_FONT, 34)
