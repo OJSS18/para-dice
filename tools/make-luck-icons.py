@@ -10,6 +10,7 @@ FONT = os.path.join(ROOT, "assets", "fonts", "Bungee-Regular.ttf")
 S = 512                     # draw big, then shrink to 128 for smooth edges
 
 RARITY = {
+    "starter":  ((170, 170, 178), (205, 205, 212)),
     "common":   ((150, 150, 158), (190, 190, 198)),
     "uncommon": ((60, 200, 80), (110, 235, 120)),
     "rare":     ((70, 140, 255), (120, 175, 255)),
@@ -98,6 +99,14 @@ def make(name):
         icons[name] = fn
         return fn
     return deco
+
+
+@make("justGettingStarted")
+def _():
+    im, d = tile("starter", "", "")
+    for k, word in enumerate(("JUST", "GETTING", "STARTED")):
+        text_c(d, (S / 2, 170 + k * 88), word, 96, CREAM, 4)
+    return im
 
 
 @make("middleRoad")

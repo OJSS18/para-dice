@@ -107,12 +107,6 @@ function T.luckRack()
     return luckrack.rect()
 end
 
--- The POINTS tile the first round landed on (it now has Run it Back's boost).
-function T.boostedTile()
-    local first = score.history[1]
-    local sum = first and first.sum or 17
-    return layout.placeBox(sum - 4)
-end
 
 function T.shopCards()
     local a, b = shop.windowRect(1), shop.windowRect(2)
@@ -257,12 +251,12 @@ local STEPS = {
       end },
     { screen = "roundOver", kind = "next", target = T.luckRack,
       title = "LUCK ITEMS",
-      text = "These are your LUCK ITEMS - permanent perks. You start with Run it Back. Hover one to see "
+      text = "These are your LUCK ITEMS - permanent perks. You start with Just Getting Started. Hover one to see "
           .. "what it does. You can hold 3, and SELL them for coins any time." },
-    { screen = "roundOver", kind = "next", target = T.boostedTile,
-      title = "BOOSTS STICK",
-      text = "Run it Back gives every point you hit another x1.1 for the rest of the run - so the tile "
-          .. "you landed on in round 1 is now worth more (its number glows gold)." },
+    { screen = "roundOver", kind = "next", target = T.scoreLine,
+      title = "YOUR STARTER",
+      text = "Just Getting Started makes every round score x1.25 points - you can see it in this "
+          .. "scoring line. Other luck items add their own bonuses on top." },
     { screen = "roundOver", kind = "next", target = nil,
       title = "YOU'VE GOT IT!",
       text = "Play out the last 3 rounds of the level yourself. Reach the target and you're off to the "

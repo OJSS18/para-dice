@@ -4,7 +4,7 @@
 -- sell any of them at any time for half its value.
 --
 -- The only way to get new ones is the MYSTERY MACHINE in the shop: each
--- spin shows 3 items and you pick ONE. Every game starts with "Run it Back".
+-- spin shows 3 items and you pick ONE. Every game starts with "Just Getting Started".
 --
 -- Each item is a table of DATA describing what it does. The functions at
 -- the bottom read those fields, so adding a new item usually means adding
@@ -90,10 +90,10 @@ local function isOdd(v)  return v % 2 == 1 end
 
 luck.ITEMS = {
     -- STARTER (everyone begins with this)
-    runItBack = {
-        name = "Run it Back", rarity = "starter", image = "runItBack",
-        about = "Each time a point hits, it gets another x1.1 for the rest of the run.",
-        pointRunMult = 1.1,
+    justGettingStarted = {
+        name = "Just Getting Started", rarity = "starter", image = "justGettingStarted",
+        about = "Every round scores x1.25 points.",
+        check = function() return true end, mult = 1.25,
     },
 
     -- COMMON
@@ -346,7 +346,7 @@ luck.ITEMS = {
 -- The ids in order (tables keyed by name have no order). The face cards
 -- are slotted in below.
 luck.ORDER = {
-    "runItBack",
+    "justGettingStarted",
     "addict", "rabbitsFoot", "snakeEyes", "pairUp", "lowball", "highroller", "pocketChange", "middleRoad",
     "rabbitsLeg", "lowballDeluxe", "skyHigh", "noRepeats", "comebackKid", "steadyHand",
     "hotDice", "underdog", "tipJar", "piggyBank",
@@ -382,14 +382,14 @@ for id, item in pairs(luck.ITEMS) do
     item.id = id
 end
 
-luck.STARTER = "runItBack"
+luck.STARTER = "justGettingStarted"
 
 
 ---------------------------------------------------------------------------
 -- DATA: what the player is holding right now
 ---------------------------------------------------------------------------
 
-luck.held = {}          -- the ids held, in slot order, e.g. { "runItBack", "skyHigh" }
+luck.held = {}          -- the ids held, in slot order, e.g. { "justGettingStarted", "skyHigh" }
 luck.crowdRounds = 0    -- rounds played while holding Crowd Favourite
 luck.streak = 0         -- Hot Streak: rounds in a row that beat the one before
 
@@ -647,8 +647,8 @@ end
 
 -- A round was just scored on 'sum': stick the held items' lasting boosts
 -- onto that point. They STACK: every time the same point hits, it gets
--- boosted again. (Roll 19 three times with Run it Back and 19 is worth
--- x1.1 x1.1 x1.1.)
+-- boosted again. (Roll 19 three times with Rabbit's Leg and 19 is worth
+-- x1.25 x1.25 x1.25.)
 function luck.onPointScored(sum)
     for item in each() do
         if item.pointRunMult or item.pointRunFlat then

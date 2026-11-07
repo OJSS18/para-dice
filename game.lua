@@ -235,7 +235,7 @@ function game.new(mode, seed)
     upgrades.reset()        -- no shop upgrades
     markers.reset()         -- back to one marker
     luck.reset()            -- no luck items...
-    luck.give(luck.STARTER) -- ...except "Run it Back", which everyone starts with
+    luck.give(luck.STARTER) -- ...except "Just Getting Started", which everyone starts with
     dice.rollAll()          -- fill the dice so they're never empty
     beginLevel()
 end

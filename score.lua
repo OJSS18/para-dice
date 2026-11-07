@@ -190,7 +190,7 @@ end
 --   1. Start from the tile's value, plus any flat bonus (Show Me The Money)
 --      and any flat bonus from luck items (Snake Eyes +15...).
 --   2. Multiply by everything that applies - they all stack:
---        point boosts (Run it Back, Rabbit's Foot/Leg...)
+--        point boosts (Rabbit's Foot/Leg...)
 --        shop upgrades (EVEN, ODD, LOWER 13, UPPER 13, HOT FOUR)
 --        x1.5 if a marker is on this sum
 --        luck items that pay for these dice (Sky High, Even Steven...)
