@@ -2,6 +2,12 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.8.1 - 2026-11-06
+
+- No more console windows flashing up on Windows when the game talks to the online
+  leaderboard (submitting a run, opening the board, its auto-refresh). curl is now started
+  directly with no window, instead of through the command prompt.
+
 ## v0.8.0 - 2026-11-06
 
 - Cheaper upgrades, all on the same footing: LOWER 13, UPPER 13, EVEN and ODD start at 30,

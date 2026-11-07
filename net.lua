@@ -4,6 +4,9 @@
 -- LÖVE 11 can't fetch web pages by itself, so:
 --   * ON A COMPUTER: a background thread runs Windows' (or Mac/Linux's)
 --     built-in "curl" program, so the game never freezes while it waits.
+--     On Windows it's started directly with "no window" (through LuaJIT's
+--     FFI, which can call Windows itself), so no console window flashes up.
+--     curl writes the answer and its headers into files, which we read.
 --   * IN A WEB BROWSER: the game prints a special line ("@@PD@@{...}").
 --     The web page (docs/index.html) spots it, does the request with the
 --     browser's own fetch(), and writes the answer into the game's save
@@ -20,16 +23,68 @@ local nextId = 0
 local waiting = {}   -- waiting[id] = done callback
 
 -- The background thread used on a computer.
-local THREAD_CODE = [[
+local THREAD_CODE = [==[
 local requests, replies = ...
+
+-- On Windows: start a program with NO window, and wait for it to finish.
+local runHidden
+if jit and jit.os == "Windows" then
+    local ffi = require("ffi")
+    ffi.cdef[[
+        typedef struct {
+            uint32_t cb; void* lpReserved; void* lpDesktop; void* lpTitle;
+            uint32_t dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags;
+            uint16_t wShowWindow, cbReserved2; void* lpReserved2;
+            void* hStdInput; void* hStdOutput; void* hStdError;
+        } PD_STARTUPINFOA;
+        typedef struct { void* hProcess; void* hThread; uint32_t dwProcessId, dwThreadId; } PD_PROCESS_INFORMATION;
+        int CreateProcessA(const char* app, char* cmd, void* pa, void* ta, int inherit, uint32_t flags,
+            void* env, const char* dir, PD_STARTUPINFOA* si, PD_PROCESS_INFORMATION* pi);
+        uint32_t WaitForSingleObject(void* handle, uint32_t ms);
+        int CloseHandle(void* handle);
+    ]]
+    local CREATE_NO_WINDOW, STARTF_USESHOWWINDOW, SW_HIDE = 0x08000000, 1, 0
+    runHidden = function(command)
+        local si = ffi.new("PD_STARTUPINFOA")
+        si.cb = ffi.sizeof(si)
+        si.dwFlags = STARTF_USESHOWWINDOW
+        si.wShowWindow = SW_HIDE
+        local pi = ffi.new("PD_PROCESS_INFORMATION")
+        local line = ffi.new("char[?]", #command + 1, command)
+        if ffi.C.CreateProcessA(nil, line, nil, nil, 0, CREATE_NO_WINDOW, nil, nil, si, pi) == 0 then
+            return false
+        end
+        ffi.C.WaitForSingleObject(pi.hProcess, 30000)
+        ffi.C.CloseHandle(pi.hProcess)
+        ffi.C.CloseHandle(pi.hThread)
+        return true
+    end
+end
+
+local function readFile(path)
+    local f = io.open(path, "rb")
+    if not f then return "" end
+    local text = f:read("*a")
+    f:close()
+    os.remove(path)
+    return text
+end
+
 while true do
     local job = requests:demand()
-    local f = io.popen(job.command)
-    local out = f and f:read("*a") or ""
-    if f then f:close() end
-    replies:push({ id = job.id, out = out })
+    if runHidden then
+        runHidden(job.command)
+    else
+        local f = io.popen(job.command)
+        if f then f:read("*a"); f:close() end
+    end
+    -- The status is on the headers' "HTTP/1.1 200 OK" line (the last one,
+    -- in case there was a "100 Continue" first).
+    local status = 0
+    for code in readFile(job.headFile):gmatch("HTTP/[%d%.]+ (%d%d%d)") do status = tonumber(code) end
+    replies:push({ id = job.id, status = status, out = readFile(job.bodyFile) })
 end
-]]
+]==]
 local thread, requests, replies
 
 local function startThread()
@@ -66,11 +121,13 @@ function net.request(method, url, headers, body, done)
         }))
         return
     end
-    -- A computer: the body goes in a file, so it needs no quoting.
+    -- A computer: what we send, and curl's answer and headers, all go
+    -- through files in the save folder (so nothing needs tricky quoting).
     startThread()
-    -- -w makes curl add a new line and the status number at the end.
-    -- ("\\n" is a backslash and an n, which curl turns into a new line.)
-    local parts = { "curl -s -m 15 -w " .. quote("\\n%{http_code}") .. " -X " .. method }
+    local dir = love.filesystem.getSaveDirectory()
+    love.filesystem.write("net_ready.txt", "")   -- makes sure the save folder exists
+    local bodyFile, headFile = dir .. "/net_out_" .. id .. ".txt", dir .. "/net_head_" .. id .. ".txt"
+    local parts = { "curl -s -m 15 -o " .. quote(bodyFile) .. " -D " .. quote(headFile) .. " -X " .. method }
     for k, v in pairs(headers or {}) do
         table.insert(parts, "-H " .. quote(k .. ": " .. v))
     end
@@ -80,10 +137,7 @@ function net.request(method, url, headers, body, done)
         table.insert(parts, "--data-binary @" .. quote(love.filesystem.getSaveDirectory() .. "/" .. file))
     end
     table.insert(parts, quote(url))
-    local command = table.concat(parts, " ")
-    -- Windows runs it through cmd.exe, which needs the whole line in one more pair of quotes.
-    if love.system.getOS() == "Windows" then command = '"' .. command .. '"' end
-    requests:push({ id = id, command = command })
+    requests:push({ id = id, command = table.concat(parts, " "), bodyFile = bodyFile, headFile = headFile })
 end
 
 -- Copy text to the clipboard.
@@ -135,9 +189,7 @@ function net.update()
         local done = waiting[reply.id]
         waiting[reply.id] = nil
         love.filesystem.remove("net_body_" .. reply.id .. ".json")
-        -- curl adds the status code on the last line (the -w option).
-        local text, status = reply.out:match("^(.*)\n(%d+)$")
-        if done then done(tonumber(status) or 0, text or "") end
+        if done then done(reply.status or 0, reply.out or "") end
     end
 end
 
