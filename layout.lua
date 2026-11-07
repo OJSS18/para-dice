@@ -147,7 +147,7 @@ function layout.placeGrid()
 end
 
 -- The strip just under the POINTS block where this roll's score is spelled
--- out: "SCORING 60 x 1.65 (marker x1.5, keep x1.1) = 99".
+-- out: "SCORING 60 x 1.88 (marker x1.5, keep x1.25) = 113".
 layout.SCORE_LINE_H = 30
 
 function layout.scoreLine()

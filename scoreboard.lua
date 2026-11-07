@@ -409,7 +409,7 @@ end
 
 
 -- The line under the POINTS block that spells out this roll's score:
---   SCORING  60  x 1.65  (marker x1.5, keep x1.1)  =  99 PTS
+--   SCORING  60  x 1.88  (marker x1.5, keep x1.25)  =  113 PTS
 -- 'r' is from score.calculate() or a saved round; 'noReroll' = KEEP bonus counts.
 function scoreboard.drawScoreLine(r, noReroll)
     local line = layout.scoreLine()

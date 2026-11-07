@@ -38,7 +38,7 @@ local SECTIONS = {
         { "A",                   "Hold all the dice (again to let them all go)" },
         { "Hold on the felt, fling, let go", "Throw the dice that aren't held that way" },
         { "Enter  /  THROW / REROLL", "Throw the dice that aren't held for you" },
-        { "K  /  KEEP",          "Keep all 5 dice (x1.1 points if you haven't rerolled)" },
+        { "K  /  KEEP",          "Keep all 5 dice (x1.25 points if you haven't rerolled)" },
     } },
     { title = "BETWEEN ROUNDS", items = {
         { "Space  /  NEXT ROUND",     "Next round - then fling the dice yourself" },

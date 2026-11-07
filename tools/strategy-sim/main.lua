@@ -14,6 +14,38 @@ function love.load(args)
 
     local sim = require("sim")
     local strategies = require("strategies")
+    -- HARD SWEEP: try pairs of growth rates, e.g. HARDSWEEP="1.4:1.5 1.35:1.45"
+    -- (levels 2-5 : levels 6-10) against the 3 strongest strategies.
+    if os.getenv("HARDSWEEP") then
+        local early, strategies, score = require("early"), require("strategies"), require("score")
+        local function branchOf(parentN, tag)
+            for _, b in ipairs(early.branches(early.base[parentN])) do
+                if b.name:find(tag, 1, true) then return b end
+            end
+        end
+        local list = { strategies[9], branchOf(14, "Double Down"), branchOf(11, "Show Me The Money") }
+        for pair in os.getenv("HARDSWEEP"):gmatch("%S+") do
+            local g1, g2 = pair:match("([%d%.]+):([%d%.]+)")
+            g1, g2 = tonumber(g1), tonumber(g2)
+            local parts = {}
+            for _, s in ipairs(list) do
+                local wins, reach5 = 0, 0
+                for g = 1, N do
+                    require("rng").setSeed(seed + g)
+                    score.growth, score.lateGrowth = g1, g2
+                    local l = sim.playGame(s)
+                    if l == 10 then wins = wins + 1 end
+                    if l >= 4 then reach5 = reach5 + 1 end
+                end
+                table.insert(parts, string.format("%s %.1f%% (L5 %.0f%%)", s.name:sub(1, 14), 100 * wins / N, 100 * reach5 / N))
+            end
+            print("HS	" .. g1 .. " / " .. g2 .. "	" .. table.concat(parts, " | "))
+            io.stdout:flush()
+        end
+        love.event.quit()
+        return
+    end
+
     -- HARD TEST: the strongest strategies on HARD's goals.
     if os.getenv("HARDTEST") then
         local early, strategies, score = require("early"), require("strategies"), require("score")

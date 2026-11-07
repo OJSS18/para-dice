@@ -2,6 +2,16 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.8.0 - 2026-11-06
+
+- Cheaper upgrades, all on the same footing: LOWER 13, UPPER 13, EVEN and ODD start at 30,
+  HOT FOUR at 10 (KEEP BONUS stays 20). Each level now costs 1.5x the one before (was 2x, 3x...):
+  30, 45, 70, 100, 150...
+- KEEP without rerolling now pays x1.25 (was x1.1); KEEP BONUS still adds +0.1x a level.
+- HARD retuned so it can actually be won: goals grow x1.35 a level, then x1.40 from level 6
+  (were x1.5 / x1.62). Level 10 on HARD is 8,932 (was 28,243). In the simulator the best
+  strategies now win about 1-5% of HARD runs (was 0%). A new leaderboard season.
+
 ## v0.7.0 - 2026-11-06
 
 - The shop shows ALL 6 upgrades every visit (LOWER 13, UPPER 13, EVEN, ODD, HOT FOUR, KEEP BONUS),

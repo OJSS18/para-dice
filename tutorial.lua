@@ -200,7 +200,7 @@ local STEPS = {
     { screen = "play", kind = "next", target = T.bothButtons,
       title = "REROLL OR KEEP?",
       text = "Every round you get ONE reroll: hold the dice you like and throw the rest again. "
-          .. "Or press KEEP to stop - keeping WITHOUT rerolling pays x1.1." },
+          .. "Or press KEEP to stop - keeping WITHOUT rerolling pays x1.25." },
     { screen = "play", kind = "action", target = T.keepButton,
       title = "KEEP IT",
       text = "That's a great roll - don't push your luck. Press KEEP (or K).",

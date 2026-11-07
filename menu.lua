@@ -175,7 +175,7 @@ menu.GAME_TYPES = {
     { id = "normal", title = "NORMAL", color = { 0.10, 0.65, 0.25 },
       lines = { "10 levels to beat", "the house.", "Goals x1.25 a level,", "x1.35 from level 6" } },
     { id = "hard", title = "HARD", color = { 0.85, 0.10, 0.12 },
-      lines = { "For high rollers:", "goals climb fast.", "Goals x1.5 a level,", "x1.62 from level 6" } },
+      lines = { "For high rollers:", "goals climb fast.", "Goals x1.35 a level,", "x1.40 from level 6" } },
 }
 
 function menu.typeCardRect(n)

@@ -45,7 +45,7 @@ local game = {}
 game.MODES = {
     tutorial = { name = "TUTORIAL", growth = 1.25, late = 1.35 },
     normal   = { name = "NORMAL",   growth = 1.25, late = 1.35 },
-    hard     = { name = "HARD",     growth = 1.5,  late = 1.62 },
+    hard     = { name = "HARD",     growth = 1.35, late = 1.40 },
 }
 
 game.state    = "placeMarker"

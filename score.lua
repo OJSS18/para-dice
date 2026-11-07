@@ -8,7 +8,7 @@
 --      NO REROLL and keeps all 5 as they are.
 --   3. The 5 final dice are scored twice:
 --        POINTS - their sum (5 to 30) is looked up in POINT_VALUES.
---                 No Reroll multiplies the points by 1.1.
+--                 No Reroll multiplies the points by 1.25.
 --        COINS  - if they make a "Money Maker" hand (Full House, Straight...)
 --                 the best one pays coins, using Yahtzee's own scores.
 --   4. Points go to the level score; coins go to the player.
@@ -62,9 +62,9 @@ score.POINT_VALUES = {
 }
 
 -- Choosing No Reroll (keeping all 5 dice) multiplies the round's points by this.
-score.NO_REROLL_MULTIPLIER = 1.1
+score.NO_REROLL_MULTIPLIER = 1.25
 
--- The KEEP bonus right now: 1.1, plus 0.1 per level of the KEEP BONUS upgrade.
+-- The KEEP bonus right now: 1.25, plus 0.1 per level of the KEEP BONUS upgrade.
 function score.keepMultiplier()
     -- Rounded to 2 decimals: computers store 1.1 + 0.1 as 1.2000000000000002,
     -- which would look silly on screen.
@@ -113,15 +113,14 @@ score.MAX_LEVEL = 10
 -- to level 5, then 1.35 (see LATE GAME below):
 --   L1 500   L2 625   L3 781   L4 977   L5 1221
 --   L6 1648  L7 2225  L8 3003  L9 4055  L10 5474
--- HARD is 1.5. game.lua sets score.growth when a run starts.
+-- HARD is 1.35 (then 1.40). game.lua sets score.growth when a run starts.
 score.FIRST_TARGET  = 500
 score.TARGET_GROWTH = 1.25
 score.growth        = score.TARGET_GROWTH
 
 -- LATE GAME: from level 6 to level 10, each goal grows by this much
 -- instead, so reaching level 5 doesn't mean the run is as good as won.
--- (NORMAL x1.35, HARD x1.62 - set by game.lua per mode. x1.35 holds the
--- strongest simulated strategies to about 10% wins.)
+-- (NORMAL x1.35, HARD x1.40 - set by game.lua per mode.)
 score.LATE_FROM   = 6
 score.lateGrowth  = 1.35
 
@@ -194,7 +193,7 @@ end
 --        shop upgrades (EVEN, ODD, LOWER 13, UPPER 13, HOT FOUR)
 --        x1.5 if a marker is on this sum
 --        luck items that pay for these dice (Sky High, Even Steven...)
---        x1.1 for KEEP with no reroll
+--        x1.25 for KEEP with no reroll
 --   3. Round once, at the very end.
 -- 'values' is the list of 5 dice faces. 'rerolled' = the player rerolled,
 -- 'firstSum' = the sum of the first throw (for Comeback Kid).
@@ -267,7 +266,7 @@ end
 --   baseText - "60" or "(60 + 100)" when there's a flat bonus
 --   mult     - every multiplier multiplied together, e.g. 1.65
 --   sources  - a list of where the multiplier came from, e.g.
---              { "marker x1.5", "keep x1.1" }
+--              { "marker x1.5", "keep x1.25" }
 function score.breakdown(r, noReroll)
     local baseText = tostring(r.base)
     local flat = (r.flat or 0) + (r.perkFlat or 0)
