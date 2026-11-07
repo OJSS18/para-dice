@@ -2,6 +2,13 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.4.0 - 2026-11-06
+
+- Mystery Machine odds: Common 35%, Uncommon 35%, Rare 25%, Epic 4%, Legendary 1%
+  (were 30 / 30 / 22 / 13 / 5).
+- Each spin at a shop visit costs 10 more than the last (35, 45, 55...); the price goes
+  back to 35 at the next level's shop. A new leaderboard season.
+
 ## v0.3.0 - 2026-11-06
 
 Balance update, priced from the strategy simulator (about 80 coins per extra level a

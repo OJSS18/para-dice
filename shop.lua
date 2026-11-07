@@ -8,9 +8,10 @@
 --                 then you swap one into any of your 5 slots.
 --   * UPGRADES  - 2 random upgrades, e.g. "EVEN LVL1" (+0.25x on even sums).
 --   * YOUR LUCK - the luck items you hold (up to 3). SELL any of them.
---   * THE MYSTERY MACHINE - a THREE-reel slot machine: 35 coins a spin.
+--   * THE MYSTERY MACHINE - a THREE-reel slot machine: 35 coins for the first
+--                 spin each visit, then 10 more for each spin after that.
 --                 Each reel lands on a random luck item and you pick ONE.
---                 Odds by rarity 30/30/22/13/5 %. Luck items can't be got
+--                 Odds by rarity 35/35/25/4/1 %. Luck items can't be got
 --                 any other way. If your 3 slots are full, sell one first.
 --
 -- This file is LOGIC + LAYOUT. The drawing lives in shopdraw.lua.
@@ -50,7 +51,11 @@ shop.MACHINE_H   = 320
 shop.REELS       = 3
 shop.REEL_W      = 148
 shop.REEL_GAP    = 14
+-- A spin costs MYSTERY_PRICE, plus MYSTERY_STEP more for every spin already
+-- made at this visit (35, 45, 55...). It goes back to 35 at the next shop.
 shop.MYSTERY_PRICE = 35
+shop.MYSTERY_STEP  = 10
+shop.spins = 0           -- spins made at this visit
 shop.SPIN_TIME   = 2.2   -- seconds the FIRST reel spins for...
 shop.REEL_DELAY  = 0.45  -- ...and each next reel stops this much later
 
@@ -157,6 +162,7 @@ function shop.open(nextLevel)
 
     shop.sold = { dice = {}, upgrades = {} }
     shop.selectedInv = nil
+    shop.spins = 0      -- the Mystery Machine's price starts low again
     shop.message = "Welcome to the shop!"
 
     -- Idle reels showing a few random items.
@@ -225,6 +231,11 @@ function shop.hasUntakenPrizes()
     return not m.spinning and m.reels[1] ~= nil and m.reels[1].prize ~= nil and m.taken == nil
 end
 
+-- What the next spin costs.
+function shop.spinPrice()
+    return shop.MYSTERY_PRICE + shop.MYSTERY_STEP * shop.spins
+end
+
 -- Pull the Mystery Machine's lever.
 function shop.pullMystery()
     local m = shop.machine
@@ -235,10 +246,12 @@ function shop.pullMystery()
         shop.message = "You haven't picked a prize! SPIN again to give them up."
         return
     end
-    if not player.spend(shop.MYSTERY_PRICE) then
-        shop.message = "The Mystery Machine costs " .. shop.MYSTERY_PRICE .. " coins."
+    local price = shop.spinPrice()
+    if not player.spend(price) then
+        shop.message = "The next spin costs " .. price .. " coins."
         return
     end
+    shop.spins = shop.spins + 1
 
     -- Decide the 3 prizes NOW (all different, and none you already hold),
     -- then build each reel so it ends on its prize. The spin is just for

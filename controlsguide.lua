@@ -48,7 +48,7 @@ local SECTIONS = {
     { title = "SHOP", items = {
         { "Click a card",               "Buy it (dice or upgrade)" },
         { "MARKERS  +1",                "Buy another white chip to place each level" },
-        { "SPIN",                       "Mystery Machine: 35 coins, 3 luck items come up" },
+        { "SPIN",                       "Mystery Machine: 35 coins, +10 per extra spin each visit" },
         { "Click a reel",               "Keep that luck item (one per spin, 3 slots max)" },
         { "SELL",                       "Sell a luck item for half its value (shop or play screen)" },
         { "Drag a luck item  /  L + arrows", "Reorder your luck items (Copycat copies the one to its left)" },

@@ -229,7 +229,7 @@ local function shopMarkers()
 end
 
 local function shopSpin()
-    while strat.spin and player.coins - shop.MYSTERY_PRICE >= (strat.reserve or 0) do
+    while strat.spin and player.coins - shop.spinPrice() >= (strat.reserve or 0) do
         shop.pullMystery()
         shop.update(100)          -- let the reels stop
         local bestK, bestScore = nil, -math.huge

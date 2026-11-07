@@ -61,11 +61,11 @@ luck.MAX_HELD = 3
 --   color   - the colour its name and border are shown in
 luck.RARITIES = {
     starter   = { mystery = 0,  value = 10,  color = { 0.75, 0.75, 0.78 }, label = "STARTER" },
-    common    = { mystery = 30, value = 10,  color = { 0.68, 0.68, 0.72 }, label = "COMMON" },
-    uncommon  = { mystery = 30, value = 25,  color = { 0.30, 0.88, 0.35 }, label = "UNCOMMON" },
-    rare      = { mystery = 22, value = 50,  color = { 0.30, 0.58, 1.00 }, label = "RARE" },
-    epic      = { mystery = 13, value = 75,  color = { 0.72, 0.35, 1.00 }, label = "EPIC" },
-    legendary = { mystery = 5,  value = 100, color = { 1.00, 0.82, 0.20 }, label = "LEGENDARY" },
+    common    = { mystery = 35, value = 10,  color = { 0.68, 0.68, 0.72 }, label = "COMMON" },
+    uncommon  = { mystery = 35, value = 25,  color = { 0.30, 0.88, 0.35 }, label = "UNCOMMON" },
+    rare      = { mystery = 25, value = 50,  color = { 0.30, 0.58, 1.00 }, label = "RARE" },
+    epic      = { mystery = 4,  value = 75,  color = { 0.72, 0.35, 1.00 }, label = "EPIC" },
+    legendary = { mystery = 1,  value = 100, color = { 1.00, 0.82, 0.20 }, label = "LEGENDARY" },
 }
 
 -- What selling an item pays: half its rarity's value, rounded down.
@@ -669,7 +669,7 @@ end
 ---------------------------------------------------------------------------
 
 -- Pick a random item id. It's done in two steps:
---   1. pick a RARITY using the "mystery" % chances (30/30/22/13/5)
+--   1. pick a RARITY using the "mystery" % chances (35/35/25/4/1)
 --   2. pick one item of that rarity, using each item's weight.
 -- 'exclude' is a list of ids that mustn't be picked (ones you already
 -- hold, or that are already on another reel).

@@ -300,7 +300,12 @@ local function drawMachine()
     if machine.reels[1].prize == nil and not machine.spinning then
         ui.text("3 RANDOM LUCK ITEMS - KEEP ONE!", fonts.hint, m.x, first.y + first.h + 22, m.w,
             "center", WHITE)
-        ui.text("Common 30%   Uncommon 30%   Rare 22%   Epic 13%   Legendary 5%", fonts.tiny,
+        local odds = {}
+        for _, r in ipairs({ "common", "uncommon", "rare", "epic", "legendary" }) do
+            local name = luck.RARITIES[r].label:sub(1, 1) .. luck.RARITIES[r].label:sub(2):lower()
+            table.insert(odds, name .. " " .. luck.RARITIES[r].mystery .. "%")
+        end
+        ui.text(table.concat(odds, "   "), fonts.tiny,
             m.x, first.y + first.h + 46, m.w, "center", DIM)
         ui.text("Luck items are permanent until you sell them.", fonts.tiny,
             m.x, first.y + first.h + 66, m.w, "center", DIM)
@@ -321,8 +326,9 @@ local function drawMachine()
     love.graphics.circle("fill", lx + 18, knobY - 4, 3.5)
 
     -- SPIN button
-    local canSpin = not machine.spinning and player.coins >= shop.MYSTERY_PRICE
-    ui.glossyButton(shop.spinButtonRect(), "SPIN  " .. shop.MYSTERY_PRICE, { 0.95, 0.70, 0.10 }, canSpin)
+    local price = shop.spinPrice()
+    local canSpin = not machine.spinning and player.coins >= price
+    ui.glossyButton(shop.spinButtonRect(), "SPIN  " .. price, { 0.95, 0.70, 0.10 }, canSpin)
 end
 
 
