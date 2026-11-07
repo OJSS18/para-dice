@@ -136,37 +136,33 @@ local function drawDiceCard(r, typeId, sold)
 end
 
 -- An upgrade card: a big "x1.25" badge, its name and level, what it does.
-local function drawUpgradeCard(r, offer, sold)
+-- A small upgrade card (6 of them in a 3 x 2 grid): the level you'd buy,
+-- what its multiplier goes from and to, what it does, and the price. It
+-- never sells out - buy it again and the next level is shown.
+local function drawUpgradeCard(r, offer)
     local def = upgrades.DEFS[offer.id]
     local isKeep = (offer.id == "keep")
-    -- KEEP BONUS is the always-there card, so it gets gold instead of blue.
+    -- KEEP BONUS is gold; the sum-group upgrades are blue.
     local accent = isKeep and { 1, 0.80, 0.25 } or { 0.35, 0.85, 1 }
-    drawCardBox(r, sold, accent)
+    drawCardBox(r, false, accent)
 
-    -- Round badge showing what the multiplier becomes.
-    local nextLevel = upgrades.level(offer.id) + (sold and 0 or 1)
-    local nextMult = 1 + upgrades.STEP * nextLevel
-    if isKeep then
-        nextMult = score.NO_REROLL_MULTIPLIER + upgrades.KEEP_STEP * nextLevel
+    local level = upgrades.level(offer.id)
+    local function multAt(lvl)
+        if isKeep then return score.NO_REROLL_MULTIPLIER + upgrades.KEEP_STEP * lvl end
+        return 1 + upgrades.STEP * lvl
     end
-    local cx, cy = r.x + r.w / 2, r.y + 46
-    love.graphics.setColor(0.05, 0.25, 0.4)
-    love.graphics.circle("fill", cx, cy, 36)
-    love.graphics.setColor(accent)
-    love.graphics.setLineWidth(3)
-    love.graphics.circle("line", cx, cy, 36)
-    love.graphics.setLineWidth(1)
-    ui.text("x" .. string.format("%.2f", nextMult), fonts.heading, cx - 36, cy - 10, 72, "center", WHITE)
+    ui.text(upgrades.nextLabel(offer.id), fonts.heading, r.x + 6, r.y + 7, r.w - 12, "center", accent, true)
+    ui.text(string.format("x%.2f  >  x%.2f", multAt(level), multAt(level + 1)), fonts.small,
+        r.x + 6, r.y + 31, r.w - 12, "center", WHITE)
 
-    ui.text(offer.label, fonts.heading, r.x + 6, r.y + 92, r.w - 12, "center", accent, true)
-
+    -- What it does, clipped so long words can't run into the price.
+    love.graphics.setScissor(r.x + 6, r.y + 54, r.w - 12, r.h - 54 - 40)
     love.graphics.setFont(fonts.tiny)
     love.graphics.setColor(DIM)
-    love.graphics.printf(def.about .. " - for the rest of the run.", r.x + 10, r.y + 124, r.w - 20, "center")
-    love.graphics.setColor(accent)
-    love.graphics.printf("Owned: LVL" .. upgrades.level(offer.id), r.x, r.y + r.h - 58, r.w, "center")
+    love.graphics.printf(def.about, r.x + 8, r.y + 54, r.w - 16, "center")
+    love.graphics.setScissor()
 
-    drawPrice(r, offer.price, sold)
+    drawPrice(r, upgrades.nextPrice(offer.id), false)
 end
 
 
@@ -466,8 +462,8 @@ function shopdraw.screen()
     for n = 1, 2 do
         drawDiceCard(shop.cardRect("dice", n), shop.stock.dice[n], shop.sold.dice[n])
     end
-    for n = 1, 3 do
-        drawUpgradeCard(shop.cardRect("upgrades", n), shop.stock.upgrades[n], shop.sold.upgrades[n])
+    for n = 1, #shop.stock.upgrades do
+        drawUpgradeCard(shop.cardRect("upgrades", n), shop.stock.upgrades[n])
     end
 
     drawYourLuck()

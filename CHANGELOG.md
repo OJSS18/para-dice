@@ -2,6 +2,14 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.7.0 - 2026-11-06
+
+- The shop shows ALL 6 upgrades every visit (LOWER 13, UPPER 13, EVEN, ODD, HOT FOUR, KEEP BONUS),
+  as a 3 x 2 grid of cards showing the next level, its multiplier (e.g. x1.25 > x1.50) and price.
+- Upgrades never sell out: buy several levels in one visit - each level costs more than the
+  last (LOWER 13: 60, 120, 180...). In the simulator, stacking one upgrade doesn't beat the
+  best strategies (0-3% wins vs 10%). A new leaderboard season.
+
 ## v0.6.0 - 2026-11-06
 
 - New starting luck item: JUST GETTING STARTED - every round scores x1.25 points (it replaces

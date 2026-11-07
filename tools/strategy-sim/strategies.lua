@@ -47,4 +47,9 @@ return {
     { name = "13 Spin First, no Even+Odd combo", reroll = "ev", coinWeight = 1,
       shopOrder = { "spin", "dice", "upgrades" }, dice = { "amber", "blue" }, upgrades = { "lower" },
       spin = true, luckPrefs = POINTS_LUCK, luckAvoid = { "addict", "evenSteven", "thatsOdd" } },
+    { name = "14 Upgrade Stacker (buy every level)", reroll = "ev", coinWeight = 0.5, perkAware = true,
+      dice = { "amber" }, upgrades = { "lower", "even" }, upgradesPerVisit = 10 },
+    { name = "15 Stacker + Spins", reroll = "ev", coinWeight = 0.5, perkAware = true,
+      shopOrder = { "dice", "upgrades", "spin" }, dice = { "amber" }, upgrades = { "lower" }, upgradesPerVisit = 3,
+      spin = true, luckAvoid = { "addict" } },
 }

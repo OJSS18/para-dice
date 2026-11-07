@@ -14,6 +14,36 @@ function love.load(args)
 
     local sim = require("sim")
     local strategies = require("strategies")
+    -- HARD TEST: the strongest strategies on HARD's goals.
+    if os.getenv("HARDTEST") then
+        local early, strategies, score = require("early"), require("strategies"), require("score")
+        local function branchOf(parentN, tag)
+            for _, b in ipairs(early.branches(early.base[parentN])) do
+                if b.name:find(tag, 1, true) then return b end
+            end
+        end
+        local list = { strategies[9], strategies[11], branchOf(11, "Show Me The Money"), branchOf(11, "Double Down"),
+            branchOf(14, "Double Down"), branchOf(14, "Even Steven"), branchOf(17, "Show Me The Money"), early.base[13] }
+        local levelsHist = {}
+        for _, s in ipairs(list) do
+            local wins, reach5, total, best = 0, 0, 0, 0
+            for g = 1, N do
+                require("rng").setSeed(seed + g)
+                score.growth, score.lateGrowth = 1.5, 1.62
+                local l = sim.playGame(s)
+                score.growth, score.lateGrowth = 1.5, 1.62
+                total = total + l
+                best = math.max(best, l)
+                if l == 10 then wins = wins + 1 end
+                if l >= 4 then reach5 = reach5 + 1 end
+            end
+            print(string.format("HARD	%s	win %.1f%%	reach L5 %.0f%%	avg %.2f	best %d", s.name, 100 * wins / N, 100 * reach5 / N, total / N, best))
+            io.stdout:flush()
+        end
+        love.event.quit()
+        return
+    end
+
     -- LATE TEST: how hard levels 6-10 should get. For each late growth
     -- value, the strongest strategies play N games; prints their win rates.
     if os.getenv("LATETEST") then

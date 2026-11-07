@@ -241,13 +241,16 @@ local function shopDice()
     end
 end
 
+-- Buy levels of the wanted upgrades, best first, while there's money
+-- (at most strat.upgradesPerVisit levels a visit; default 1 per upgrade).
 local function shopUpgrades()
     for _, want in ipairs(strat.upgrades or {}) do
-        for k = 1, 3 do
-            local offer = shop.stock.upgrades[k]
-            if offer.id == want and not shop.sold.upgrades[k]
-                and player.coins - offer.price >= (strat.reserve or 0) then
-                shop.buyUpgrade(k)
+        for k, offer in ipairs(shop.stock.upgrades) do
+            if offer.id == want then
+                for _ = 1, (strat.upgradesPerVisit or 1) do
+                    if player.coins - upgrades.nextPrice(want) < (strat.reserve or 0) then break end
+                    shop.buyUpgrade(k)
+                end
             end
         end
     end

@@ -6,7 +6,8 @@
 -- What's on offer each visit (each in its own Vegas-style window):
 --   * DICE      - 2 random coloured dice. Bought dice go to your inventory;
 --                 then you swap one into any of your 5 slots.
---   * UPGRADES  - 2 random upgrades, e.g. "EVEN LVL1" (+0.25x on even sums).
+--   * UPGRADES  - ALL 6 upgrades, every visit. Buy as many levels as you can
+--                 afford; each level costs more than the last.
 --   * YOUR LUCK - the luck items you hold (up to 3). SELL any of them.
 --   * THE MYSTERY MACHINE - a THREE-reel slot machine: 35 coins for the first
 --                 spin each visit, then 10 more for each spin after that.
@@ -71,7 +72,7 @@ local SHOP_HEIGHT = 748
 
 -- What's for sale:
 --   dice     = { "red", "amber" }
---   upgrades = { {id = "even", label = "EVEN LVL1", price = 25}, ... }
+--   upgrades = { {id = "even"}, {id = "odd"}, ... }  (all 6; label and price are live)
 shop.stock = { dice = {}, upgrades = {} }
 
 -- sold.dice[1] = true once the first dice card has been bought, etc.
@@ -150,14 +151,10 @@ function shop.open(nextLevel)
 
     shop.stock.dice = pickDifferent(dicetypes.shopTypes(), 2)
 
-    -- Two different random upgrades, then KEEP BONUS (always there),
-    -- each priced for its NEXT level.
+    -- Every upgrade, every visit (they can be levelled up again and again).
     shop.stock.upgrades = {}
-    local offered = pickDifferent(upgrades.ORDER, 2)
-    table.insert(offered, "keep")
-    for _, id in ipairs(offered) do
-        table.insert(shop.stock.upgrades,
-            { id = id, label = upgrades.nextLabel(id), price = upgrades.nextPrice(id) })
+    for _, id in ipairs(shop.UPGRADES) do
+        table.insert(shop.stock.upgrades, { id = id })
     end
 
     shop.sold = { dice = {}, upgrades = {} }
@@ -192,17 +189,18 @@ function shop.sellLuck(k)
     shop.message = "Sold " .. name .. " for " .. coins .. " coins."
 end
 
--- Buy upgrade card k (1 to 3): one more level of that upgrade.
+-- Buy upgrade card k (1 to 6): one more level of that upgrade. It can be
+-- bought again straight away - the next level just costs more.
 function shop.buyUpgrade(k)
-    if shop.sold.upgrades[k] then return end
     local offer = shop.stock.upgrades[k]
-    if not player.spend(offer.price) then
-        shop.message = "Not enough coins for " .. offer.label .. "."
+    if offer == nil then return end
+    local label, price = upgrades.nextLabel(offer.id), upgrades.nextPrice(offer.id)
+    if not player.spend(price) then
+        shop.message = "Not enough coins for " .. label .. " (" .. price .. ")."
         return
     end
     upgrades.levelUp(offer.id)
-    shop.sold.upgrades[k] = true
-    shop.message = offer.label .. " bought!  " .. upgrades.DEFS[offer.id].about .. "."
+    shop.message = label .. " bought!  " .. upgrades.DEFS[offer.id].about .. "."
 end
 
 -- Buy one more marker (white chip) to place at the start of each level.
@@ -421,9 +419,19 @@ end
 -- Which window each kind of card lives in.
 local WINDOW_FOR = { dice = 1, upgrades = 2 }
 
--- Card n of a kind ("dice" has 2 cards, "upgrades" has 3).
+-- Every upgrade the shop sells, in the order its cards are laid out.
+shop.UPGRADES = { "lower", "upper", "even", "odd", "common", "keep" }
+
+-- Card n of a kind. "dice" has 2 full-size cards; "upgrades" has 6 small
+-- ones in 3 columns x 2 rows.
 function shop.cardRect(kind, n)
     local win = shop.windowRect(WINDOW_FOR[kind])
+    if kind == "upgrades" then
+        local col, row = (n - 1) % 3, math.floor((n - 1) / 3)
+        local h = (shop.CARD_H - shop.CARD_GAP) / 2
+        return rect(win.x + shop.WINDOW_PAD + col * (shop.CARD_W + shop.CARD_GAP),
+            win.y + shop.WINDOW_HEAD + row * (h + shop.CARD_GAP), shop.CARD_W, h)
+    end
     return rect(win.x + shop.WINDOW_PAD + (n - 1) * (shop.CARD_W + shop.CARD_GAP),
         win.y + shop.WINDOW_HEAD, shop.CARD_W, shop.CARD_H)
 end
@@ -585,7 +593,7 @@ function shop.click(px, py)
     for n = 1, 2 do
         if isInside(px, py, shop.cardRect("dice", n)) then return "buyDice", n end
     end
-    for n = 1, 3 do
+    for n = 1, #shop.UPGRADES do
         if isInside(px, py, shop.cardRect("upgrades", n)) then return "buyUpgrade", n end
     end
     for k = 1, luck.MAX_HELD do
