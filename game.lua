@@ -41,10 +41,11 @@ local game = {}
 
 -- The game types on the PLAY menu. 'growth' is how much bigger each
 -- level's goal is than the one before (up to level 10; endless is x2).
+-- 'late' is the growth from level 6 to 10 (steeper, so the late game stays tense).
 game.MODES = {
-    tutorial = { name = "TUTORIAL", growth = 1.25 },
-    normal   = { name = "NORMAL",   growth = 1.25 },
-    hard     = { name = "HARD",     growth = 1.5 },
+    tutorial = { name = "TUTORIAL", growth = 1.25, late = 1.35 },
+    normal   = { name = "NORMAL",   growth = 1.25, late = 1.35 },
+    hard     = { name = "HARD",     growth = 1.5,  late = 1.62 },
 }
 
 game.state    = "placeMarker"
@@ -227,6 +228,7 @@ function game.new(mode, seed)
     bigwin.stop()
     score.reset()
     score.growth = game.MODES[mode].growth
+    score.lateGrowth = game.MODES[mode].late
     score.endless = false
     player.reset()          -- 0 coins, 5 white dice, empty inventory
     boosts.reset()          -- no point boosts

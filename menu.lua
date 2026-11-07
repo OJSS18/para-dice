@@ -171,11 +171,11 @@ end
 
 menu.GAME_TYPES = {
     { id = "tutorial", title = "TUTORIAL", color = { 0.12, 0.38, 0.95 },
-      lines = { "Learn the game in", "a guided first level.", "", "Level goals x1.25" } },
+      lines = { "Learn the game in", "a guided first level.", "Goals x1.25 a level,", "x1.35 from level 6" } },
     { id = "normal", title = "NORMAL", color = { 0.10, 0.65, 0.25 },
-      lines = { "10 levels to beat", "the house.", "", "Level goals x1.25" } },
+      lines = { "10 levels to beat", "the house.", "Goals x1.25 a level,", "x1.35 from level 6" } },
     { id = "hard", title = "HARD", color = { 0.85, 0.10, 0.12 },
-      lines = { "For high rollers:", "goals climb fast.", "", "Level goals x1.5" } },
+      lines = { "For high rollers:", "goals climb fast.", "Goals x1.5 a level,", "x1.62 from level 6" } },
 }
 
 function menu.typeCardRect(n)

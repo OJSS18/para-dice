@@ -38,11 +38,36 @@ local strat            -- the strategy being played
 local ptsBySum = {}    -- ptsBySum[s] = tile value x marker, this round
 local handCache = {}   -- coins for each multiset of faces, this round
 
+local perkCache = {}   -- luck item bonuses for each multiset of faces, this round
+
 local function refreshValues()
     for s = 5, 30 do
         ptsBySum[s] = score.tileValue(s) * markers.pointsMultiplier(s)
     end
     handCache = {}
+    perkCache = {}
+end
+
+-- What the held luck items pay for these dice: mult, flat points, coins.
+-- (Only for "perkAware" strategies: they hold dice with their perks in mind.)
+local function perkBonus(v, keepBonus)
+    local counts = { 0, 0, 0, 0, 0, 0 }
+    for i = 1, 5 do counts[v[i]] = counts[v[i]] + 1 end
+    local key = keepBonus and 1 or 0
+    for f = 1, 6 do key = key * 6 + counts[f] end
+    local b = perkCache[key]
+    if b == nil then
+        local sum = v[1] + v[2] + v[3] + v[4] + v[5]
+        local facts = luck.diceFacts({ v[1], v[2], v[3], v[4], v[5] }, {
+            noReroll = keepBonus, rerolled = not keepBonus, points = score.tileValue(sum),
+            firstPoints = dice.firstSum and score.tileValue(dice.firstSum) })
+        b = { 1, 0, 0 }
+        for _, p in ipairs(luck.roundBonuses(facts)) do
+            b[1], b[2], b[3] = b[1] * p.mult, b[2] + p.flat, b[3] + p.coins
+        end
+        perkCache[key] = b
+    end
+    return b[1], b[2], b[3]
 end
 
 local function handCoins(v)
@@ -65,8 +90,15 @@ end
 local function value(v, keepBonus)
     local sum = v[1] + v[2] + v[3] + v[4] + v[5]
     local p = ptsBySum[sum]
+    local coins = 0
+    if strat.perkAware then
+        local mult, flat, perkCoins = perkBonus(v, keepBonus)
+        p = (p + flat) * mult
+        coins = perkCoins
+    end
     if keepBonus then p = p * score.keepMultiplier() end
-    return p + strat.coinWeight * handCoins(v)
+    if strat.coinWeight == 0 then return p end
+    return p + strat.coinWeight * (handCoins(v) + coins)
 end
 
 -- The chance of each face for each die (luck items included).
@@ -229,7 +261,10 @@ local function shopMarkers()
 end
 
 local function shopSpin()
-    while strat.spin and player.coins - shop.spinPrice() >= (strat.reserve or 0) do
+    local spins = 0
+    while strat.spin and player.coins - shop.spinPrice() >= (strat.reserve or 0)
+        and spins < (strat.maxSpins or math.huge) do
+        spins = spins + 1
         shop.pullMystery()
         shop.update(100)          -- let the reels stop
         local bestK, bestScore = nil, -math.huge

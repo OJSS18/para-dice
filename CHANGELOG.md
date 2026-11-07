@@ -2,6 +2,14 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.5.0 - 2026-11-06
+
+- Steeper late game: from level 6 to 10 each goal grows x1.35 (NORMAL) or x1.62 (HARD),
+  instead of x1.25 / x1.5. Levels 1-5 are unchanged. NORMAL goals for levels 6-10 are now
+  1648 / 2225 / 3003 / 4055 / 5474. In the simulator this holds the strongest strategies to
+  about 10% wins (it was 17%), so reaching level 5 no longer means the run is as good as won.
+  A new leaderboard season.
+
 ## v0.4.0 - 2026-11-06
 
 - Mystery Machine odds: Common 35%, Uncommon 35%, Rare 25%, Epic 4%, Legendary 1%

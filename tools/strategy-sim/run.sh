@@ -8,7 +8,7 @@ LOVE="${LOVE:-/c/Program Files/LOVE/lovec.exe}"
 WORK="$(mktemp -d)"
 cp "$ROOT"/*.lua "$WORK/"
 rm "$WORK/main.lua" "$WORK/conf.lua"
-cp "$HERE/sim.lua" "$HERE/strategies.lua" "$HERE/main.lua" "$WORK/"
+cp "$HERE/sim.lua" "$HERE/strategies.lua" "$HERE/early.lua" "$HERE/main.lua" "$WORK/"
 cat > "$WORK/conf.lua" <<'EOF'
 function love.conf(t)
     t.identity = "ParaDiceSim"

@@ -109,12 +109,21 @@ score.ROUNDS_PER_LEVEL = 5
 score.MAX_LEVEL = 10
 
 -- Points needed to clear level 1, and how much bigger each level's
--- target is than the one before. NORMAL is 1.25 (25% more each level):
---   L1 500   L2 625   L3 781   L4 977   L5 1221 ...   L10 3725
+-- target is than the one before. NORMAL is 1.25 (25% more each level) up
+-- to level 5, then 1.35 (see LATE GAME below):
+--   L1 500   L2 625   L3 781   L4 977   L5 1221
+--   L6 1648  L7 2225  L8 3003  L9 4055  L10 5474
 -- HARD is 1.5. game.lua sets score.growth when a run starts.
 score.FIRST_TARGET  = 500
 score.TARGET_GROWTH = 1.25
 score.growth        = score.TARGET_GROWTH
+
+-- LATE GAME: from level 6 to level 10, each goal grows by this much
+-- instead, so reaching level 5 doesn't mean the run is as good as won.
+-- (NORMAL x1.35, HARD x1.62 - set by game.lua per mode. x1.35 holds the
+-- strongest simulated strategies to about 10% wins.)
+score.LATE_FROM   = 6
+score.lateGrowth  = 1.35
 
 -- ENDLESS: after level 10 a run can keep going. Each endless level's goal
 -- is this many times the one before. game.lua sets score.endless.
@@ -419,10 +428,12 @@ end
 -- A luck item (Addict) can lower the CURRENT level's goal.
 function score.getTarget(level)
     level = level or score.level   -- no level given? use the current one
-    local normalLevels = math.min(level, score.MAX_LEVEL)
-    local endlessLevels = math.max(0, level - score.MAX_LEVEL)
-    local target = score.FIRST_TARGET * score.growth ^ (normalLevels - 1)
-        * score.ENDLESS_GROWTH ^ endlessLevels
+    local early   = math.min(level, score.LATE_FROM - 1)                         -- levels 1-5
+    local late    = math.max(0, math.min(level, score.MAX_LEVEL) - (score.LATE_FROM - 1)) -- levels 6-10
+    local endless = math.max(0, level - score.MAX_LEVEL)                           -- 11+
+    local target = score.FIRST_TARGET * score.growth ^ (early - 1)
+        * (score.lateGrowth or score.growth) ^ late
+        * score.ENDLESS_GROWTH ^ endless
     if level == score.level then
         target = target * luck.targetMultiplier()
     end
