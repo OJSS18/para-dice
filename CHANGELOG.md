@@ -15,8 +15,8 @@ The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right 
   - Start with 3 dice. Dice slots open at levels 2, 3, 5, 6, 8, 9, 10 and 11 (you buy the
     dice), and each new slot unlocks new sets - up to Eleven of a Kind, Two Fives, Triple
     Ladder (222 333 444) and Straight of 10. 29 sets in all.
-  - 12 levels of 3 rounds. Level 1's goals are 100, 200, 300, then x2 each level. Each
-    round has 7 sets and 7 rerolls shared between them. Winning pays 3 coins, +1 per
+  - 12 levels of 3 rounds. Level 1's goals are 60, 120, 180, then x2 each level. Each
+    round has 5 sets and 5 rerolls shared between them. Winning pays 3 coins, +1 per
     reroll left and +2 per set left.
   - PERKYS (up to 5): 143 of them. For each face 1-6: "Ones Up" (+1 mult per 1), "Ones
     Collector" (grows +1 mult) and "Ones Banker" (+1 coin per 1). For each set: Power

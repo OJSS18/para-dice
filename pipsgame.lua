@@ -6,8 +6,8 @@
 -- THE RULES IN SHORT
 --   * You start with 3 dice. More dice SLOTS open at levels 2, 3, 5, 6, 8,
 --     9, 10 and 11 - but you have to get the dice for them from the shop.
---   * Each level has 3 ROUNDS with a goal each (level 1: 100, 200, 300).
---   * A round gives you 7 SETS (scored rolls) and 7 REROLLS to share
+--   * Each level has 3 ROUNDS with a goal each (level 1: 60, 120, 180).
+--   * A round gives you 5 SETS (scored rolls) and 5 REROLLS to share
 --     between them. Roll, hold the dice you like, reroll the rest as often
 --     as your rerolls last, then SCORE.
 --   * Score = POINTS (pips) x MULT (from the set you rolled) - see pipsscore.lua.
@@ -56,7 +56,7 @@ function pipsgame.slotsFor(level)
     return slots
 end
 
--- The goal for round 'round' of level 'level': 100, 200, 300 on level 1,
+-- The goal for round 'round' of level 'level': 60, 120, 180 on level 1,
 -- then GOAL_GROWTH times bigger each level.
 function pipsgame.goalFor(level, round)
     local base = P.FIRST_GOAL * P.GOAL_GROWTH ^ (level - 1)

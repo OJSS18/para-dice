@@ -120,12 +120,12 @@ config.PIPS = {
     SLOT_LEVELS   = { 2, 3, 5, 6, 8, 9, 10, 11 },
     MAX_LEVEL     = 12,       -- clear level 12 to win the run
     ROUNDS        = 3,        -- rounds in each level (the shop opens after each)
-    SETS          = 7,        -- sets (scored rolls) you get each round
-    REROLLS       = 7,        -- rerolls each round, shared by all its sets
-    -- Goals: level 1's rounds need 100, 200, 300. Each level's goals are
+    SETS          = 5,        -- sets (scored rolls) you get each round
+    REROLLS       = 5,        -- rerolls each round, shared by all its sets
+    -- Goals: level 1's rounds need 60, 120, 180. Each level's goals are
     -- GOAL_GROWTH times the level before's.
-    FIRST_GOAL    = 100,
-    GOAL_GROWTH   = 2.0,      -- (tested with tools/pips-sim: a strong bot wins about 60% of runs)
+    FIRST_GOAL    = 60,
+    GOAL_GROWTH   = 2.0,      -- (tested with tools/pips-sim: a strong bot wins about half its runs)
     -- Coins for winning a round: a few for winning, then +1 for each
     -- reroll left over and +2 for each set left over.
     WIN_COINS     = 3,

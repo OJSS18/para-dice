@@ -8,7 +8,7 @@ function love.load(args)
     local config = require("config")
     if os.getenv("GROWTH") then config.PIPS.GOAL_GROWTH = tonumber(os.getenv("GROWTH")) end
     -- SET="SETS=5 REROLLS=3" changes any number in config.PIPS for this test.
-    for k, v in (os.getenv("SET") or ""):gmatch("(%w+)=([%d%.]+)") do config.PIPS[k] = tonumber(v) end
+    for k, v in (os.getenv("SET") or ""):gmatch("([%w_]+)=([%d%.]+)") do config.PIPS[k] = tonumber(v) end
     local bot = require("bot")
     local perkys = require("perkys")
     local wins, levels, reached = 0, 0, {}
