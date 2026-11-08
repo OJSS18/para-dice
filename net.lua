@@ -169,16 +169,26 @@ end
 -- Check for answers. Call every frame.
 function net.update()
     if onWeb then
+        -- First find every answer that has arrived, THEN call their 'done'
+        -- functions. A 'done' can start a new request (after posting a run,
+        -- we download the board again), and adding to 'waiting' while
+        -- looping over it with pairs() crashes the browser's Lua.
+        local arrived = {}
         for id, done in pairs(waiting) do
             local file = "net_" .. id .. ".txt"
             if love.filesystem.getInfo(file) then
                 local text = love.filesystem.read(file) or ""
                 love.filesystem.remove(file)
-                waiting[id] = nil
-                -- First line is the status number, the rest is the answer.
-                local status, rest = text:match("^(%d+)\n(.*)$")
-                done(tonumber(status) or 0, rest or "")
+                table.insert(arrived, { id = id, done = done, text = text })
             end
+        end
+        for _, answer in ipairs(arrived) do
+            waiting[answer.id] = nil   -- (removing is fine; it's adding that isn't)
+        end
+        for _, answer in ipairs(arrived) do
+            -- First line is the status number, the rest is the answer.
+            local status, rest = answer.text:match("^(%d+)\n(.*)$")
+            answer.done(tonumber(status) or 0, rest or "")
         end
         return
     end

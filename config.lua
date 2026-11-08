@@ -96,7 +96,7 @@ config.BUTTON_H = 56
 
 -- The game's version, shown small in the bottom-right corner. Bump it
 -- (and add a line to CHANGELOG.md) whenever you put out a new version.
-config.VERSION = "0.8.1"
+config.VERSION = "0.8.2"
 
 -- The RULES version: change it ONLY when a change could make an old replay
 -- code play out differently (dice odds, scoring, shop, luck items, actions).

@@ -2,6 +2,13 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.8.2 - 2026-11-08
+
+- Fixed: the web version crashed ("invalid key to 'next'") just after a run ended. Posting
+  the run to the online leaderboard finished, which started downloading the board again
+  while the game was still looping over its waiting requests - the browser's Lua doesn't
+  allow that. Answers are now collected first, then handled.
+
 ## v0.8.1 - 2026-11-06
 
 - No more console windows flashing up on Windows when the game talks to the online
