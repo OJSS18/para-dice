@@ -7,7 +7,6 @@
 --   name  - what the player sees
 --   needs - how many dice SLOTS you must have before it unlocks
 --   mult  - its starting mult
---   points- bonus POINTS it adds on top of the pips (bigger sets add more)
 --   check - a function that says if a roll CONTAINS this set
 --
 -- "Contains" works like poker: a roll of 4 4 4 2 2 contains a Full House,
@@ -81,35 +80,35 @@ local function nothing() return true end   -- every roll "contains" nothing spec
 
 -- Every set, from the start of the game to 11 dice.
 pipshands.LIST = {
-    { id = "none",       name = "High Roll",         needs = 0,  mult =  1, points =   0,  check = nothing },
-    { id = "pair",       name = "Pair",              needs = 3,  mult =  2, points =  15,  check = ofAKind(2) },
-    { id = "straight3",  name = "Small Straight",    needs = 3,  mult =  3, points =  20,  check = straight(3) },
-    { id = "three",      name = "Three of a Kind",   needs = 3,  mult =  4, points =  25,  check = ofAKind(3) },
-    { id = "twoPair",    name = "Two Pair",          needs = 4,  mult =  3, points =  20,  check = groups(2, 2) },
-    { id = "straight4",  name = "Straight of 4",     needs = 4,  mult =  5, points =  30,  check = straight(4) },
-    { id = "four",       name = "Four of a Kind",    needs = 4,  mult =  7, points =  40,  check = ofAKind(4) },
-    { id = "fullHouse",  name = "Full House",        needs = 5,  mult =  6, points =  35,  check = fullHouse },
-    { id = "straight5",  name = "Straight of 5",     needs = 5,  mult =  7, points =  40,  check = straight(5) },
-    { id = "five",       name = "Five of a Kind",    needs = 5,  mult = 10, points =  55, check = ofAKind(5) },
-    { id = "threePair",  name = "Three Pair",        needs = 6,  mult =  6, points =  35,  check = groups(2, 3) },
-    { id = "twoThree",   name = "Two Triples",       needs = 6,  mult =  9, points =  50,  check = groups(3, 2) },
-    { id = "straight6",  name = "Straight of 6",     needs = 6,  mult =  9, points =  50,  check = straight(6) },
-    { id = "six",        name = "Six of a Kind",     needs = 6,  mult = 13, points =  70, check = ofAKind(6) },
-    { id = "straight7",  name = "Straight of 7",     needs = 7,  mult = 11, points =  60, check = straight(7) },
-    { id = "seven",      name = "Seven of a Kind",   needs = 7,  mult = 16, points =  85, check = ofAKind(7) },
-    { id = "fourPair",   name = "Four Pair",         needs = 8,  mult =  8, points =  45,  check = groups(2, 4) },
-    { id = "twoFour",    name = "Two Fours",         needs = 8,  mult = 14, points =  75, check = groups(4, 2) },
-    { id = "straight8",  name = "Straight of 8",     needs = 8,  mult = 13, points =  70, check = straight(8) },
-    { id = "eight",      name = "Eight of a Kind",   needs = 8,  mult = 19, points = 100, check = ofAKind(8) },
-    { id = "threeThree", name = "Three Triples",     needs = 9,  mult = 15, points =  80, check = groups(3, 3) },
-    { id = "ladder",     name = "Triple Ladder",     needs = 9,  mult = 22, points = 115, check = tripleLadder },
-    { id = "straight9",  name = "Straight of 9",     needs = 9,  mult = 15, points =  80, check = straight(9) },
-    { id = "nine",       name = "Nine of a Kind",    needs = 9,  mult = 22, points = 115, check = ofAKind(9) },
-    { id = "fivePair",   name = "Five Pair",         needs = 10, mult = 10, points =  55, check = groups(2, 5) },
-    { id = "twoFive",    name = "Two Fives",         needs = 10, mult = 18, points =  95, check = groups(5, 2) },
-    { id = "straight10", name = "Straight of 10",    needs = 10, mult = 17, points =  90, check = straight(10) },
-    { id = "ten",        name = "Ten of a Kind",     needs = 10, mult = 25, points = 130, check = ofAKind(10) },
-    { id = "eleven",     name = "Eleven of a Kind",  needs = 11, mult = 28, points = 145, check = ofAKind(11) },
+    { id = "none",       name = "High Roll",         needs = 0,  mult =  1,  check = nothing },
+    { id = "pair",       name = "Pair",              needs = 3,  mult =  2,  check = ofAKind(2) },
+    { id = "straight3",  name = "Small Straight",    needs = 3,  mult =  3,  check = straight(3) },
+    { id = "three",      name = "Three of a Kind",   needs = 3,  mult =  4,  check = ofAKind(3) },
+    { id = "twoPair",    name = "Two Pair",          needs = 4,  mult =  3,  check = groups(2, 2) },
+    { id = "straight4",  name = "Straight of 4",     needs = 4,  mult =  5,  check = straight(4) },
+    { id = "four",       name = "Four of a Kind",    needs = 4,  mult =  7,  check = ofAKind(4) },
+    { id = "fullHouse",  name = "Full House",        needs = 5,  mult =  6,  check = fullHouse },
+    { id = "straight5",  name = "Straight of 5",     needs = 5,  mult =  7,  check = straight(5) },
+    { id = "five",       name = "Five of a Kind",    needs = 5,  mult = 10, check = ofAKind(5) },
+    { id = "threePair",  name = "Three Pair",        needs = 6,  mult =  6,  check = groups(2, 3) },
+    { id = "twoThree",   name = "Two Triples",       needs = 6,  mult =  9,  check = groups(3, 2) },
+    { id = "straight6",  name = "Straight of 6",     needs = 6,  mult =  9,  check = straight(6) },
+    { id = "six",        name = "Six of a Kind",     needs = 6,  mult = 13, check = ofAKind(6) },
+    { id = "straight7",  name = "Straight of 7",     needs = 7,  mult = 11, check = straight(7) },
+    { id = "seven",      name = "Seven of a Kind",   needs = 7,  mult = 16, check = ofAKind(7) },
+    { id = "fourPair",   name = "Four Pair",         needs = 8,  mult =  8,  check = groups(2, 4) },
+    { id = "twoFour",    name = "Two Fours",         needs = 8,  mult = 14, check = groups(4, 2) },
+    { id = "straight8",  name = "Straight of 8",     needs = 8,  mult = 13, check = straight(8) },
+    { id = "eight",      name = "Eight of a Kind",   needs = 8,  mult = 19, check = ofAKind(8) },
+    { id = "threeThree", name = "Three Triples",     needs = 9,  mult = 15, check = groups(3, 3) },
+    { id = "ladder",     name = "Triple Ladder",     needs = 9,  mult = 22, check = tripleLadder },
+    { id = "straight9",  name = "Straight of 9",     needs = 9,  mult = 15, check = straight(9) },
+    { id = "nine",       name = "Nine of a Kind",    needs = 9,  mult = 22, check = ofAKind(9) },
+    { id = "fivePair",   name = "Five Pair",         needs = 10, mult = 10, check = groups(2, 5) },
+    { id = "twoFive",    name = "Two Fives",         needs = 10, mult = 18, check = groups(5, 2) },
+    { id = "straight10", name = "Straight of 10",    needs = 10, mult = 17, check = straight(10) },
+    { id = "ten",        name = "Ten of a Kind",     needs = 10, mult = 25, check = ofAKind(10) },
+    { id = "eleven",     name = "Eleven of a Kind",  needs = 11, mult = 28, check = ofAKind(11) },
 }
 
 -- Look a set up by its id: pipshands.BY_ID.pair
@@ -141,7 +140,8 @@ end
 
 -- The set that SCORES: the unlocked set this roll contains with the
 -- biggest mult (counting set augments). 'augments' is { [id] = levels }.
--- Gives back the set and its mult. (Points don't decide which set scores.)
+-- Gives back the set and its mult. (Sets only give MULT - POINTS come
+-- from the pips and dice augments.)
 function pipshands.best(counts, slots, augments)
     local bestHand, bestMult = pipshands.BY_ID.none, 0
     for _, h in ipairs(pipshands.LIST) do

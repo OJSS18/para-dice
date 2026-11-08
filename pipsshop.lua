@@ -4,14 +4,16 @@
 --
 -- What's in it:
 --   * THE MAIN ITEMS - 2 things for sale. Each one is a Perky (80%), a
---     DICE AUGMENT (10%: "every 4 scores +4 points") or a SET AUGMENT
---     (10%: "Pair +1 mult"). REROLL swaps both for new ones.
+--     DICE AUGMENT (10%: "each 4 scores +4 more points per level") or a
+--     SET AUGMENT (10%: "Pair +1 mult"). See augments.lua. REROLL swaps
+--     both for new ones.
 --   * THE SLOT MACHINE - 3 reels. Each reel lands on a PACK; you open ONE:
 --       Dice pack        - pick 1 of 4 dice
 --       Perky pack       - pick 1 of 3 Perkys
 --       Big Perky pack   - pick 1 of 5 Perkys
 --       Rare Perky pack  - pick 1 of 3 RARE Perkys (1% a reel)
---       Augment pack     - pick 1 of 3 augments
+--       Dice Augment pack- pick 1 of 3 dice augments
+--       Set Augment pack - pick 1 of 3 set augments
 --       Craps pack       - pick 1 of 4 numbers; it goes on the board as a
 --                          craps bet (roll that total for x2 MULT)
 --       Dungeon dice pack- pick 1 of 4 dungeon dice (D7 up to D20)
@@ -25,6 +27,7 @@ local util      = require("util")
 local perkys    = require("perkys")
 local pipshands = require("pipshands")
 local pipsdice  = require("pipsdice")
+local augments  = require("augments")
 
 local pipsshop = {}
 
@@ -36,7 +39,8 @@ pipsshop.PACKS = {
     { id = "perky",     name = "PERKY PACK",      about = "Pick 1 of 3 Perkys" },
     { id = "bigPerky",  name = "BIG PERKY PACK",  about = "Pick 1 of 5 Perkys" },
     { id = "rarePerky", name = "RARE PERKY PACK", about = "Pick 1 of 3 RARE Perkys" },
-    { id = "augment",   name = "AUGMENT PACK",    about = "Pick 1 of 3 augments" },
+    { id = "diceAug",   name = "DICE AUGMENT PACK", about = "Pick 1 of 3 dice augments" },
+    { id = "setAug",    name = "SET AUGMENT PACK",  about = "Pick 1 of 3 set augments" },
     { id = "craps",     name = "CRAPS PACK",      about = "Pick a number for the board" },
     { id = "dungeon",   name = "DUNGEON DICE",    about = "Pick 1 of 4 dungeon dice" },
 }
@@ -89,17 +93,36 @@ local function augmentFaces(run)
     return top
 end
 
--- A random augment: { type = "diceAug", face = 4 } or { type = "setAug", hand = "pair" }.
-function pipsshop.randomAugment(run, kind)
-    kind = kind or (rng.random(2) == 1 and "diceAug" or "setAug")
+-- The augments of one kind ("diceAug" or "setAug") the player could get now:
+-- dice augments for faces your dice can show, set augments for unlocked sets.
+local function augmentPool(run, kind)
+    local pool = {}
     if kind == "diceAug" then
-        return { type = "diceAug", face = rng.random(augmentFaces(run)), price = P.AUG_PRICE }
+        local top = augmentFaces(run)
+        for _, a in ipairs(augments.DICE) do
+            if a.face <= top then table.insert(pool, a) end
+        end
+    else
+        for _, a in ipairs(augments.SETS) do
+            if pipshands.isUnlocked(pipshands.get(a.hand), run.slots) then table.insert(pool, a) end
+        end
     end
-    local hands = {}
-    for _, h in ipairs(pipshands.LIST) do
-        if h.id ~= "none" and pipshands.isUnlocked(h, run.slots) then table.insert(hands, h.id) end
+    return pool
+end
+
+-- A random augment of a kind ("diceAug" or "setAug"). 'leaveOut' = ids
+-- already picked for the same pack, so a pack has no repeats.
+function pipsshop.randomAugment(run, kind, leaveOut)
+    local pool = {}
+    for _, a in ipairs(augmentPool(run, kind)) do
+        local used = false
+        for _, id in ipairs(leaveOut or {}) do
+            if id == a.id then used = true end
+        end
+        if not used then table.insert(pool, a) end
     end
-    return { type = "setAug", hand = hands[rng.random(#hands)], price = P.AUG_PRICE }
+    if #pool == 0 then pool = augmentPool(run, kind) end
+    return augments.offer(pool[rng.random(#pool)])
 end
 
 -- One main item: a Perky, dice augment or set augment (by MAIN_ODDS).
@@ -135,16 +158,11 @@ end
 -- What an item does, in words (shared by the shop cards and packs).
 function pipsshop.itemName(item)
     if item.type == "perky" then return perkys.get(item.id).name end
-    if item.type == "diceAug" then return "Dice Augment: " .. item.face .. "s" end
-    return "Set Augment: " .. pipshands.get(item.hand).name
+    return item.name
 end
-function pipsshop.itemAbout(item)
+function pipsshop.itemAbout(item, run)
     if item.type == "perky" then return perkys.get(item.id).about end
-    if item.type == "diceAug" then
-        return "Every " .. item.face .. " you score is worth +" .. P.DICE_AUG_POINTS .. " more POINTS."
-    end
-    local h = pipshands.get(item.hand)
-    return h.name .. " scores +" .. pipshands.augmentMult(h) .. " more MULT."
+    return augments.about(item, run)
 end
 
 -- Is there room for another Perky?
@@ -257,8 +275,13 @@ local function packOptions(run, packId)
                 table.insert(options, { type = "perky", id = id })
             end
         end
-    elseif packId == "augment" then
-        for _ = 1, 3 do table.insert(options, pipsshop.randomAugment(run)) end
+    elseif packId == "diceAug" or packId == "setAug" then
+        local ids = {}
+        for _ = 1, 3 do
+            local a = pipsshop.randomAugment(run, packId, ids)
+            table.insert(ids, a.id)
+            table.insert(options, a)
+        end
     elseif packId == "craps" then
         -- 4 different totals your dice could roll (from all 1s up to all
         -- max faces), not already on the board.

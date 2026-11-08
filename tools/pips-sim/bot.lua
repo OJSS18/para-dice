@@ -191,7 +191,7 @@ local function makeRoom(run, item, base)
     return false
 end
 
-local PACK_ORDER = { rarePerky = 1, bigPerky = 2, dice = 3, perky = 4, augment = 5, dungeon = 6, craps = 7 }
+local PACK_ORDER = { rarePerky = 1, bigPerky = 2, dice = 3, perky = 4, diceAug = 5, setAug = 5, dungeon = 6, craps = 7 }
 
 local function openPack(run)
     local pack = run.shop.pack

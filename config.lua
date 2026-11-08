@@ -120,12 +120,12 @@ config.PIPS = {
     SLOT_LEVELS   = { 2, 3, 5, 6, 8, 9, 10, 11 },
     MAX_LEVEL     = 12,       -- clear level 12 to win the run
     ROUNDS        = 3,        -- rounds in each level (the shop opens after each)
-    SETS          = 5,        -- sets (scored rolls) you get each round
-    REROLLS       = 4,        -- rerolls each round, shared by all its sets
+    SETS          = 7,        -- sets (scored rolls) you get each round
+    REROLLS       = 7,        -- rerolls each round, shared by all its sets
     -- Goals: level 1's rounds need 100, 200, 300. Each level's goals are
     -- GOAL_GROWTH times the level before's.
     FIRST_GOAL    = 100,
-    GOAL_GROWTH   = 2.0,      -- (tested with tools/pips-sim: a strong bot wins about half its runs)
+    GOAL_GROWTH   = 2.0,      -- (tested with tools/pips-sim: a strong bot wins about 60% of runs)
     -- Coins for winning a round: a few for winning, then +1 for each
     -- reroll left over and +2 for each set left over.
     WIN_COINS     = 3,
@@ -138,14 +138,13 @@ config.PIPS = {
     -- Perky rarity chances (out of 100) in the shop and normal packs.
     RARITY_ODDS   = { common = 70, uncommon = 25, rare = 5 },
     PERKY_PRICES  = { common = 4, uncommon = 6, rare = 8 },
-    AUG_PRICE     = 4,
-    DICE_AUG_POINTS = 4,      -- each dice augment level: +4 points for every die showing that face
+    AUG_PRICE     = 4,        -- a dice or set augment (each level: see augments.lua)
     SHOP_REROLL   = 3,        -- reroll the 2 main items: 3 coins, then +1 each time this visit
     -- The 3-reel slot machine: a spin costs SPIN_PRICE, +SPIN_STEP for each
     -- spin already made this visit. Each reel lands on a pack (out of 100).
     SPIN_PRICE    = 5,
     SPIN_STEP     = 2,
-    REEL_ODDS     = { dice = 20, perky = 26, bigPerky = 10, augment = 22, craps = 12,
+    REEL_ODDS     = { dice = 20, perky = 26, bigPerky = 10, diceAug = 11, setAug = 11, craps = 12,
                       dungeon = 9, rarePerky = 1 },
     CRAPS_XMULT   = 2,        -- a craps bet that hits: x2 MULT
 }

@@ -1,9 +1,9 @@
 -- pipsscore.lua
 -- PIPS MODE: how a roll SCORES. Pure LOGIC - no drawing.
 --
---   1. POINTS = the pips on all your dice added up, plus the set's own
---      bonus points (Pair +15...), plus any DICE AUGMENT bonus (e.g.
---      "4s +4 points" adds 4 for every 4 showing).
+--   1. POINTS = the pips on all your dice added up. DICE AUGMENTS make a
+--      face worth more: with the Fours Augment at level 2, each 4 scores
+--      4 + 2 x 4 = 12 (see augments.lua). Sets give NO points, only mult.
 --   2. MULT   = the starting mult of the best SET the roll makes (Pair 2,
 --      Three of a Kind 4...), plus any SET AUGMENT levels for that set.
 --   3. Each Perky adds its +POINTS and +MULT.
@@ -15,6 +15,7 @@ local config    = require("config")
 local pipshands = require("pipshands")
 local perkys    = require("perkys")
 local util      = require("util")
+local augments  = require("augments")
 
 local pipsscore = {}
 
@@ -25,9 +26,9 @@ function pipsscore.base(run, values)
     local counts = pipshands.countFaces(values)
     local hand, mult = pipshands.best(counts, run.slots, run.setAug)
     local pipTotal = util.sum(values)
-    local points = pipTotal + hand.points
+    local points = 0
     for _, v in ipairs(values) do
-        points = points + (run.diceAug[v] or 0) * config.PIPS.DICE_AUG_POINTS
+        points = points + augments.facePoints(v, run.diceAug[v])
     end
     return points, mult, hand, pipTotal, counts
 end

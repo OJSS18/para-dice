@@ -5,15 +5,18 @@ The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right 
 ## v0.9.0 - 2026-11-08
 
 - NEW GAME TYPE: **PIPS** (PLAY 4 on the play menu). A Balatro-style dice mode:
-  - Score = POINTS x MULT. POINTS are the pips on your dice plus the set's bonus points;
-    MULT comes from the set you rolled (High Roll 1, Pair 2, Small Straight 3, Three of a
-    Kind 4...). Perkys add +POINTS and +MULT, then every xMULT multiplies at the very end.
+  - Score = POINTS x MULT. POINTS are the pips on your dice; MULT comes from the set you
+    rolled (High Roll 1, Pair 2, Small Straight 3, Three of a Kind 4...). Sets give no
+    points. Perkys add +POINTS and +MULT, then every xMULT multiplies at the very end.
     The scoreboard shows your base POINTS x MULT while you decide.
+  - AUGMENTS, two separate kinds (augments.lua): a DICE AUGMENT for each face 1-10 (each
+    level adds the face's value again: a 4 at level 2 scores 4 + 2 x 4 = 12) and a SET
+    AUGMENT for each set (+mult). Extra points come from dice augments.
   - Start with 3 dice. Dice slots open at levels 2, 3, 5, 6, 8, 9, 10 and 11 (you buy the
     dice), and each new slot unlocks new sets - up to Eleven of a Kind, Two Fives, Triple
     Ladder (222 333 444) and Straight of 10. 29 sets in all.
   - 12 levels of 3 rounds. Level 1's goals are 100, 200, 300, then x2 each level. Each
-    round has 5 sets and 4 rerolls shared between them. Winning pays 3 coins, +1 per
+    round has 7 sets and 7 rerolls shared between them. Winning pays 3 coins, +1 per
     reroll left and +2 per set left.
   - PERKYS (up to 5): 143 of them. For each face 1-6: "Ones Up" (+1 mult per 1), "Ones
     Collector" (grows +1 mult) and "Ones Banker" (+1 coin per 1). For each set: Power
@@ -21,7 +24,7 @@ The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right 
     the set is unlocked. Plus 13 one-offs (Rainbow, Last Call, Encore...).
   - THE SHOP after every round: 2 main items (80% Perky, 10% dice augment, 10% set
     augment) with REROLL, and a 3-reel PACK MACHINE. Each reel lands on a pack - Dice,
-    Perky, Big Perky, Rare Perky (1% a reel), Augment, Craps (put a number on the board:
+    Perky, Big Perky, Rare Perky (1% a reel), Dice Augment, Set Augment, Craps (put a number on the board:
     roll that total for x2 MULT) or Dungeon Dice (D7 to D20) - and you open one.
   - Dice are drawn by code: any of 10 colours for the die and for its pips, with faces up
     to 10. Rolls are electronic: the dice flicker through faces and stop one by one.

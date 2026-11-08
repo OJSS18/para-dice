@@ -61,6 +61,7 @@
 --   pipshands.lua - the SETS a roll can make (Pair, Straight...) and their mult
 --   pipsscore.lua - scoring: POINTS x MULT, with Perkys and craps bets
 --   perkys.lua    - PERKYS, the cards you buy that change scoring
+--   augments.lua  - DICE AUGMENTS (a face scores more points) and SET AUGMENTS (a set gets more mult)
 --   pipsshop.lua  - its shop: 2 items, the pack slot machine, packs, selling
 --   pipsview.lua  - looks only: the electronic dice roll and spinning reels
 --   pipslayout.lua- WHERE everything is on its screens

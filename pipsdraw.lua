@@ -15,6 +15,7 @@ local pipsgame   = require("pipsgame")
 local pipsdice   = require("pipsdice")
 local pipshands  = require("pipshands")
 local pipsshop   = require("pipsshop")
+local augments   = require("augments")
 local perkys     = require("perkys")
 local pipsview   = require("pipsview")
 local pipslayout = require("pipslayout")
@@ -235,15 +236,15 @@ local function itemCard(r, item, price, sold, faded)
         cardBox(r, color, dim)
         ui.text(isDice and "DICE AUGMENT" or "SET AUGMENT", fonts.hint, r.x, r.y + 8, r.w, "center", color)
         if isDice then
-            ui.text("All " .. item.face .. "s", fonts.small, r.x + 6, r.y + 26, r.w - 12, "center", WHITE)
+            ui.text(item.name, fonts.small, r.x + 6, r.y + 26, r.w - 12, "center", WHITE)
             local s = 56
             pipsdraw.die({ kind = "classic", body = 1, pip = 2, faces = {} }, item.face,
                 r.x + (r.w - s) / 2, r.y + 56, s, 0)
         else
-            ui.text(pipshands.get(item.hand).name, fonts.small, r.x + 6, r.y + 26, r.w - 12, "center", WHITE)
+            ui.text(item.name, fonts.small, r.x + 6, r.y + 26, r.w - 12, "center", WHITE)
             ui.text("MULT+", fonts.number, r.x, r.y + 60, r.w, "center", color)
         end
-        wrapped(pipsshop.itemAbout(item), fonts.tiny, r.x + 8, r.y + 124, r.w - 16, CREAM)
+        wrapped(pipsshop.itemAbout(item, pipsgame.run), fonts.tiny, r.x + 8, r.y + 124, r.w - 16, CREAM)
     end
     if sold then
         ui.text("SOLD", fonts.title, r.x, r.y + r.h / 2 - 26, r.w, "center", { 1, 0.3, 0.3 }, true)
@@ -358,12 +359,12 @@ local function drawScoreboard(run)
     ui.glossyButton(pipslayout.menuButton(), "MENU", { 0.45, 0.45, 0.52 }, true)
 end
 
--- The SETS list on the right: every unlocked set, its points and mult.
+-- The SETS list on the right: every unlocked set and its mult.
 local function drawSetsList(run, current)
     local s = pipslayout.setsPanel()
     ui.vegasWindow(s, nil)
     ui.text("SETS", fonts.heading, s.x, s.y + 14, s.w, "center", GOLD, true)
-    ui.text("POINTS  x  MULT", fonts.hint, s.x, s.y + 38, s.w - 14, "right", DIM)
+    ui.text("MULT", fonts.hint, s.x, s.y + 38, s.w - 14, "right", DIM)
     local unlocked = {}
     for _, h in ipairs(pipshands.LIST) do
         if pipshands.isUnlocked(h, run.slots) then table.insert(unlocked, h) end
@@ -380,7 +381,7 @@ local function drawSetsList(run, current)
         end
         local name = h.name .. (level > 0 and ("  +" .. level) or "")
         ui.text(name, fonts.tiny, s.x + 14, y, s.w * 0.6, "left", isCurrent and GOLD or CREAM)
-        ui.text(h.points .. "  x  " .. mult, fonts.tiny, s.x + s.w * 0.6, y, s.w * 0.4 - 14, "right",
+        ui.text("x" .. mult, fonts.tiny, s.x + s.w * 0.6, y, s.w * 0.4 - 14, "right",
             isCurrent and GOLD or WHITE)
         y = y + rowH
     end
@@ -569,7 +570,8 @@ local PACK_LOOK = {
     perky     = { color = { 0.55, 0.75, 1.00 }, label = "PERKY" },
     bigPerky  = { color = { 0.35, 0.95, 0.45 }, label = "BIG PERKY" },
     rarePerky = { color = { 1.00, 0.35, 0.35 }, label = "RARE PERKY" },
-    augment   = { color = { 1.00, 0.45, 0.85 }, label = "AUGMENT" },
+    diceAug   = { color = { 0.30, 0.85, 1.00 }, label = "DICE AUG" },
+    setAug    = { color = { 1.00, 0.45, 0.85 }, label = "SET AUG" },
     craps     = { color = { 1.00, 0.55, 0.15 }, label = "CRAPS" },
     dungeon   = { color = { 1.00, 0.82, 0.30 }, label = "DUNGEON" },
 }
@@ -726,7 +728,8 @@ local function drawAugments(run)
     local parts = {}
     for f = 1, pipshands.MAX_FACE do
         if (run.diceAug[f] or 0) > 0 then
-            table.insert(parts, f .. "s +" .. run.diceAug[f] * P.DICE_AUG_POINTS .. " pts")
+            table.insert(parts, "Each " .. f .. " scores " .. augments.facePoints(f, run.diceAug[f])
+                .. " (level " .. run.diceAug[f] .. ")")
         end
     end
     for _, h in ipairs(pipshands.LIST) do
