@@ -15,9 +15,11 @@
 --   * Reach the goal and you win the round: coins for winning, +1 per
 --     reroll left and +1 per set left. Then the SHOP. Run out of sets
 --     first and the run is over.
---   * BOSSES (bosses.lua): after one random level of 2-3, of 5-7 and of
---     8-10, a boss round follows the shop. After level 12 comes PIT BOSS
---     JOSH, a 1-on-1 duel. Beat him to win - then ENDLESS, if you dare.
+--   * BOSSES (bosses.lua): after one random level of 2-3, of 5-7, of 8-10,
+--     and after level 12, a boss round follows the shop. Boss goals are
+--     BOSS_GOAL times the level's last goal - they're the skill checks.
+--   * Then "level 13": PIT BOSS JOSH, a 1-on-1 duel. Beat him to win -
+--     then ENDLESS (level 14 on), if you dare.
 --
 -- Like the main game, every player action goes through pipsgame.act(name, arg),
 -- and all randomness uses rng.random (seeded per run), so a run could be
@@ -41,6 +43,7 @@ local pipsshop  = require("pipsshop")
 local perkys    = require("perkys")
 local bosses    = require("bosses")
 local pitboss   = require("pitboss")
+local pipshands = require("pipshands")
 
 local pipsgame = {}
 
@@ -66,12 +69,14 @@ end
 
 -- How many times bigger level 'level''s goals are than the level before's.
 -- It grows a little every level (x GOAL_GROWTH for level 2, then + GOAL_STEP
--- each level after), and much faster in ENDLESS (after level 12).
+-- each level after), and much faster in ENDLESS (level 14 on). Level 13 is
+-- Pit Boss Josh's duel, which has no goal, so it doesn't grow.
 function pipsgame.growthFor(level)
     if level <= P.MAX_LEVEL then
         return P.GOAL_GROWTH + P.GOAL_STEP * (level - 2)
     end
-    return P.ENDLESS_GROWTH + P.ENDLESS_STEP * (level - P.MAX_LEVEL - 1)
+    if level == P.MAX_LEVEL + 1 then return 1 end
+    return P.ENDLESS_GROWTH + P.ENDLESS_STEP * (level - P.MAX_LEVEL - 2)
 end
 
 -- Round a goal to a tidy number: nearest 10 (nearest 1000 once it's huge).
@@ -91,7 +96,7 @@ end
 
 -- Does a boss round follow level 'level' in this run?
 function pipsgame.isBossLevel(run, level)
-    if level == P.MAX_LEVEL and not run.endless then return true end   -- Pit Boss Josh
+    if level == P.MAX_LEVEL and not run.endless then return true end   -- (then Josh)
     for _, l in ipairs(run.bossLevels) do
         if l == level then return true end
     end
@@ -197,6 +202,8 @@ local function winRound(run, savedByLife)
     run.payout = pay
     if run.boss then
         run.boss.beaten = true
+        -- Beat level 12's boss: Pit Boss Josh is next (after the shop).
+        if run.level == P.MAX_LEVEL and not run.endless then run.pendingBoss = "josh" end
     elseif run.round == P.ROUNDS and pipsgame.isBossLevel(run, run.level) then
         run.pendingBoss = true   -- the shop comes first, then the boss
     end
@@ -210,26 +217,49 @@ local function loseRun(run)
     pipsgame.active = false
 end
 
+-- The set this run has scored most often (not counting High Roll). On a
+-- tie, the one with the bigger mult. (Pair if nothing has been scored yet.)
+function pipsgame.mostScoredSet(run)
+    local bestId, bestCount, bestMult = "pair", 0, 0
+    for _, h in ipairs(pipshands.LIST) do
+        local n = run.setCounts[h.id] or 0
+        if h.id ~= "none" and (n > bestCount or (n == bestCount and n > 0 and h.mult > bestMult)) then
+            bestId, bestCount, bestMult = h.id, n, h.mult
+        end
+    end
+    return bestId
+end
+
 -- After the shop: a boss steps up. Who, and which dirty trick?
+-- (Pit Boss Josh counts as "level 13".)
 local function meetBoss(run)
+    local josh = run.pendingBoss == "josh"
     run.pendingBoss = false
-    if run.level == P.MAX_LEVEL and not run.endless then
+    if josh then
+        run.level, run.round = P.MAX_LEVEL + 1, 1
         run.boss = { id = "josh", josh = true, line = bosses.JOSH.lines[rng.random(#bosses.JOSH.lines)] }
     else
         local b = bosses.LIST[rng.random(#bosses.LIST)]
         local t = bosses.TRICKS[rng.random(#bosses.TRICKS)]
         run.boss = { id = b.id, trick = t.id, line = b.lines[rng.random(#b.lines)] }
+        if t.id == "banSet" then run.boss.banned = pipsgame.mostScoredSet(run) end
     end
     run.state = "bossIntro"
 end
 
--- FIGHT: a boss round. The goal is the level's last goal (x1.5 for the
--- "big goal" trick), and the boss steals a set or a reroll if that's its trick.
+-- FIGHT: a boss round. The goal is BOSS_GOAL times the level's last goal,
+-- except for two tricks: "bigGoal" (3x the last goal, with one set and one
+-- reroll fewer) and "hugeGoal" (5x the last goal). Other tricks steal a set,
+-- a reroll, a die, limit rerolls, or ban a set.
 local function startBossRound(run)
     local trick = run.boss.trick
-    run.goal = pipsgame.goalFor(run.level, P.ROUNDS)
-    if trick == "bigGoal" then run.goal = tidy(run.goal * 1.5) end
-    freshRound(run, trick == "stealSet" and 1 or 0, trick == "stealReroll" and 1 or 0)
+    local lastGoal = pipsgame.goalFor(run.level, P.ROUNDS)
+    run.goal = lastGoal * P.BOSS_GOAL
+    if trick == "bigGoal" then run.goal = lastGoal * 3 end    -- (and one set and one reroll fewer)
+    if trick == "hugeGoal" then run.goal = lastGoal * 5 end
+    run.goal = tidy(run.goal)
+    local hard = trick == "bigGoal"
+    freshRound(run, (trick == "stealSet" or hard) and 1 or 0, (trick == "stealReroll" or hard) and 1 or 0)
 end
 
 -- FIGHT against Pit Boss Josh: he copies your run, one Perky on each side
@@ -297,6 +327,7 @@ function pipsgame.new(seed)
         held = {}, values = {}, rolled = {}, rollId = 0,
         best = 0,                 -- the biggest single set scored this run
         sets = 0,                 -- how many sets have been scored this run
+        setCounts = {},           -- how often each set has been scored: { [set id] = times }
         boss = nil,               -- the boss of this boss round (nil = a normal round)
         pendingBoss = false,      -- a boss is waiting after this shop
         endless = false,
@@ -351,6 +382,14 @@ function ACTIONS.hold(run, arg)
     return true
 end
 
+-- Can the player reroll now? (Not with no rerolls left, and only once a
+-- set against the "one reroll per set" boss.)
+function pipsgame.canReroll(run)
+    if run.rerollsLeft <= 0 then return false end
+    if run.boss and run.boss.trick == "oneReroll" and run.rerollsThisSet >= 1 then return false end
+    return true
+end
+
 -- Reroll every die that isn't held (uses one reroll).
 function ACTIONS.reroll(run)
     if run.state ~= "choose" or run.rerollsLeft <= 0 then return false end
@@ -359,6 +398,7 @@ function ACTIONS.reroll(run)
         if not run.held[i] then any = true end
     end
     if not any then return false end   -- everything is held: nothing to roll
+    if not pipsgame.canReroll(run) then return false end
     run.rerollsLeft = run.rerollsLeft - 1
     run.rerollsThisSet = run.rerollsThisSet + 1
     rollDice(run)
@@ -374,6 +414,7 @@ function ACTIONS.score(run)
     run.coins = run.coins + result.coins
     run.best = math.max(run.best, result.total)
     run.sets = run.sets + 1
+    run.setCounts[result.hand.id] = (run.setCounts[result.hand.id] or 0) + 1
     run.lastResult = result
     run.state = "scored"
     return true
@@ -411,6 +452,7 @@ function ACTIONS.endless(run)
     if run.state ~= "victory" then return false end
     run.endless = true
     run.josh = nil
+    run.round = P.ROUNDS      -- so NEXT ROUND goes to level 14, round 1
     pipsgame.active = true
     pipsshop.open(run)
     run.state = "shop"

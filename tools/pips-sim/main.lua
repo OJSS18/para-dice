@@ -50,6 +50,7 @@ function love.load(args)
     local perkys = require("perkys")
     local wins, levels, reached, bossDeaths = 0, 0, {}, {}
     local shops, fullShops, everFull, endFull, firstFull = 0, 0, 0, 0, {}
+    local trickMet, trickLost = {}, {}
     local start = os.clock()
     for g = 1, N do
         local run = bot.play(seed + g - 1)
@@ -61,6 +62,11 @@ function love.load(args)
             firstFull[st.firstFull] = (firstFull[st.firstFull] or 0) + 1
         end
         if #run.perkys >= require("pipsshop").maxPerkys(run) then endFull = endFull + 1 end
+        for _, t in ipairs(st.tricks or {}) do trickMet[t] = (trickMet[t] or 0) + 1 end
+        if run.boss and not won and run.state == "gameOver" then
+            local t = run.boss.trick or "josh"
+            trickLost[t] = (trickLost[t] or 0) + 1
+        end
         if run.boss and not won then
             local key = run.boss.josh and "josh" or "boss"
             bossDeaths[key] = (bossDeaths[key] or 0) + 1
@@ -83,7 +89,7 @@ function love.load(args)
     print(string.format("PIPS: %d games, growth x%.2f +%.2f/level, first goal %d: won %d (%.0f%%), average level %.1f  (%.1fs)",
         N, config.PIPS.GOAL_GROWTH, config.PIPS.GOAL_STEP, config.PIPS.FIRST_GOAL, wins, 100 * wins / N, levels / N, os.clock() - start))
     local parts = {}
-    for l = 1, config.PIPS.MAX_LEVEL do
+    for l = 1, config.PIPS.MAX_LEVEL + 1 do
         if reached[l] then table.insert(parts, "L" .. l .. ":" .. reached[l]) end
     end
     print("ended on level: " .. table.concat(parts, "  "))
@@ -93,5 +99,13 @@ function love.load(args)
     for l = 1, 13 do if firstFull[l] then table.insert(fl, "L" .. l .. ":" .. firstFull[l]) end end
     print("first level with every slot full: " .. table.concat(fl, "  "))
     print(string.format("lost to a boss: %d   lost to Pit Boss Josh: %d", bossDeaths.boss or 0, bossDeaths.josh or 0))
+    local tp = {}
+    for _, t in ipairs({ "stealReroll", "stealSet", "stealDie", "bigGoal", "oneReroll", "banSet", "hugeGoal", "josh" }) do
+        if trickMet[t] then
+            table.insert(tp, string.format("%s %d/%d lost (%.0f%%)", t, trickLost[t] or 0, trickMet[t],
+                100 * (trickLost[t] or 0) / trickMet[t]))
+        end
+    end
+    print("BOSS TRICKS (runs lost / times met): " .. table.concat(tp, ",  "))
     love.event.quit()
 end

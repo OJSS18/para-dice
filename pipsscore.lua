@@ -20,12 +20,17 @@ local rng       = require("rng")
 
 local pipsscore = {}
 
+-- The set a boss has banned this round (or nil).
+function pipsscore.banned(run)
+    return run.boss and run.boss.banned or nil
+end
+
 -- The starting POINTS and MULT before any Perky (what the side panel
 -- shows while you decide). Gives back points, mult, the set, and the
 -- plain pip total.
 function pipsscore.base(run, values)
     local counts = pipshands.countFaces(values)
-    local hand, mult = pipshands.best(counts, run.slots, run.setAug)
+    local hand, mult = pipshands.best(counts, run.slots, run.setAug, pipsscore.banned(run))
     local pipTotal = util.sum(values)
     local points = 0
     for _, v in ipairs(values) do
@@ -71,7 +76,7 @@ function pipsscore.score(run, values, preview)
     local ctx = {
         values = values,
         counts = counts,
-        contained = pipshands.contained(counts, run.slots),
+        contained = pipshands.contained(counts, run.slots, pipsscore.banned(run)),
         hand = hand.id,
         numDice = #values,
         pipTotal = pipTotal,

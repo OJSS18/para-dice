@@ -129,11 +129,17 @@ function pipshands.augmentMult(h)
     return math.max(1, math.ceil(h.mult / 3))
 end
 
--- Every unlocked set this roll contains, as { [id] = true }.
-function pipshands.contained(counts, slots)
+-- Can set h be used? (Unlocked, and not 'banned' by a boss.)
+local function usable(h, slots, banned)
+    return pipshands.isUnlocked(h, slots) and h.id ~= banned
+end
+
+-- Every usable set this roll contains, as { [id] = true }.
+-- 'banned' is a set a boss has banned (or nil).
+function pipshands.contained(counts, slots, banned)
     local found = {}
     for _, h in ipairs(pipshands.LIST) do
-        if pipshands.isUnlocked(h, slots) and h.check(counts) then found[h.id] = true end
+        if usable(h, slots, banned) and h.check(counts) then found[h.id] = true end
     end
     return found
 end
@@ -142,10 +148,10 @@ end
 -- biggest mult (counting set augments). 'augments' is { [id] = levels }.
 -- Gives back the set and its mult. (Sets only give MULT - POINTS come
 -- from the pips and dice augments.)
-function pipshands.best(counts, slots, augments)
+function pipshands.best(counts, slots, augments, banned)
     local bestHand, bestMult = pipshands.BY_ID.none, 0
     for _, h in ipairs(pipshands.LIST) do
-        if pipshands.isUnlocked(h, slots) and h.check(counts) then
+        if usable(h, slots, banned) and h.check(counts) then
             local m = h.mult + (augments[h.id] or 0) * pipshands.augmentMult(h)
             if m > bestMult then bestHand, bestMult = h, m end
         end

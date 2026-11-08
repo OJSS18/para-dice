@@ -301,7 +301,7 @@ local function drawScoreboard(run)
     local p = pipslayout.panel()
     ui.vegasWindow(p, nil)
     local roundName = "ROUND " .. run.round .. "/" .. P.ROUNDS
-    if run.boss then roundName = "BOSS ROUND" end
+    if run.boss then roundName = run.boss.josh and "FINAL BOSS" or "BOSS ROUND" end
     ui.text("LEVEL " .. run.level .. "   " .. roundName, fonts.heading,
         p.x, p.y + 16, p.w, "center", run.boss and RED or GOLD, true)
     if run.josh then
@@ -379,7 +379,7 @@ local function drawScoreboard(run)
         local anyFree = false
         for i = 1, #run.dice do if not run.held[i] then anyFree = true end end
         ui.glossyButton(pipslayout.rerollButton(), "REROLL", { 0.85, 0.10, 0.12 },
-            run.state == "choose" and not busy and run.rerollsLeft > 0 and anyFree)
+            run.state == "choose" and not busy and pipsgame.canReroll(run) and anyFree)
         ui.glossyButton(pipslayout.scoreButton(), "SCORE", { 0.12, 0.38, 0.95 }, run.state == "choose" and not busy)
     end
     ui.glossyButton(pipslayout.menuButton(), "MENU", { 0.45, 0.45, 0.52 }, true)
@@ -550,8 +550,7 @@ local function drawBossStrip(run)
     bossart.draw(b, s.x + 12, s.y + 8, 3, 1)
     if not run.josh then
         ui.text(b.name, fonts.heading, s.x + 70, s.y + 14, s.w - 80, "left", RED, true)
-        local trick = bosses.TRICK_BY_ID[run.boss.trick]
-        ui.text(trick.about, fonts.small, s.x + 70, s.y + 44, s.w - 80, "left", CREAM)
+        ui.text(bosses.trickText(run.boss), fonts.small, s.x + 70, s.y + 44, s.w - 80, "left", CREAM)
         return
     end
     local josh = run.josh
@@ -617,7 +616,7 @@ local function drawBossIntro(run)
     love.graphics.setColor(0.1, 0.05, 0.05)
     love.graphics.printf('"' .. run.boss.line .. '"', bubble.x + 20, bubble.y + 22, bubble.w - 40, "left")
     -- What the boss does.
-    local about = run.boss.josh and bosses.JOSH_ABOUT or bosses.TRICK_BY_ID[run.boss.trick].about
+    local about = run.boss.josh and bosses.JOSH_ABOUT or bosses.trickText(run.boss)
     wrapped(about, fonts.small, x, 410, w, GOLD, "left")
     if run.boss.josh then
         wrapped("Beat him and you beat the game - then ENDLESS awaits.", fonts.small, x, 470, w, CREAM, "left")
@@ -969,6 +968,7 @@ local function drawShop(run)
     local nextText = "NEXT: LEVEL " .. (run.round == P.ROUNDS and run.level + 1 or run.level) .. "  ROUND "
         .. (run.round % P.ROUNDS + 1)
     if run.pendingBoss then nextText = "NEXT: A BOSS!" end
+    if run.pendingBoss == "josh" then nextText = "NEXT: PIT BOSS JOSH!" end
     ui.text(nextText, fonts.hint, 30, 66, 360, "left", run.pendingBoss and RED or CREAM)
 
     drawForSale(run)

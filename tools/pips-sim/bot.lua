@@ -107,7 +107,7 @@ local function playSet(run)
         for i = 1, #run.dice do
             if (run.held[i] or false) ~= bestHold[i] then pipsgame.act("hold", i) end
         end
-        pipsgame.act("reroll")
+        if not pipsgame.act("reroll") then break end   -- (a boss may limit rerolls)
     end
     pipsgame.act("score")
 end
@@ -303,7 +303,12 @@ function bot.play(seed)
         if s == "choose" then playSet(run)
         elseif s == "scored" then pipsgame.act("next")
         elseif s == "roundWon" then pipsgame.act("toShop")
-        elseif s == "bossIntro" then pipsgame.act("fight")
+        elseif s == "bossIntro" then
+            -- (For the stats: which boss tricks this run met.)
+            run.stats = run.stats or { shops = 0, fullShops = 0, firstFull = nil }
+            run.stats.tricks = run.stats.tricks or {}
+            table.insert(run.stats.tricks, run.boss.trick or "josh")
+            pipsgame.act("fight")
         elseif s == "joshTurn" then pipsgame.act("next")
         elseif s == "shop" then shopVisit(run)
         else break end

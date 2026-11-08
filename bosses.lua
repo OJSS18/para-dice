@@ -7,9 +7,11 @@
 --   * after beating one random level out of 2-3,
 --   * after one out of 5-7,
 --   * after one out of 8-10,
---   * and after level 12: PIT BOSS JOSH, the final boss.
--- A boss round comes after that level's shop. Its goal is the level's last
--- goal, and the boss pulls one random TRICK (below).
+--   * and after level 12.
+-- A boss round comes after that level's shop. Its goal is BOSS_GOAL (in
+-- config.lua) times the level's last goal, and the boss pulls one random
+-- TRICK (below).
+-- Then, as "level 13", PIT BOSS JOSH, the final boss.
 --
 -- PIT BOSS JOSH is different: he copies your whole run (dice, Perkys,
 -- augments, craps bets), switches off one random Perky on each side, and
@@ -76,13 +78,26 @@ bosses.TRICKS = {
     { id = "stealReroll", about = "STEALS ONE OF YOUR REROLLS this round." },
     { id = "stealSet",    about = "STEALS ONE OF YOUR SETS this round." },
     { id = "stealDie",    about = "STEALS ONE OF YOUR DICE once half your sets are gone." },
-    { id = "bigGoal",     about = "RAISES THE GOAL to 1.5x the last goal." },
+    { id = "bigGoal",     about = "THE GOAL IS 3x THE LAST ROUND'S - and steals a set AND a reroll." },
+    { id = "oneReroll",   about = "ONLY ONE REROLL PER SET this round." },
+    { id = "banSet",      about = "BANS YOUR MOST-SCORED SET: it can't be used this round." },
+    { id = "hugeGoal",    about = "THE GOAL IS 5x THE LAST ROUND'S GOAL." },
 }
 bosses.TRICK_BY_ID = {}
 for _, t in ipairs(bosses.TRICKS) do bosses.TRICK_BY_ID[t.id] = t end
 
 bosses.JOSH_ABOUT = "Copies your whole run, switches off one Perky on each side, "
     .. "and rolls against you, 1 on 1. Highest total wins - the house wins ties."
+
+-- What boss trick 'boss' does, in words (the ban trick names the banned set).
+function bosses.trickText(boss)
+    local text = bosses.TRICK_BY_ID[boss.trick].about
+    if boss.trick == "banSet" and boss.banned then
+        text = "BANS YOUR MOST-SCORED SET (" .. require("pipshands").get(boss.banned).name:upper()
+            .. "): it can't be used this round."
+    end
+    return text
+end
 
 -- Look up a boss by id (any of the four, or "josh").
 function bosses.get(id)

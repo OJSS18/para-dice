@@ -119,18 +119,20 @@ config.PIPS = {
     -- The level where each extra dice SLOT opens (you still buy the die).
     -- 3 to start + 4 more = 7 dice at most. Sets that need 8 or more dice never unlock.
     SLOT_LEVELS   = { 2, 4, 6, 8 },
-    MAX_LEVEL     = 12,       -- clear level 12 to win the run
+    MAX_LEVEL     = 12,       -- 12 levels (level 12 ends with a boss), then Pit Boss Josh as "level 13"
+    BOSS_GOAL     = 2.0,      -- a boss round's goal = this x the level's last goal (the skill checks)
     ROUNDS        = 3,        -- rounds in each level (the shop opens after each)
     SETS          = 4,        -- sets (scored rolls) you get each round
     REROLLS       = 4,        -- rerolls each round, shared by all its sets
-    -- Goals: level 1's rounds need 60, 120, 180. Level 2's goals are
+    -- Goals: level 1's rounds need 35, 70, 105. Level 2's goals are
     -- GOAL_GROWTH times level 1's, and each level after grows GOAL_STEP more:
-    -- x1.70, x1.76, x1.82 ... x2.30 for level 12. (Picked with 100-game runs of
-    -- tools/pips-sim: a strong bot wins about a third of its runs.)
-    FIRST_GOAL    = 60,
-    GOAL_GROWTH   = 1.7,
-    GOAL_STEP     = 0.06,
-    -- ENDLESS (after beating Pit Boss Josh): goals x3 for level 13, then +0.5 more each level.
+    -- x1.65, x1.67, x1.69 ... x1.85 for level 12. Picked with 100-game runs of
+    -- tools/pips-sim: almost every run clears level 1, bosses stop about a
+    -- third of runs, and about 30% beat Pit Boss Josh.
+    FIRST_GOAL    = 35,
+    GOAL_GROWTH   = 1.65,
+    GOAL_STEP     = 0.02,
+    -- ENDLESS (after beating Pit Boss Josh): goals x3 for level 14, then +0.5 more each level.
     ENDLESS_GROWTH = 3.0,
     ENDLESS_STEP   = 0.5,
     -- Coins for winning a round: a few for winning, then +1 for each

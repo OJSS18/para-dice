@@ -17,6 +17,15 @@ PIPS mode:
 - New shop layout: FOR SALE fills the left half (main items, REROLL and the VIP upgrade).
   The right half has the pack machine, YOUR DICE (sized for 10 dice), NEXT ROUND and a
   smaller YOUR PERKYS - point at a Perky to read all of it. The AUGMENTS window is gone.
+- Level 12 now ends with a regular boss too, and PIT BOSS JOSH comes after it as "level 13"
+  (the FINAL BOSS). Endless starts at level 14.
+- Bosses are skill checks: a boss round's goal is 2x the level's last goal. Three new boss
+  tricks: only ONE REROLL PER SET; BANS YOUR MOST-SCORED SET (it can't be used that
+  round); and a 5x goal. The old "raise the goal" trick is now 3x the last goal AND one
+  set and one reroll fewer.
+- New goal curve: level 1 is 35 / 70 / 105, then x1.65 a level growing +0.02 each level.
+  In 200 strategy-bot games: 7% die on level 1 (none in round 1), bosses stop about 38%,
+  and 31% beat Pit Boss Josh.
 - At most 7 dice now: slots open at levels 2, 4, 6 and 8. Sets that need 8 or more dice
   never unlock, so their Perkys and set augments never show up.
 - The strategy sim now reports how often the Perky slots are full, and `SHOPCHECK=1`
