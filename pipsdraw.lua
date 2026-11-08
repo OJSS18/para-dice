@@ -19,6 +19,8 @@ local augments   = require("augments")
 local perkys     = require("perkys")
 local pipsview   = require("pipsview")
 local pipslayout = require("pipslayout")
+local bosses     = require("bosses")
+local bossart    = require("bossart")
 
 local pipsdraw = {}
 
@@ -295,20 +297,39 @@ end
 local function drawScoreboard(run)
     local p = pipslayout.panel()
     ui.vegasWindow(p, nil)
-    ui.text("LEVEL " .. run.level .. "   ROUND " .. run.round .. "/" .. P.ROUNDS, fonts.heading,
-        p.x, p.y + 16, p.w, "center", GOLD, true)
-    ui.text("GOAL", fonts.hint, p.x, p.y + 46, p.w, "center", DIM)
-    ui.text(tostring(run.goal), fonts.scoreBig, p.x, p.y + 60, p.w, "center", WHITE, true)
+    local roundName = "ROUND " .. run.round .. "/" .. P.ROUNDS
+    if run.boss then roundName = "BOSS ROUND" end
+    ui.text("LEVEL " .. run.level .. "   " .. roundName, fonts.heading,
+        p.x, p.y + 16, p.w, "center", run.boss and RED or GOLD, true)
+    if run.josh then
+        -- The duel: your total against Josh's.
+        ui.text("BEAT PIT BOSS JOSH", fonts.hint, p.x, p.y + 46, p.w, "center", DIM)
+        local half = (p.w - 36) / 2
+        ui.text("YOU", fonts.hint, p.x + 18, p.y + 66, half, "center", GREEN)
+        ui.text("JOSH", fonts.hint, p.x + 18 + half, p.y + 66, half, "center", RED)
+        ui.text(tostring(run.roundScore), fonts.button, p.x + 18, p.y + 84, half, "center", WHITE, true)
+        ui.text(tostring(run.josh.total), fonts.button, p.x + 18 + half, p.y + 84, half, "center", WHITE, true)
+        ui.text("Josh has " .. run.josh.setsLeft .. " sets and " .. run.josh.rerollsLeft .. " rerolls left",
+            fonts.tiny, p.x, p.y + 122, p.w, "center", CREAM)
+        local off = "The house wins ties."
+        for _, held in ipairs(run.josh.perkys) do
+            if held.disabled then off = "Josh's " .. perkys.get(held.id).name .. " is switched off. House wins ties." end
+        end
+        ui.text(off, fonts.tiny, p.x + 10, p.y + 142, p.w - 20, "center", DIM)
+    else
+        ui.text("GOAL", fonts.hint, p.x, p.y + 46, p.w, "center", DIM)
+        ui.text(tostring(run.goal), fonts.scoreBig, p.x, p.y + 60, p.w, "center", WHITE, true)
 
-    -- Round score with a bar filling up to the goal.
-    ui.text("ROUND SCORE  " .. run.roundScore, fonts.small, p.x, p.y + 116, p.w, "center", CREAM)
-    local bar = util.rect(p.x + 24, p.y + 142, p.w - 48, 14)
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.rectangle("fill", bar.x, bar.y, bar.w, bar.h, 7, 7)
-    local fill = math.min(1, run.roundScore / run.goal)
-    if fill > 0 then
-        love.graphics.setColor(fill >= 1 and GREEN or GOLD)
-        love.graphics.rectangle("fill", bar.x, bar.y, bar.w * fill, bar.h, 7, 7)
+        -- Round score with a bar filling up to the goal.
+        ui.text("ROUND SCORE  " .. run.roundScore, fonts.small, p.x, p.y + 116, p.w, "center", CREAM)
+        local bar = util.rect(p.x + 24, p.y + 142, p.w - 48, 14)
+        love.graphics.setColor(0, 0, 0, 0.5)
+        love.graphics.rectangle("fill", bar.x, bar.y, bar.w, bar.h, 7, 7)
+        local fill = math.min(1, run.roundScore / run.goal)
+        if fill > 0 then
+            love.graphics.setColor(fill >= 1 and GREEN or GOLD)
+            love.graphics.rectangle("fill", bar.x, bar.y, bar.w * fill, bar.h, 7, 7)
+        end
     end
 
     local w = (p.w - 56) / 3
@@ -348,7 +369,9 @@ local function drawScoreboard(run)
     -- The buttons.
     local busy = pipsview.isRolling()
     if run.state == "scored" then
-        ui.glossyButton(pipslayout.nextButton(), "NEXT", { 0.10, 0.65, 0.25 }, true)
+        ui.glossyButton(pipslayout.nextButton(), run.josh and "JOSH'S TURN" or "NEXT", { 0.10, 0.65, 0.25 }, true)
+    elseif run.state == "joshTurn" then
+        ui.glossyButton(pipslayout.nextButton(), "NEXT", { 0.10, 0.65, 0.25 }, pipsview.joshDone())
     else
         local anyFree = false
         for i = 1, #run.dice do if not run.held[i] then anyFree = true end end
@@ -413,7 +436,16 @@ local function drawPerkyRack(run)
                 love.graphics.setColor(1, 0.85, 0.3, 0.5)
                 love.graphics.rectangle("fill", r.x - 6, r.y - 6, r.w + 12, r.h + 12, 14, 14)
             end
-            pipsdraw.perkyCard(r, held.id, held, false)
+            pipsdraw.perkyCard(r, held.id, held, held.disabled)
+            if held.disabled then
+                -- Pit Boss Josh switched this one off for the duel.
+                love.graphics.setColor(0.9, 0.1, 0.1, 0.85)
+                love.graphics.setLineWidth(5)
+                love.graphics.line(r.x + 10, r.y + 10, r.x + r.w - 10, r.y + r.h - 10)
+                love.graphics.line(r.x + r.w - 10, r.y + 10, r.x + 10, r.y + r.h - 10)
+                love.graphics.setLineWidth(1)
+                ui.text("SWITCHED OFF", fonts.hint, r.x, r.y + r.h - 24, r.w, "center", RED, true)
+            end
         else
             love.graphics.setColor(1, 1, 1, 0.12)
             love.graphics.setLineWidth(2)
@@ -454,14 +486,16 @@ local function drawDiceRow(run)
             love.graphics.setLineWidth(2)
             love.graphics.rectangle("line", r.x, r.y, r.w, r.h, r.w * 0.18, r.w * 0.18)
             love.graphics.setLineWidth(1)
-            ui.text("EMPTY", fonts.hint, r.x - 6, r.y + r.h / 2 - 7, r.w + 12, "center", { 1, 1, 1, 0.3 })
+            local stolen = run.boss and run.boss.stolen and i == #run.dice + 1
+            ui.text(stolen and "STOLEN!" or "EMPTY", fonts.hint, r.x - 6, r.y + r.h / 2 - 7, r.w + 12, "center",
+                stolen and RED or { 1, 1, 1, 0.3 })
         end
     end
     local hint
     if run.state == "choose" then
         hint = ui.touchMode and "TAP DICE TO HOLD THEM, THEN REROLL THE REST - OR SCORE"
             or "CLICK DICE (OR 1-9, 0) TO HOLD,  R = REROLL,  ENTER = SCORE"
-    elseif run.state == "scored" then
+    elseif run.state == "scored" or (run.state == "joshTurn" and pipsview.joshDone()) then
         hint = ui.touchMode and "TAP NEXT" or "ENTER = NEXT"
     end
     if hint then
@@ -498,6 +532,100 @@ local function drawBets(run)
     end
 end
 
+-- During a boss round: the boss's picture and trick between the Perkys and
+-- your dice. During the Josh duel: Josh and HIS dice, playing his turn.
+local function drawBossStrip(run)
+    local s = pipslayout.bossStrip()
+    local b = bosses.get(run.boss.id)
+    love.graphics.setColor(0.25, 0.02, 0.04, 0.75)
+    love.graphics.rectangle("fill", s.x, s.y, s.w, s.h, 10, 10)
+    love.graphics.setColor(RED)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", s.x, s.y, s.w, s.h, 10, 10)
+    love.graphics.setLineWidth(1)
+    bossart.draw(b, s.x + 12, s.y + 8, 3, 1)
+    if not run.josh then
+        ui.text(b.name, fonts.heading, s.x + 70, s.y + 14, s.w - 80, "left", RED, true)
+        local trick = bosses.TRICK_BY_ID[run.boss.trick]
+        ui.text(trick.about, fonts.small, s.x + 70, s.y + 44, s.w - 80, "left", CREAM)
+        return
+    end
+    local josh = run.josh
+    for i, die in ipairs(josh.dice) do
+        local r = pipslayout.joshDieRect(i, #josh.dice)
+        local face, flicker, held = pipsview.joshFace(i)
+        if face then
+            local lit = flicker and (0.6 + 0.4 * math.sin(pipsview.time * 40)) or (held and 0.8 or 0)
+            pipsdraw.die(die, face, r.x, r.y, r.w, lit)
+        else
+            love.graphics.setColor(1, 1, 1, 0.15)
+            love.graphics.rectangle("line", r.x, r.y, r.w, r.h, 8, 8)
+        end
+    end
+    local text
+    if josh.lastResult and pipsview.joshDone() then
+        text = "JOSH SCORED " .. josh.lastResult.total .. "  (" .. josh.lastResult.hand.name .. ")"
+    elseif josh.steps then
+        text = "JOSH IS ROLLING..."
+    else
+        text = "PIT BOSS JOSH - waiting for your first set"
+    end
+    ui.text(text, fonts.hint, s.x + 70, s.y + s.h - 20, s.w - 80, "center", GOLD, true)
+end
+
+-- "OH NO.... A STRANGE FIGURE APPEARS..." - the boss's entrance.
+local function drawBossIntro(run)
+    local W, H = love.graphics.getWidth(), love.graphics.getHeight()
+    local t = pipsview.introClock
+    love.graphics.setColor(0.04, 0.0, 0.02)
+    love.graphics.rectangle("fill", 0, 0, W, H)
+    -- A slow red pulse round the edges.
+    local pulse = 0.5 + 0.5 * math.sin(t * 3)
+    for i = 0, 30 do
+        love.graphics.setColor(0.6, 0.0, 0.05, (0.02 + 0.02 * pulse) * (30 - i) / 30 * 3)
+        love.graphics.setLineWidth(8)
+        love.graphics.rectangle("line", i * 8, i * 8, W - i * 16, H - i * 16)
+    end
+    love.graphics.setLineWidth(1)
+
+    -- The words appear one letter at a time.
+    local words = "OH NO.... A STRANGE FIGURE APPEARS..."
+    local shown = words:sub(1, math.min(#words, math.floor(t * 18)))
+    ui.text(shown, fonts.title, 40, 50, W - 80, "center", RED, true)
+
+    local b = bosses.get(run.boss.id)
+    if t < 2.2 then return end
+    local scale = math.max(6, math.floor(math.min(W, H) / 70))
+    local bw, bh = bossart.size(b, scale)
+    local alpha = math.min(1, (t - 2.2) / 0.6)
+    local bx, by = W / 2 - bw - 60, 150
+    bossart.draw(b, bx, by, scale, alpha)
+
+    if t < 2.8 then return end
+    local x, w = W / 2 - 20, math.min(560, W / 2 - 40)
+    ui.text(b.name, fonts.title, x, 170, w, "left", run.boss.josh and GOLD or RED, true)
+    -- A speech bubble with what they say.
+    local bubble = util.rect(x, 240, w, 150)
+    love.graphics.setColor(1, 1, 1, 0.95)
+    love.graphics.rectangle("fill", bubble.x, bubble.y, bubble.w, bubble.h, 16, 16)
+    love.graphics.polygon("fill", bubble.x, bubble.y + 50, bubble.x - 26, bubble.y + 70, bubble.x, bubble.y + 80)
+    love.graphics.setFont(fonts.text)
+    love.graphics.setColor(0.1, 0.05, 0.05)
+    love.graphics.printf('"' .. run.boss.line .. '"', bubble.x + 20, bubble.y + 22, bubble.w - 40, "left")
+    -- What the boss does.
+    local about = run.boss.josh and bosses.JOSH_ABOUT or bosses.TRICK_BY_ID[run.boss.trick].about
+    wrapped(about, fonts.small, x, 410, w, GOLD, "left")
+    if run.boss.josh then
+        wrapped("Beat him and you beat the game - then ENDLESS awaits.", fonts.small, x, 470, w, CREAM, "left")
+    end
+
+    if t < 3.2 then return end
+    ui.glossyButton(pipslayout.fightButton(), "FIGHT!", { 0.85, 0.10, 0.12 }, true)
+    if not ui.touchMode then
+        ui.text("ENTER = FIGHT", fonts.hint, 0, H - 44, W, "center", { 1, 0.9, 0.3, 0.8 })
+    end
+end
+
 -- The ROUND WON / GAME OVER / VICTORY window.
 local function drawPopup(run)
     local W, H = love.graphics.getWidth(), love.graphics.getHeight()
@@ -506,8 +634,18 @@ local function drawPopup(run)
     local p = pipslayout.popup()
     ui.vegasWindow(p, nil)
     ui.bulbBorder({ x = p.x - 10, y = p.y - 10, w = p.w + 20, h = p.h + 20 }, 26, 5, 6)
-    if run.state == "roundWon" or run.state == "victory" then
-        local title = run.state == "victory" and "YOU BEAT THE HOUSE!" or "ROUND WON!"
+    if run.state == "victory" then
+        ui.text("YOU BEAT", fonts.title, p.x, p.y + 20, p.w, "center", GREEN, true)
+        ui.text("PIT BOSS JOSH!", fonts.title, p.x, p.y + 72, p.w, "center", GOLD, true)
+        ui.text("You " .. run.roundScore .. "  vs  Josh " .. run.josh.total, fonts.text, p.x, p.y + 146, p.w,
+            "center", CREAM)
+        wrapped("You beat the game! Keep going in ENDLESS: the goals climb x3 a level, "
+            .. "and faster every level after.", fonts.small, p.x + 40, p.y + 196, p.w - 80, CREAM)
+        ui.glossyButton(pipslayout.popupButton(1, 3), "ENDLESS", { 0.85, 0.10, 0.12 }, true)
+        ui.glossyButton(pipslayout.popupButton(2, 3), "AGAIN", { 0.10, 0.65, 0.25 }, true)
+        ui.glossyButton(pipslayout.popupButton(3, 3), "MENU", { 0.45, 0.45, 0.52 }, true)
+    elseif run.state == "roundWon" then
+        local title = run.boss and "BOSS BEATEN!" or "ROUND WON!"
         ui.text(title, fonts.title, p.x, p.y + 24, p.w, "center", GREEN, true)
         ui.text("Scored " .. run.roundScore .. " of " .. run.goal, fonts.text, p.x, p.y + 90, p.w, "center", CREAM)
         local pay = run.payout
@@ -524,15 +662,18 @@ local function drawPopup(run)
             y = y + 30
         end
         ui.text("COINS  +" .. pay.total, fonts.heading, p.x, y + 10, p.w, "center", GOLD, true)
-        if run.state == "victory" then
-            ui.glossyButton(pipslayout.popupButton(1, 2), "AGAIN", { 0.10, 0.65, 0.25 }, true)
-            ui.glossyButton(pipslayout.popupButton(2, 2), "MENU", { 0.45, 0.45, 0.52 }, true)
-        else
-            ui.glossyButton(pipslayout.popupButton(1, 1), "TO THE SHOP", { 0.10, 0.65, 0.25 }, true)
-        end
+        ui.glossyButton(pipslayout.popupButton(1, 1), "TO THE SHOP", { 0.10, 0.65, 0.25 }, true)
     else
         ui.text("GAME OVER", fonts.title, p.x, p.y + 24, p.w, "center", RED, true)
-        ui.text("Out of sets: " .. run.roundScore .. " of " .. run.goal, fonts.text, p.x, p.y + 100, p.w, "center", CREAM)
+        if run.josh then
+            ui.text("PIT BOSS JOSH WINS: you " .. run.roundScore .. " vs Josh " .. run.josh.total, fonts.text,
+                p.x + 10, p.y + 100, p.w - 20, "center", CREAM)
+        elseif run.boss then
+            ui.text(bosses.get(run.boss.id).name .. " beat you: " .. run.roundScore .. " of " .. run.goal,
+                fonts.text, p.x + 10, p.y + 100, p.w - 20, "center", CREAM)
+        else
+            ui.text("Out of sets: " .. run.roundScore .. " of " .. run.goal, fonts.text, p.x, p.y + 100, p.w, "center", CREAM)
+        end
         ui.text("Reached level " .. run.level .. ", round " .. run.round, fonts.text, p.x, p.y + 140, p.w, "center", CREAM)
         ui.text("Best set: " .. run.best, fonts.text, p.x, p.y + 180, p.w, "center", GOLD)
         ui.glossyButton(pipslayout.popupButton(1, 2), "AGAIN", { 0.10, 0.65, 0.25 }, true)
@@ -541,6 +682,10 @@ local function drawPopup(run)
 end
 
 local function drawPlay(run)
+    if run.state == "bossIntro" then
+        drawBossIntro(run)
+        return
+    end
     drawFelt()
     local hand = nil
     if run.state == "scored" and run.lastResult then
@@ -552,6 +697,7 @@ local function drawPlay(run)
     drawScoreboard(run)
     drawSetsList(run, hand)
     drawPerkyRack(run)
+    if run.boss then drawBossStrip(run) end
     drawDiceRow(run)
     drawBets(run)
     if run.state == "roundWon" or run.state == "gameOver" or run.state == "victory" then
@@ -772,8 +918,10 @@ local function drawShop(run)
     ui.bulbBorder(sign, 26, 5, 6)
     ui.text("PERKY SHOP", fonts.title, sign.x, sign.y + 2, sign.w, "center", GOLD, true)
     ui.text("COINS  " .. run.coins, fonts.button, 30, 30, 300, "left", GOLD, true)
-    ui.text("NEXT: LEVEL " .. (run.round == P.ROUNDS and run.level + 1 or run.level) .. "  ROUND "
-        .. (run.round % P.ROUNDS + 1), fonts.hint, 30, 66, 360, "left", CREAM)
+    local nextText = "NEXT: LEVEL " .. (run.round == P.ROUNDS and run.level + 1 or run.level) .. "  ROUND "
+        .. (run.round % P.ROUNDS + 1)
+    if run.pendingBoss then nextText = "NEXT: A BOSS!" end
+    ui.text(nextText, fonts.hint, 30, 66, 360, "left", run.pendingBoss and RED or CREAM)
 
     drawForSale(run)
     drawMachine(run)
@@ -782,7 +930,8 @@ local function drawShop(run)
     drawAugments(run)
     if run.shop.pack then drawPack(run) end
 
-    ui.glossyButton(pipslayout.continueButton(), "NEXT ROUND", { 0.10, 0.65, 0.25 }, not run.shop.pack)
+    ui.glossyButton(pipslayout.continueButton(), run.pendingBoss and "FACE THE BOSS" or "NEXT ROUND",
+        run.pendingBoss and { 0.85, 0.10, 0.12 } or { 0.10, 0.65, 0.25 }, not run.shop.pack)
     local sign2 = pipslayout.shopSign()
     ui.text(run.shop.message or "", fonts.small, 0, sign2.y + sign2.h + 6, love.graphics.getWidth(), "center", CREAM)
 end

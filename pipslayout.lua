@@ -130,6 +130,29 @@ function pipslayout.menuButton()
     return rect(p.x + 18, p.y + p.h - 66, p.w - 36, 44)
 end
 
+-- The strip between the Perkys and your dice: the boss (or Pit Boss Josh
+-- and his dice) during a boss round.
+function pipslayout.bossStrip()
+    local m = pipslayout.middle()
+    return rect(m.x + 10, m.y + 214, m.w - 20, 84)
+end
+
+-- Josh's dice, in a row in the boss strip (right of his picture).
+function pipslayout.joshDieRect(i, count)
+    local s = pipslayout.bossStrip()
+    local left = s.x + 70
+    local size = math.min(54, math.floor((s.w - 80) / count - 8))
+    local gap = 8
+    local total = count * size + (count - 1) * gap
+    return rect(left + (s.w - 70 - total) / 2 + (i - 1) * (size + gap), s.y + 4, size, size)
+end
+
+-- FIGHT on the boss screen.
+function pipslayout.fightButton()
+    local W, H = size()
+    return rect((W - 300) / 2, H - 120, 300, 66)
+end
+
 -- The window in the middle for ROUND WON / GAME OVER / VICTORY.
 function pipslayout.popup()
     local W, H = size()

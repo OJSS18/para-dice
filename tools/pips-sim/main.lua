@@ -11,11 +11,15 @@ function love.load(args)
     for k, v in (os.getenv("SET") or ""):gmatch("([%w_]+)=([%d%.]+)") do config.PIPS[k] = tonumber(v) end
     local bot = require("bot")
     local perkys = require("perkys")
-    local wins, levels, reached = 0, 0, {}
+    local wins, levels, reached, bossDeaths = 0, 0, {}, {}
     local start = os.clock()
     for g = 1, N do
         local run = bot.play(seed + g - 1)
         local won = run.state == "victory"
+        if run.boss and not won then
+            local key = run.boss.josh and "josh" or "boss"
+            bossDeaths[key] = (bossDeaths[key] or 0) + 1
+        end
         if won then wins = wins + 1 end
         levels = levels + run.level
         reached[run.level] = (reached[run.level] or 0) + 1
@@ -24,17 +28,20 @@ function love.load(args)
             for _, h in ipairs(run.perkys) do table.insert(names, perkys.get(h.id).name) end
             local dice = {}
             for _, d in ipairs(run.dice) do table.insert(dice, d.kind) end
-            print(string.format("game %2d: %s level %d round %d  best set %d  coins %d  dice[%s]  perkys[%s]",
-                g, won and "WON " or "lost", run.level, run.round, run.best, run.coins,
+            local where = run.boss and (" BOSS " .. run.boss.id .. (run.boss.trick and ("/" .. run.boss.trick) or "")) or ""
+            local duel = run.josh and string.format(" you %d vs josh %d", run.roundScore, run.josh.total) or ""
+            print(string.format("game %2d: %s level %d round %d%s%s  best set %d  coins %d  dice[%s]  perkys[%s]",
+                g, won and "WON " or "lost", run.level, run.round, where, duel, run.best, run.coins,
                 table.concat(dice, ","), table.concat(names, ", ")))
         end
     end
-    print(string.format("PIPS: %d games, growth x%.2f: won %d (%.0f%%), average level %.1f  (%.1fs)",
-        N, config.PIPS.GOAL_GROWTH, wins, 100 * wins / N, levels / N, os.clock() - start))
+    print(string.format("PIPS: %d games, growth x%.2f +%.2f/level, first goal %d: won %d (%.0f%%), average level %.1f  (%.1fs)",
+        N, config.PIPS.GOAL_GROWTH, config.PIPS.GOAL_STEP, config.PIPS.FIRST_GOAL, wins, 100 * wins / N, levels / N, os.clock() - start))
     local parts = {}
     for l = 1, config.PIPS.MAX_LEVEL do
         if reached[l] then table.insert(parts, "L" .. l .. ":" .. reached[l]) end
     end
     print("ended on level: " .. table.concat(parts, "  "))
+    print(string.format("lost to a boss: %d   lost to Pit Boss Josh: %d", bossDeaths.boss or 0, bossDeaths.josh or 0))
     love.event.quit()
 end

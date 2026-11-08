@@ -90,7 +90,7 @@ local function playSet(run)
     while run.state == "choose" do
         local now = scoreOf(run, run.values)
         -- Already enough to win the round? Score it and keep the rerolls (coins).
-        if run.roundScore + now >= run.goal or run.rerollsLeft == 0 then break end
+        if (run.goal and run.roundScore + now >= run.goal) or run.rerollsLeft == 0 then break end
         local bestHold, bestValue = nil, -1
         for _, hold in ipairs(candidates(run)) do
             local all = true
@@ -289,6 +289,8 @@ function bot.play(seed)
         if s == "choose" then playSet(run)
         elseif s == "scored" then pipsgame.act("next")
         elseif s == "roundWon" then pipsgame.act("toShop")
+        elseif s == "bossIntro" then pipsgame.act("fight")
+        elseif s == "joshTurn" then pipsgame.act("next")
         elseif s == "shop" then shopVisit(run)
         else break end
     end

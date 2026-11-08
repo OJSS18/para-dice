@@ -62,6 +62,9 @@
 --   pipsscore.lua - scoring: POINTS x MULT, with Perkys and craps bets
 --   perkys.lua    - PERKYS, the cards you buy that change scoring
 --   augments.lua  - DICE AUGMENTS (a face scores more points) and SET AUGMENTS (a set gets more mult)
+--   bosses.lua    - the BOSSES: who, when, their lines and dirty tricks; PIT BOSS JOSH
+--   pitboss.lua   - Pit Boss Josh's brain (how he plays his sets against you)
+--   bossart.lua   - DRAWING the bosses as 16-bit pixel pictures
 --   pipsshop.lua  - its shop: 2 items, the pack slot machine, packs, selling
 --   pipsview.lua  - looks only: the electronic dice roll and spinning reels
 --   pipslayout.lua- WHERE everything is on its screens

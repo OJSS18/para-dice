@@ -23,14 +23,24 @@ local function clickPlay(run, x, y)
         if inside(x, y, pipslayout.popupButton(1, 1)) then return "toShop" end
         return nil
     end
-    if s == "gameOver" or s == "victory" then
+    if s == "victory" then
+        if inside(x, y, pipslayout.popupButton(1, 3)) then return "endless" end
+        if inside(x, y, pipslayout.popupButton(2, 3)) then return "again" end
+        if inside(x, y, pipslayout.popupButton(3, 3)) then return "menu" end
+        return nil
+    end
+    if s == "gameOver" then
         if inside(x, y, pipslayout.popupButton(1, 2)) then return "again" end
         if inside(x, y, pipslayout.popupButton(2, 2)) then return "menu" end
         return nil
     end
+    if s == "bossIntro" then
+        if inside(x, y, pipslayout.fightButton()) then return "fight" end
+        return nil
+    end
     if inside(x, y, pipslayout.menuButton()) then return "leave" end
     if pipsview.isRolling() then return nil end   -- wait for the dice to stop
-    if s == "scored" then
+    if s == "scored" or (s == "joshTurn" and pipsview.joshDone()) then
         if inside(x, y, pipslayout.nextButton()) then return "next" end
         return nil
     end
@@ -116,8 +126,14 @@ function pipsinput.key(key)
     local s = run.state
     if s == "roundWon" then
         if enter or key == "space" then return "toShop" end
-    elseif s == "gameOver" or s == "victory" then
+    elseif s == "gameOver" then
         if enter then return "again" elseif key == "m" then return "menu" end
+    elseif s == "victory" then
+        if enter then return "endless" elseif key == "m" then return "menu" end
+    elseif s == "bossIntro" then
+        if enter or key == "space" then return "fight" end
+    elseif s == "joshTurn" then
+        if (enter or key == "space") and pipsview.joshDone() then return "next" end
     elseif s == "shop" then
         if pipsview.isSpinning() then return nil end
         if enter and not run.shop.pack then return "continue" end

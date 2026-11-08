@@ -63,7 +63,7 @@ function pipsscore.score(run, values, preview)
     local xmult = 1
     for _, held in ipairs(run.perkys) do
         local p = perkys.get(held.id)
-        if p.effect then
+        if p.effect and not held.disabled then   -- (Pit Boss Josh can switch one off)
             -- A preview works on a copy, so a growing Perky doesn't really grow.
             local target = held
             if preview then target = { id = held.id, gained = held.gained } end

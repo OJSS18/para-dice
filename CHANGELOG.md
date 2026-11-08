@@ -15,7 +15,7 @@ The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right 
   - Start with 3 dice. Dice slots open at levels 2, 3, 5, 6, 8, 9, 10 and 11 (you buy the
     dice), and each new slot unlocks new sets - up to Eleven of a Kind, Two Fives, Triple
     Ladder (222 333 444) and Straight of 10. 29 sets in all.
-  - 12 levels of 3 rounds. Level 1's goals are 60, 120, 180, then x2 each level. Each
+  - 12 levels of 3 rounds. Level 1's goals are 60, 120, 180, each level's goals x1.7, growing +0.06 more every level (x2.3 by level 12). Each
     round has 5 sets and 5 rerolls shared between them. Winning pays 3 coins, +1 per
     reroll left and +2 per set left.
   - PERKYS (up to 5): 143 of them. For each face 1-6: "Ones Up" (+1 mult per 1), "Ones
@@ -28,6 +28,15 @@ The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right 
     roll that total for x2 MULT) or Dungeon Dice (D7 to D20) - and you open one.
   - Dice are drawn by code: any of 10 colours for the die and for its pips, with faces up
     to 10. Rolls are electronic: the dice flicker through faces and stop one by one.
+  - BOSSES: after one random level of 2-3, one of 5-7 and one of 8-10, a boss round
+    follows the shop: "OH NO.... A STRANGE FIGURE APPEARS..." and a 16-bit Diceman Caleb,
+    Diceman Chandler, Dicewoman Morgan or Diceman Evan says something corny. Each boss pulls
+    one random trick: steals a reroll, steals a set, steals a die once half your sets are
+    gone, or raises the goal to 1.5x the last goal.
+  - PIT BOSS JOSH (in a suit) after level 12: he copies your whole run, switches off one
+    random Perky on each side and plays his own sets against yours, 1 on 1, with the same
+    brain as the strategy bot. Highest total wins; the house wins ties. Beating him wins the
+    game and opens ENDLESS (goals x3 for level 13, then +0.5 more every level).
   - Not on the leaderboard or in stats yet.
   - GOD MODE (testing): the first ` asks if you're sure (the run can't go on the
     leaderboard); ` again turns it on. Then every ` jumps to the next shop (winning the

@@ -122,10 +122,16 @@ config.PIPS = {
     ROUNDS        = 3,        -- rounds in each level (the shop opens after each)
     SETS          = 5,        -- sets (scored rolls) you get each round
     REROLLS       = 5,        -- rerolls each round, shared by all its sets
-    -- Goals: level 1's rounds need 60, 120, 180. Each level's goals are
-    -- GOAL_GROWTH times the level before's.
+    -- Goals: level 1's rounds need 60, 120, 180. Level 2's goals are
+    -- GOAL_GROWTH times level 1's, and each level after grows GOAL_STEP more:
+    -- x1.70, x1.76, x1.82 ... x2.30 for level 12. (Picked with 100-game runs of
+    -- tools/pips-sim: a strong bot wins about a third of its runs.)
     FIRST_GOAL    = 60,
-    GOAL_GROWTH   = 2.0,      -- (tested with tools/pips-sim: a strong bot wins about half its runs)
+    GOAL_GROWTH   = 1.7,
+    GOAL_STEP     = 0.06,
+    -- ENDLESS (after beating Pit Boss Josh): goals x3 for level 13, then +0.5 more each level.
+    ENDLESS_GROWTH = 3.0,
+    ENDLESS_STEP   = 0.5,
     -- Coins for winning a round: a few for winning, then +1 for each
     -- reroll left over and +2 for each set left over.
     WIN_COINS     = 3,
