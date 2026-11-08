@@ -501,6 +501,10 @@ function love.keypressed(key)
     end
 
     -- Escape during a PIPS run: the same, press it twice to leave.
+    if screen == "pips" and key == "escape" and pipsview.godPrompt then
+        pipsview.godPrompt = false   -- Escape answers "no" to the god mode question
+        return
+    end
     if screen == "pips" and key == "escape" and not (showOdds or showControls) then
         if not pipsgame.active then toMenu() else pipsDo("leave") end
         return

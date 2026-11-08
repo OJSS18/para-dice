@@ -29,6 +29,9 @@ The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right 
   - Dice are drawn by code: any of 10 colours for the die and for its pips, with faces up
     to 10. Rolls are electronic: the dice flicker through faces and stop one by one.
   - Not on the leaderboard or in stats yet.
+  - GOD MODE (testing): the first ` asks if you're sure (the run can't go on the
+    leaderboard); ` again turns it on. Then every ` jumps to the next shop (winning the
+    round) and fills every empty dice slot with a white die.
 - New tool: `bash tools/pips-sim/run.sh [games] [seed]` plays PIPS with a strategy bot.
 - Fixed the regression checker (`tools/regress/compare.py`): it never noticed pixel changes,
   because newer Pillow only looks at the alpha channel of RGBA images. It compares RGB now.

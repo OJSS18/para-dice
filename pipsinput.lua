@@ -81,6 +81,15 @@ end
 function pipsinput.click(x, y)
     local run = pipsgame.run
     if not run then return nil end
+    -- The god mode question: YES turns it on (and jumps ahead), NO closes it.
+    if pipsview.godPrompt then
+        if inside(x, y, pipslayout.popupButton(1, 2)) then
+            pipsview.godPrompt = false
+            return "god"
+        end
+        if inside(x, y, pipslayout.popupButton(2, 2)) then pipsview.godPrompt = false end
+        return nil
+    end
     if run.state == "shop" then return clickShop(run, x, y) end
     return clickPlay(run, x, y)
 end
@@ -90,7 +99,20 @@ function pipsinput.key(key)
     local run = pipsgame.run
     if not run then return nil end
     local enter = key == "return" or key == "kpenter"
-    if key == "`" and config.GOD_MODE_ENABLED then return "god" end
+    -- GOD MODE: the first ` asks "are you sure?"; pressing ` again says
+    -- yes. Once it's on, every ` jumps straight to the next shop.
+    if key == "`" and config.GOD_MODE_ENABLED then
+        if pipsgame.unranked or pipsview.godPrompt then
+            pipsview.godPrompt = false
+            return "god"
+        end
+        pipsview.godPrompt = true
+        return nil
+    end
+    if pipsview.godPrompt then
+        pipsview.godPrompt = false   -- any other key means no
+        return nil
+    end
     local s = run.state
     if s == "roundWon" then
         if enter or key == "space" then return "toShop" end

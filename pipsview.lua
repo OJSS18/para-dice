@@ -27,10 +27,13 @@ local flickClock = 0
 local seenSpins, seenRun = nil, nil
 pipsview.spinClock = 99   -- seconds since the reels started spinning
 pipsview.time = 0         -- seconds since the run started (for glows and pulses)
+-- The "turn on god mode?" question is showing (the first ` press asks it).
+pipsview.godPrompt = false
 
 function pipsview.reset()
     seenRoll, seenSpins, seenRun = nil, nil, nil
     rollClock, pipsview.spinClock = 99, 99
+    pipsview.godPrompt = false
 end
 
 -- When does die i stop flickering? (Counted only among dice that rolled.)

@@ -251,19 +251,38 @@ function ACTIONS.continue(run)
     return true
 end
 
--- GOD MODE (testing): win the round, or +20 coins in the shop.
+-- GOD MODE (testing). Each use jumps to the NEXT shop:
+--   * during a round - win it (with its normal coins) and open the shop
+--   * on ROUND WON    - open the shop
+--   * in the shop     - play past the next round (winning it) to the shop after
+-- and fills every empty dice slot with a white die. The run is marked as
+-- god mode (pipsgame.unranked), so it can't go on the leaderboard.
+-- (main.lua / pipsinput.lua ask "are you sure?" before the first use.)
 function ACTIONS.god(run)
     if not config.GOD_MODE_ENABLED then return false end
-    pipsgame.unranked = true
-    if run.state == "choose" or run.state == "scored" then
-        run.roundScore = math.max(run.roundScore, run.goal)
-        winRound(run)
-    elseif run.state == "shop" then
-        run.coins = run.coins + 20
-        run.shop.message = "God mode: +20 coins."
-    else
-        return false
+    local s = run.state
+    if s == "shop" then
+        run.shop.pack = nil          -- close any open pack...
+        ACTIONS.continue(run)        -- ...and start the next round (maybe a new level)
+        s = run.state
     end
+    if s == "choose" or s == "scored" then
+        run.roundScore = math.max(run.roundScore, run.goal)
+        winRound(run)                -- (on the last round of the run, this is victory)
+        s = run.state
+    end
+    if s == "roundWon" then
+        pipsshop.open(run)
+        run.state = "shop"
+    elseif s ~= "victory" then
+        return false                 -- game over: nothing to do
+    end
+    pipsgame.unranked = true
+    -- Fill the empty slots with white dice.
+    while #run.dice < run.slots do
+        table.insert(run.dice, pipsdice.starter())
+    end
+    if run.state == "shop" then run.shop.message = "God mode: on to the shop, dice slots filled." end
     return true
 end
 

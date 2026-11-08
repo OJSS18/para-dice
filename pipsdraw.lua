@@ -788,11 +788,34 @@ local function drawShop(run)
 end
 
 
+-- "Turn on god mode?" - shown after the first ` press.
+local function drawGodPrompt()
+    local W, H = love.graphics.getWidth(), love.graphics.getHeight()
+    love.graphics.setColor(0, 0, 0, 0.65)
+    love.graphics.rectangle("fill", 0, 0, W, H)
+    local p = pipslayout.popup()
+    ui.vegasWindow(p, nil)
+    ui.text("GOD MODE?", fonts.title, p.x, p.y + 24, p.w, "center", RED, true)
+    wrapped("This is a testing cheat. Turning it on marks this run as GOD MODE: it can never "
+        .. "go on the leaderboard or count toward your stats.\n\n"
+        .. "Once it's on, every ` jumps you to the next shop (winning the round) and fills "
+        .. "every empty dice slot with a white die.\n\n"
+        .. "Press ` again to turn it on, or Esc to cancel.",
+        fonts.small, p.x + 34, p.y + 96, p.w - 68, CREAM)
+    ui.glossyButton(pipslayout.popupButton(1, 2), "TURN ON", { 0.85, 0.10, 0.12 }, true)
+    ui.glossyButton(pipslayout.popupButton(2, 2), "CANCEL", { 0.45, 0.45, 0.52 }, true)
+end
+
 -- Draw whichever PIPS screen the run is on.
 function pipsdraw.screen()
     local run = pipsgame.run
     if not run then return end
     if run.state == "shop" then drawShop(run) else drawPlay(run) end
+    if pipsgame.unranked then
+        ui.text("GOD MODE - NOT RANKED", fonts.hint, 30, love.graphics.getHeight() - 20, 300, "left",
+            { 1, 0.35, 0.3, 0.8 })
+    end
+    if pipsview.godPrompt then drawGodPrompt() end
 end
 
 return pipsdraw
