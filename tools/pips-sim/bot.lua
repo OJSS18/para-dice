@@ -245,6 +245,13 @@ local function openPack(run)
 end
 
 local function shopVisit(run)
+    -- VIP upgrades change the whole run: buy one when it's affordable - but
+    -- not on level 1, where the first coins are better spent on Perkys.
+    local vips = require("vips")
+    if run.level >= 2 and run.vipOffer and not run.vipOffer.sold
+        and run.coins >= vips.get(run.vipOffer.id).price then
+        pipsgame.act("buyVip")
+    end
     for _ = 1, 30 do   -- (a safety limit)
         local base = value(run)
         -- 1. The best main item for its price.
@@ -276,6 +283,13 @@ local function shopVisit(run)
         else
             break
         end
+    end
+    -- (For the stats: are all the Perky slots filled after this shop?)
+    run.stats = run.stats or { shops = 0, fullShops = 0, firstFull = nil }
+    run.stats.shops = run.stats.shops + 1
+    if #run.perkys >= pipsshop.maxPerkys(run) then
+        run.stats.fullShops = run.stats.fullShops + 1
+        run.stats.firstFull = run.stats.firstFull or run.level
     end
     pipsgame.act("continue")
 end

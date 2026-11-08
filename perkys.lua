@@ -189,6 +189,12 @@ add({ id = "extraRoll", name = "Second Wind", rarity = "uncommon", family = "sol
       about = "+1 reroll every round.", extraRerolls = 1 })
 add({ id = "extraSet", name = "Encore", rarity = "rare", family = "solo",
       about = "+1 set every round.", extraSets = 1 })
+-- COPY PERKYS: they do what another Perky does when you score (pipsscore.lua
+-- works out which one). They can't copy each other, or passive Perkys.
+add({ id = "copycat", name = "Copycat", rarity = "rare", family = "solo", copy = "left",
+      about = "Copies the Perky to its LEFT (whatever it does when you score)." })
+add({ id = "mimic", name = "Mimic", rarity = "uncommon", family = "solo", copy = "random",
+      about = "Copies a RANDOM other Perky - a new pick for every scored roll." })
 add({ id = "interest", name = "Interest", rarity = "uncommon", family = "solo",
       about = "When you win a round: +1 coin for every 5 coins you have (up to +5).",
       roundEnd = function(ctx) return math.min(5, math.floor(ctx.coins / 5)) end })
@@ -202,6 +208,13 @@ add({ id = "interest", name = "Interest", rarity = "uncommon", family = "solo",
 function perkys.isAvailable(p, slots)
     if p.family ~= "set" then return true end
     return pipshands.isUnlocked(pipshands.get(p.hand), slots)
+end
+
+-- Can held Perky 'held' be copied by a copy Perky? (Not if it's a copy
+-- Perky itself, switched off, or has nothing to do when you score.)
+function perkys.isCopyable(held)
+    local p = perkys.get(held.id)
+    return p.effect ~= nil and not p.copy and not held.disabled
 end
 
 -- What a Perky sells for: half its price, rounded down (at least 1).

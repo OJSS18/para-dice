@@ -74,8 +74,9 @@ local function clickShop(run, x, y)
         return nil
     end
     for k = 1, #run.shop.items do
-        if inside(x, y, pipslayout.itemCard(k)) then return "buy", k end
+        if inside(x, y, pipslayout.itemCard(k, #run.shop.items)) then return "buy", k end
     end
+    if run.vipOffer and not run.vipOffer.sold and inside(x, y, pipslayout.vipCard()) then return "buyVip" end
     if inside(x, y, pipslayout.shopRerollButton()) then return "shopReroll" end
     if inside(x, y, pipslayout.spinButton()) then return "spin" end
     if pipsshop.hasUntakenReels(run) then

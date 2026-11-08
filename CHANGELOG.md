@@ -2,6 +2,23 @@
 
 The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right corner of the screen.
 
+## v0.10.0 - 2026-11-08
+
+PIPS mode:
+- VIP UPGRADES (vips.lua): each level the shop offers one big buy for 15 coins that lasts
+  the whole run - Extra Set, Extra Reroll, Bigger Shop (+1 item for sale) or Extra Life (run
+  out of sets once without losing; not in a boss round). From level 7: Extra Set II and
+  Extra Reroll II. Rarely, the MYTHIC Sixth Seat (25 coins): a 6th Perky slot.
+- New Perkys: Copycat (rare) copies the Perky to its left; Mimic (uncommon) copies a random
+  other Perky, picked fresh for every scored roll.
+- Perkys cost more: common 5, uncommon 8, rare 12 (were 4 / 6 / 8).
+- Rounds have 4 sets and 4 rerolls (were 5 and 5), and each set left over pays +1 coin
+  (was +2).
+- New shop layout: FOR SALE fills the left half (main items, REROLL and the VIP upgrade).
+  The right half has the pack machine, YOUR DICE (sized for 10 dice), NEXT ROUND and a
+  smaller YOUR PERKYS - point at a Perky to read all of it. The AUGMENTS window is gone.
+- The strategy sim now reports how often the Perky slots are full.
+
 ## v0.9.0 - 2026-11-08
 
 - NEW GAME TYPE: **PIPS** (PLAY 4 on the play menu). A Balatro-style dice mode:
@@ -16,8 +33,8 @@ The version is in `config.lua` (`config.VERSION`) and shows in the bottom-right 
     dice), and each new slot unlocks new sets - up to Eleven of a Kind, Two Fives, Triple
     Ladder (222 333 444) and Straight of 10. 29 sets in all.
   - 12 levels of 3 rounds. Level 1's goals are 60, 120, 180, each level's goals x1.7, growing +0.06 more every level (x2.3 by level 12). Each
-    round has 5 sets and 5 rerolls shared between them. Winning pays 3 coins, +1 per
-    reroll left and +2 per set left.
+    round has 4 sets and 4 rerolls shared between them. Winning pays 3 coins, +1 per
+    reroll left and +1 per set left.
   - PERKYS (up to 5): 143 of them. For each face 1-6: "Ones Up" (+1 mult per 1), "Ones
     Collector" (grows +1 mult) and "Ones Banker" (+1 coin per 1). For each set: Power
     (+mult), Points (+points), Grower (grows) and Crown (x mult) - these only appear once

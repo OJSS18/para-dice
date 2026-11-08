@@ -13,12 +13,8 @@
 --   | buttons   |                               |          |
 --   +-----------+-------------------------------+----------+
 --
--- THE SHOP
---   +-----------+-----------------+--------------+
---   | FOR SALE  |  SLOT MACHINE   |  YOUR PERKYS |
---   +-----------+-----------------+              |
---   | YOUR DICE  |  AUGMENTS      |  NEXT ROUND  |
---   +-----------+-----------------+--------------+
+-- THE SHOP: FOR SALE on the left half; the pack machine, your dice, NEXT
+-- ROUND and your Perkys on the right half (picture further down).
 
 local util     = require("util")
 local config   = require("config")
@@ -59,10 +55,10 @@ function pipslayout.middle()
     return rect(x, p.y, s.x - GAP - x, p.h)
 end
 
--- Perky card k (1-5) along the top of the middle.
-function pipslayout.perkyCard(k)
+-- Perky card k of n (5, or 6 with the mythic VIP upgrade) along the top of the middle.
+function pipslayout.perkyCard(k, n)
     local m = pipslayout.middle()
-    local n = config.PIPS.MAX_PERKYS
+    n = n or config.PIPS.MAX_PERKYS
     local gap = 10
     local w = math.min(170, (m.w - 20 - (n - 1) * gap) / n)
     local total = n * w + (n - 1) * gap
@@ -167,97 +163,121 @@ end
 
 ---------------------------------------------------------------------------
 -- THE SHOP
+--   +-----------------------+----------------------+
+--   | FOR SALE              |  PACK MACHINE        |
+--   |  [item] [item] (item) |                      |
+--   |      REROLL           +-----------+----------+
+--   |  VIP UPGRADE          | YOUR DICE |  NEXT    |
+--   |  [card]  words        +-----------+----------+
+--   |                       | YOUR PERKYS (2 x 3)  |
+--   +-----------------------+----------------------+
 ---------------------------------------------------------------------------
 
 pipslayout.CARD_W = 170
 pipslayout.CARD_H = 236
+pipslayout.SHOP_DIE = 40      -- your dice in the shop (10 fit in the YOUR DICE window)
 
 function pipslayout.shopSign()
     local W = size()
     return rect((W - 420) / 2, 8, 420, 56)
 end
 
+-- FOR SALE takes the left half of the shop.
 function pipslayout.forSale()
-    return rect(MARGIN, 108, 2 * pipslayout.CARD_W + 12 + 32, 360)
+    local W, H = size()
+    return rect(MARGIN, 108, W / 2 - MARGIN - GAP / 2, H - 108 - MARGIN)
 end
 
-function pipslayout.itemCard(k)
+-- Main item k of 'count', in a row along the top of FOR SALE.
+function pipslayout.itemCard(k, count)
     local f = pipslayout.forSale()
-    return rect(f.x + 16 + (k - 1) * (pipslayout.CARD_W + 12), f.y + 26, pipslayout.CARD_W, pipslayout.CARD_H)
+    local w = math.min(pipslayout.CARD_W, (f.w - 32 - (count - 1) * 12) / count)
+    local total = count * w + (count - 1) * 12
+    return rect(f.x + (f.w - total) / 2 + (k - 1) * (w + 12), f.y + 30, w, pipslayout.CARD_H)
 end
 
 function pipslayout.shopRerollButton()
     local f = pipslayout.forSale()
-    return rect(f.x + 16, f.y + f.h - 72, f.w - 32, 54)
+    return rect(f.x + (f.w - 260) / 2, f.y + 30 + pipslayout.CARD_H + 14, 260, 50)
+end
+
+-- This level's VIP upgrade card (bottom-left of FOR SALE), with its words to the right.
+function pipslayout.vipCard()
+    local f = pipslayout.forSale()
+    local y = pipslayout.shopRerollButton().y + 50 + 40
+    return rect(f.x + 24, y, pipslayout.CARD_W, f.y + f.h - 16 - y)
+end
+
+-- The right half: the pack machine on top.
+local function rightSide()
+    local W = size()
+    local x = W / 2 + GAP / 2
+    return x, W - MARGIN - x
 end
 
 function pipslayout.machine()
-    local f = pipslayout.forSale()
-    return rect(f.x + f.w + GAP, f.y, 470, f.h)
+    local x, w = rightSide()
+    return rect(x, 108, w, 300)
 end
 
 function pipslayout.reel(k)
     local m = pipslayout.machine()
     local w, gap = 132, 14
     local total = 3 * w + 2 * gap
-    return rect(m.x + (m.w - total) / 2 + (k - 1) * (w + gap), m.y + 70, w, 160)
+    return rect(m.x + (m.w - total) / 2 + (k - 1) * (w + gap), m.y + 70, w, 130)
 end
 
 function pipslayout.spinButton()
     local m = pipslayout.machine()
-    return rect(m.x + 90, m.y + m.h - 72, m.w - 180, 54)
+    return rect(m.x + (m.w - 280) / 2, m.y + m.h - 60, 280, 48)
 end
 
-function pipslayout.perkyWindow()
-    local W, H = size()
-    local m = pipslayout.machine()
-    local x = m.x + m.w + GAP
-    return rect(x, 108, W - MARGIN - x, H - 108 - 110)
-end
-
-function pipslayout.perkyRow(k)
-    local p = pipslayout.perkyWindow()
-    local h = math.min(86, (p.h - 40) / config.PIPS.MAX_PERKYS - 6)
-    return rect(p.x + 12, p.y + 26 + (k - 1) * (h + 6), p.w - 24, h)
-end
-
-function pipslayout.sellButton(k)
-    local r = pipslayout.perkyRow(k)
-    return rect(r.x + r.w - 74, r.y + (r.h - 34) / 2, 66, 34)
-end
-
-function pipslayout.continueButton()
-    local W, H = size()
-    local p = pipslayout.perkyWindow()
-    return rect(p.x, H - MARGIN - 66, p.w, 66)
-end
-
+-- YOUR DICE: just wide enough for 10 dice.
 function pipslayout.diceWindow()
-    local _, H = size()
-    local f = pipslayout.forSale()
+    local x = rightSide()
     local m = pipslayout.machine()
-    local y = f.y + f.h + 26
-    return rect(f.x, y, (m.x + m.w - f.x) * 0.58, H - MARGIN - y)
+    return rect(x, m.y + m.h + 26, 10 * (pipslayout.SHOP_DIE + 6) + 30, 110)
 end
 
 function pipslayout.shopDie(i, slots)
     local w = pipslayout.diceWindow()
-    local s = math.min(64, (w.w - 30) / slots - 8)
-    return rect(w.x + 16 + (i - 1) * (s + 8), w.y + 34, s, s)
+    local s = math.min(pipslayout.SHOP_DIE, (w.w - 30) / slots - 6)
+    return rect(w.x + 15 + (i - 1) * (s + 6), w.y + 36, s, s)
 end
 
-function pipslayout.augWindow()
+-- NEXT ROUND, to the right of YOUR DICE.
+function pipslayout.continueButton()
+    local x, rw = rightSide()
     local d = pipslayout.diceWindow()
-    local m = pipslayout.machine()
-    local x = d.x + d.w + GAP
-    return rect(x, d.y, m.x + m.w - x, d.h)
+    return rect(d.x + d.w + 12, d.y, x + rw - (d.x + d.w + 12), d.h)
 end
 
--- The pack you opened covers FOR SALE and the slot machine.
+-- YOUR PERKYS: a small window at the bottom right, 2 columns of slots.
+function pipslayout.perkyWindow()
+    local _, H = size()
+    local x, w = rightSide()
+    local d = pipslayout.diceWindow()
+    local y = d.y + d.h + 26
+    return rect(x, y, w, H - MARGIN - y)
+end
+
+function pipslayout.perkyRow(k)
+    local p = pipslayout.perkyWindow()
+    local cw = (p.w - 24 - 8) / 2
+    local ch = (p.h - 34) / 3 - 4
+    local col = (k - 1) % 2
+    local row = math.floor((k - 1) / 2)
+    return rect(p.x + 12 + col * (cw + 8), p.y + 26 + row * (ch + 4), cw, ch)
+end
+
+function pipslayout.sellButton(k)
+    local r = pipslayout.perkyRow(k)
+    return rect(r.x + r.w - 58, r.y + (r.h - 30) / 2, 52, 30)
+end
+
+-- A pack you opened covers FOR SALE.
 function pipslayout.packWindow()
-    local f = pipslayout.forSale()
-    local m = pipslayout.machine()
-    return rect(f.x, f.y, m.x + m.w - f.x, f.h)
+    return pipslayout.forSale()
 end
 
 function pipslayout.packOption(k, count)
@@ -269,7 +289,7 @@ end
 
 function pipslayout.skipButton()
     local p = pipslayout.packWindow()
-    return rect(p.x + (p.w - 200) / 2, p.y + p.h - 68, 200, 52)
+    return rect(p.x + (p.w - 200) / 2, p.y + 40 + pipslayout.CARD_H + 24, 200, 52)
 end
 
 return pipslayout

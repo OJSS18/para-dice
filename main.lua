@@ -64,6 +64,7 @@
 --   augments.lua  - DICE AUGMENTS (a face scores more points) and SET AUGMENTS (a set gets more mult)
 --   bosses.lua    - the BOSSES: who, when, their lines and dirty tricks; PIT BOSS JOSH
 --   pitboss.lua   - Pit Boss Josh's brain (how he plays his sets against you)
+--   vips.lua      - VIP UPGRADES: one big buy a level (extra set, reroll, shop slot, life...)
 --   bossart.lua   - DRAWING the bosses as 16-bit pixel pictures
 --   pipsshop.lua  - its shop: 2 items, the pack slot machine, packs, selling
 --   pipsview.lua  - looks only: the electronic dice roll and spinning reels

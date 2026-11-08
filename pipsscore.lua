@@ -16,6 +16,7 @@ local pipshands = require("pipshands")
 local perkys    = require("perkys")
 local util      = require("util")
 local augments  = require("augments")
+local rng       = require("rng")
 
 local pipsscore = {}
 
@@ -31,6 +32,26 @@ function pipsscore.base(run, values)
         points = points + augments.facePoints(v, run.diceAug[v])
     end
     return points, mult, hand, pipTotal, counts
+end
+
+-- Which held Perky does copy Perky k copy? Gives back that Perky's table, or nil.
+--   "left"   - the one in the slot to its left
+--   "random" - a random other one, picked fresh every scored roll. (While
+--              only trying out a roll - 'preview' - it takes the first one,
+--              so trying things out never uses up the game's random numbers.)
+local function copyTarget(run, k, mode, preview)
+    if mode == "left" then
+        local left = run.perkys[k - 1]
+        if left and perkys.isCopyable(left) then return left end
+        return nil
+    end
+    local choices = {}
+    for j, held in ipairs(run.perkys) do
+        if j ~= k and perkys.isCopyable(held) then table.insert(choices, held) end
+    end
+    if #choices == 0 then return nil end
+    if preview then return choices[1] end
+    return choices[rng.random(#choices)]
 end
 
 -- Score a roll. Gives back a result table:
@@ -61,13 +82,33 @@ function pipsscore.score(run, values, preview)
     }
 
     local xmult = 1
-    for _, held in ipairs(run.perkys) do
+    for k, held in ipairs(run.perkys) do
         local p = perkys.get(held.id)
-        if p.effect and not held.disabled then   -- (Pit Boss Josh can switch one off)
+        local name = p.name
+        local out = nil
+        if held.disabled then
+            -- Pit Boss Josh switched this one off: it does nothing.
+        elseif p.copy then
+            -- A copy Perky does what its target does. (A growing Perky is
+            -- copied at its current size - the copy doesn't make it grow.)
+            local target = copyTarget(run, k, p.copy, preview)
+            if target then
+                local tp = perkys.get(target.id)
+                name = p.name .. " (as " .. tp.name .. ")"
+                if tp.grows then
+                    if target.gained > 0 then out = { mult = target.gained } end
+                else
+                    out = tp.effect(ctx, { id = target.id, gained = target.gained })
+                end
+            end
+        elseif p.effect then
             -- A preview works on a copy, so a growing Perky doesn't really grow.
             local target = held
             if preview then target = { id = held.id, gained = held.gained } end
-            local out = p.effect(ctx, target)
+            out = p.effect(ctx, target)
+        end
+        -- Add up what it gave.
+        do
             if out then
                 local words = {}
                 if out.points then points = points + out.points; table.insert(words, "+" .. out.points .. " POINTS") end
@@ -75,7 +116,7 @@ function pipsscore.score(run, values, preview)
                 if out.xmult then xmult = xmult * out.xmult; table.insert(words, "x" .. out.xmult .. " MULT") end
                 if out.coins then result.coins = result.coins + out.coins; table.insert(words, "+" .. out.coins .. " COINS") end
                 if #words > 0 then
-                    table.insert(result.parts, { name = p.name, text = table.concat(words, "  ") })
+                    table.insert(result.parts, { name = name, text = table.concat(words, "  "), slot = k })
                 end
             end
         end

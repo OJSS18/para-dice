@@ -28,6 +28,7 @@ local perkys    = require("perkys")
 local pipshands = require("pipshands")
 local pipsdice  = require("pipsdice")
 local augments  = require("augments")
+local vips      = require("vips")
 
 local pipsshop = {}
 
@@ -138,7 +139,7 @@ end
 
 local function fillItems(run)
     run.shop.items = {}
-    for k = 1, P.MAIN_ITEMS do
+    for k = 1, P.MAIN_ITEMS + run.shopSlots do   -- (Bigger Shop adds one)
         run.shop.items[k] = randomItem(run)
     end
 end
@@ -149,10 +150,38 @@ end
 ---------------------------------------------------------------------------
 
 -- A fresh shop: new items, the machine and reroll prices start low again.
+-- The first shop of each level also picks that level's VIP upgrade.
 function pipsshop.open(run)
     run.shop = { items = {}, rerollCost = P.SHOP_REROLL, spins = 0, reels = nil, pack = nil,
                  message = "Welcome! Buy Perkys, augments - or spin for a pack." }
     fillItems(run)
+    if run.vipLevel ~= run.level then
+        run.vipLevel = run.level
+        local id = vips.pick(run)
+        run.vipOffer = id and { id = id, sold = false } or nil
+    end
+end
+
+-- Buy this level's VIP upgrade.
+function pipsshop.buyVip(run)
+    local offer = run.vipOffer
+    if not offer or offer.sold or run.shop.pack then return false end
+    local v = vips.get(offer.id)
+    if run.coins < v.price then
+        run.shop.message = "Not enough coins for the VIP upgrade."
+        return false
+    end
+    run.coins = run.coins - v.price
+    offer.sold = true
+    run.vipOwned[v.id] = true
+    v.apply(run)
+    run.shop.message = "VIP upgrade: " .. v.name .. "!"
+    return true
+end
+
+-- How many Perkys this run can hold (5, or 6 with the mythic VIP upgrade).
+function pipsshop.maxPerkys(run)
+    return P.MAX_PERKYS + run.perkySlots
 end
 
 -- What an item does, in words (shared by the shop cards and packs).
@@ -167,7 +196,7 @@ end
 
 -- Is there room for another Perky?
 function pipsshop.perkyRoom(run)
-    return #run.perkys < P.MAX_PERKYS
+    return #run.perkys < pipsshop.maxPerkys(run)
 end
 
 -- Give the player an item they bought or picked. Gives back false (and

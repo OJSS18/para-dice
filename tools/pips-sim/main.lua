@@ -12,10 +12,18 @@ function love.load(args)
     local bot = require("bot")
     local perkys = require("perkys")
     local wins, levels, reached, bossDeaths = 0, 0, {}, {}
+    local shops, fullShops, everFull, endFull, firstFull = 0, 0, 0, 0, {}
     local start = os.clock()
     for g = 1, N do
         local run = bot.play(seed + g - 1)
         local won = run.state == "victory"
+        local st = run.stats or { shops = 0, fullShops = 0 }
+        shops, fullShops = shops + st.shops, fullShops + st.fullShops
+        if st.firstFull then
+            everFull = everFull + 1
+            firstFull[st.firstFull] = (firstFull[st.firstFull] or 0) + 1
+        end
+        if #run.perkys >= require("pipsshop").maxPerkys(run) then endFull = endFull + 1 end
         if run.boss and not won then
             local key = run.boss.josh and "josh" or "boss"
             bossDeaths[key] = (bossDeaths[key] or 0) + 1
@@ -42,6 +50,11 @@ function love.load(args)
         if reached[l] then table.insert(parts, "L" .. l .. ":" .. reached[l]) end
     end
     print("ended on level: " .. table.concat(parts, "  "))
+    print(string.format("PERKYS FULL: after %.0f%% of all shop visits; %d of %d runs ever filled every slot; "
+        .. "%d runs ended with every slot full", 100 * fullShops / math.max(1, shops), everFull, N, endFull))
+    local fl = {}
+    for l = 1, 13 do if firstFull[l] then table.insert(fl, "L" .. l .. ":" .. firstFull[l]) end end
+    print("first level with every slot full: " .. table.concat(fl, "  "))
     print(string.format("lost to a boss: %d   lost to Pit Boss Josh: %d", bossDeaths.boss or 0, bossDeaths.josh or 0))
     love.event.quit()
 end

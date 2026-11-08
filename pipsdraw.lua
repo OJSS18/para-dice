@@ -15,12 +15,12 @@ local pipsgame   = require("pipsgame")
 local pipsdice   = require("pipsdice")
 local pipshands  = require("pipshands")
 local pipsshop   = require("pipsshop")
-local augments   = require("augments")
 local perkys     = require("perkys")
 local pipsview   = require("pipsview")
 local pipslayout = require("pipslayout")
 local bosses     = require("bosses")
 local bossart    = require("bossart")
+local vips       = require("vips")
 
 local pipsdraw = {}
 
@@ -200,7 +200,10 @@ function pipsdraw.perkyCard(r, id, held, dimmed)
     cardBox(r, color, dimmed)
     ui.text(perkys.RARITIES[p.rarity].label, fonts.hint, r.x, r.y + 8, r.w, "center", color)
     ui.text(p.name, fonts.small, r.x + 6, r.y + 26, r.w - 12, "center", WHITE)
+    -- (clipped to the card, so long words can't spill out of a small card)
+    love.graphics.setScissor(r.x, r.y, r.w, r.h - 4)
     wrapped(perkyAbout(p, held), fonts.tiny, r.x + 8, r.y + 52, r.w - 16, CREAM)
+    love.graphics.setScissor()
 end
 
 -- Any shop thing: a Perky, an augment, a die or a craps bet.
@@ -419,9 +422,10 @@ end
 
 local function drawPerkyRack(run)
     local m = pipslayout.middle()
-    ui.text("PERKYS  " .. #run.perkys .. "/" .. P.MAX_PERKYS, fonts.heading, m.x, m.y + 8, m.w, "center", GOLD, true)
-    for k = 1, P.MAX_PERKYS do
-        local r = pipslayout.perkyCard(k)
+    local max = pipsshop.maxPerkys(run)
+    ui.text("PERKYS  " .. #run.perkys .. "/" .. max, fonts.heading, m.x, m.y + 8, m.w, "center", GOLD, true)
+    for k = 1, max do
+        local r = pipslayout.perkyCard(k, max)
         local held = run.perkys[k]
         if held then
             -- A Perky that did something in the set just scored lights up.
@@ -429,7 +433,7 @@ local function drawPerkyRack(run)
             local fired = false
             if run.state == "scored" and run.lastResult then
                 for _, part in ipairs(run.lastResult.parts) do
-                    if part.name == p.name then fired = true end
+                    if part.slot == k then fired = true end
                 end
             end
             if fired then
@@ -646,6 +650,7 @@ local function drawPopup(run)
         ui.glossyButton(pipslayout.popupButton(3, 3), "MENU", { 0.45, 0.45, 0.52 }, true)
     elseif run.state == "roundWon" then
         local title = run.boss and "BOSS BEATEN!" or "ROUND WON!"
+        if run.savedByLife then title = "EXTRA LIFE USED!" end
         ui.text(title, fonts.title, p.x, p.y + 24, p.w, "center", GREEN, true)
         ui.text("Scored " .. run.roundScore .. " of " .. run.goal, fonts.text, p.x, p.y + 90, p.w, "center", CREAM)
         local pay = run.payout
@@ -797,8 +802,9 @@ local function drawMachine(run)
         end
     end
     if not reels then
+        local r1 = pipslayout.reel(1)
         ui.text("Each reel lands on a pack. Rare Perky packs: 1% a reel.", fonts.tiny,
-            m.x, m.y + 248, m.w, "center", DIM)
+            m.x, r1.y + r1.h + 12, m.w, "center", DIM)
     end
     local price = pipsshop.spinPrice(run)
     local canSpin = not spinning and not pipsshop.hasUntakenReels(run) and run.coins >= price and not run.shop.pack
@@ -808,17 +814,59 @@ end
 local function drawForSale(run)
     local f = pipslayout.forSale()
     ui.vegasWindow(f, "FOR SALE")
+    local count = #run.shop.items
     for k, item in ipairs(run.shop.items) do
-        itemCard(pipslayout.itemCard(k), item, item.price, item.sold)
+        itemCard(pipslayout.itemCard(k, count), item, item.price, item.sold)
     end
     ui.glossyButton(pipslayout.shopRerollButton(), "REROLL  " .. run.shop.rerollCost, { 0.85, 0.10, 0.12 },
         run.coins >= run.shop.rerollCost and not run.shop.pack)
+
+    -- This level's VIP upgrade.
+    local r = pipslayout.vipCard()
+    ui.text("VIP UPGRADE - ONE A LEVEL", fonts.heading, f.x + 24, r.y - 30, f.w - 48, "left", GOLD, true)
+    local offer = run.vipOffer
+    if not offer then
+        ui.text("Nothing left to offer - you own them all!", fonts.small, r.x, r.y + 20, f.w - 48, "left", DIM)
+        return
+    end
+    local v = vips.get(offer.id)
+    local color = v.mythic and { 1, 0.45, 0.85 } or GOLD
+    cardBox(r, color, offer.sold)
+    if not offer.sold then
+        -- A slow shimmer, so it looks special.
+        love.graphics.setColor(color[1], color[2], color[3], 0.08 + 0.06 * math.sin(pipsview.time * 3))
+        love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 10, 10)
+    end
+    ui.text(v.mythic and "MYTHIC VIP" or "VIP", fonts.hint, r.x, r.y + 8, r.w, "center", color)
+    ui.text(v.name, fonts.small, r.x + 6, r.y + 28, r.w - 12, "center", WHITE)
+    ui.text("VIP", fonts.number, r.x, r.y + 58, r.w, "center", color, true)
+    if offer.sold then
+        ui.text("SOLD", fonts.title, r.x, r.y + r.h / 2 - 26, r.w, "center", { 1, 0.3, 0.3 }, true)
+    else
+        local tag = util.rect(r.x + (r.w - 90) / 2, r.y + r.h - 40, 90, 30)
+        local canPay = run.coins >= v.price
+        love.graphics.setColor(canPay and { 0.75, 0.55, 0.10 } or { 0.35, 0.3, 0.3 })
+        love.graphics.rectangle("fill", tag.x, tag.y, tag.w, tag.h, 8, 8)
+        ui.text(v.price .. " COINS", fonts.hint, tag.x, tag.y + 8, tag.w, "center", canPay and WHITE or DIM)
+    end
+    -- What it does, to the right of the card.
+    local tx = r.x + r.w + 20
+    local tw = f.x + f.w - 24 - tx
+    wrapped(v.about, fonts.text, tx, r.y + 10, tw, CREAM, "left")
+    wrapped("Lasts the rest of the run. A new VIP upgrade turns up each level.",
+        fonts.small, tx, r.y + 110, tw, DIM, "left")
+    if run.extraLife then
+        wrapped("You're holding an EXTRA LIFE.", fonts.small, tx, r.y + r.h - 30, tw, GREEN, "left")
+    end
 end
 
+-- Your Perkys: small slots in 2 columns. Point at one to read all of it.
 local function drawYourPerkys(run)
     local w = pipslayout.perkyWindow()
-    ui.vegasWindow(w, "YOUR PERKYS " .. #run.perkys .. "/" .. P.MAX_PERKYS)
-    for k = 1, P.MAX_PERKYS do
+    local max = pipsshop.maxPerkys(run)
+    ui.vegasWindow(w, "YOUR PERKYS " .. #run.perkys .. "/" .. max)
+    local hovered = nil
+    for k = 1, max do
         local r = pipslayout.perkyRow(k)
         local held = run.perkys[k]
         love.graphics.setColor(0, 0, 0, 0.35)
@@ -827,20 +875,42 @@ local function drawYourPerkys(run)
             local p = perkys.get(held.id)
             local color = perkys.RARITIES[p.rarity].color
             love.graphics.setColor(color)
-            love.graphics.rectangle("fill", r.x, r.y, 6, r.h, 3, 3)
-            ui.text(p.name, fonts.small, r.x + 14, r.y + 4, r.w - 110, "left", color)
-            love.graphics.setScissor(r.x, r.y, r.w - 80, r.h)
-            wrapped(perkyAbout(p, held), fonts.tiny, r.x + 14, r.y + 26, r.w - 100, CREAM, "left")
+            love.graphics.rectangle("fill", r.x, r.y, 5, r.h, 3, 3)
+            ui.text(p.name, fonts.small, r.x + 12, r.y + 2, r.w - 80, "left", color)
+            love.graphics.setScissor(r.x, r.y, r.w - 64, r.h)
+            love.graphics.setFont(fonts.tiny)
+            love.graphics.setColor(CREAM)
+            love.graphics.print(perkyAbout(p, held), r.x + 12, r.y + r.h - 18)
             love.graphics.setScissor()
             ui.glossyButton(pipslayout.sellButton(k), "+" .. perkys.sellPrice(p), { 0.85, 0.40, 0.10 }, true)
-            ui.text("SELL", fonts.hint, pipslayout.sellButton(k).x, pipslayout.sellButton(k).y - 14,
-                pipslayout.sellButton(k).w, "center", DIM)
+            if ui.isHovered(r) and not ui.isHovered(pipslayout.sellButton(k)) then hovered = k end
         else
             ui.text("empty slot", fonts.tiny, r.x, r.y + r.h / 2 - 8, r.w, "center", { 1, 1, 1, 0.3 })
         end
     end
+    ui.text("SELL = the orange button", fonts.hint, w.x, w.y + 8, w.w - 16, "right", DIM)
+    -- The full words of the Perky under the mouse, in a box above it.
+    if hovered then
+        local held = run.perkys[hovered]
+        local p = perkys.get(held.id)
+        local r = pipslayout.perkyRow(hovered)
+        local tw = 300
+        local _, lines = fonts.small:getWrap(perkyAbout(p, held), tw - 20)
+        local th = 40 + #lines * fonts.small:getHeight()
+        local tx = math.min(r.x, love.graphics.getWidth() - tw - 10)
+        local ty = r.y - th - 6
+        love.graphics.setColor(0.06, 0.03, 0.06, 0.97)
+        love.graphics.rectangle("fill", tx, ty, tw, th, 10, 10)
+        love.graphics.setColor(perkys.RARITIES[p.rarity].color)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", tx, ty, tw, th, 10, 10)
+        love.graphics.setLineWidth(1)
+        ui.text(p.name, fonts.small, tx + 10, ty + 6, tw - 20, "left", perkys.RARITIES[p.rarity].color)
+        wrapped(perkyAbout(p, held), fonts.small, tx + 10, ty + 30, tw - 20, CREAM, "left")
+    end
 end
 
+-- Your dice: a window just big enough for 10 (11 squeeze in a bit smaller).
 local function drawYourDice(run)
     local w = pipslayout.diceWindow()
     ui.vegasWindow(w, "YOUR DICE " .. #run.dice .. "/" .. run.slots)
@@ -858,36 +928,14 @@ local function drawYourDice(run)
         end
     end
     local text = "Empty slots fill from DICE packs."
-    if swapping then text = "Click the die to swap out (or SKIP)." end
-    ui.text(text, fonts.tiny, w.x + 16, w.y + 112, w.w - 32, "left", swapping and GOLD or DIM)
     for _, l in ipairs(P.SLOT_LEVELS) do
         if l > run.level then
-            ui.text("Next slot opens at level " .. l, fonts.tiny, w.x + 16, w.y + 132, w.w - 32, "left", DIM)
+            text = text .. "  Next slot: level " .. l .. "."
             break
         end
     end
-end
-
-local function drawAugments(run)
-    local w = pipslayout.augWindow()
-    ui.vegasWindow(w, "AUGMENTS")
-    local parts = {}
-    for f = 1, pipshands.MAX_FACE do
-        if (run.diceAug[f] or 0) > 0 then
-            table.insert(parts, "Each " .. f .. " scores " .. augments.facePoints(f, run.diceAug[f])
-                .. " (level " .. run.diceAug[f] .. ")")
-        end
-    end
-    for _, h in ipairs(pipshands.LIST) do
-        if (run.setAug[h.id] or 0) > 0 then
-            table.insert(parts, h.name .. " +" .. run.setAug[h.id] * pipshands.augmentMult(h) .. " mult")
-        end
-    end
-    if #run.bets > 0 then table.insert(parts, "Craps bets: " .. table.concat(run.bets, ", ")) end
-    if #parts == 0 then parts = { "None yet." } end
-    love.graphics.setScissor(w.x, w.y, w.w, w.h - 8)
-    wrapped(table.concat(parts, "\n"), fonts.tiny, w.x + 16, w.y + 30, w.w - 32, CREAM, "left")
-    love.graphics.setScissor()
+    if swapping then text = "Click the die to swap out (or SKIP)." end
+    ui.text(text, fonts.tiny, w.x + 14, w.y + w.h - 26, w.w - 28, "left", swapping and GOLD or DIM)
 end
 
 local function drawPack(run)
@@ -927,7 +975,6 @@ local function drawShop(run)
     drawMachine(run)
     drawYourPerkys(run)
     drawYourDice(run)
-    drawAugments(run)
     if run.shop.pack then drawPack(run) end
 
     ui.glossyButton(pipslayout.continueButton(), run.pendingBoss and "FACE THE BOSS" or "NEXT ROUND",

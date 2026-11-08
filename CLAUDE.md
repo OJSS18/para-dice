@@ -13,7 +13,7 @@ A dice roguelite (Yahtzee meets craps) in LÖVE 11 / Lua. The owner is a beginne
 - `archive/v0.0.2/` and `archive/v0.8.2/` are frozen copies (also git tags `v0.0.2`, `v0.8.2`). Never edit them.
 
 ## PIPS mode (second game type)
-- Its own files: `pipsgame.lua` (run + `pipsgame.act` doorway), `pipsdice`, `pipshands`, `pipsscore`, `perkys`, `augments`, `bosses`, `pitboss`, `pipsshop` (logic), `bossart` (drawing); `pipsview` (looks-only roll/reel animation), `pipslayout`, `pipsdraw`, `pipsinput`. All its numbers are in `config.PIPS`.
+- Its own files: `pipsgame.lua` (run + `pipsgame.act` doorway), `pipsdice`, `pipshands`, `pipsscore`, `perkys`, `augments`, `bosses`, `pitboss`, `vips`, `pipsshop` (logic), `bossart` (drawing); `pipsview` (looks-only roll/reel animation), `pipslayout`, `pipsdraw`, `pipsinput`. All its numbers are in `config.PIPS`.
 - Same replay rules as the main game: every change goes through `pipsgame.act`, randomness through `rng.random`, `pipsgame.ACTION_NAMES` only grows at the end. Not on the leaderboard / stats / replays yet.
 - Dice are drawn by code (`pipsdraw.die`), not from the PNGs, so they can be any of the 10 colours in `pipsdice.COLORS`.
 

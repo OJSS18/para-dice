@@ -96,7 +96,7 @@ config.BUTTON_H = 56
 
 -- The game's version, shown small in the bottom-right corner. Bump it
 -- (and add a line to CHANGELOG.md) whenever you put out a new version.
-config.VERSION = "0.9.0"
+config.VERSION = "0.10.0"
 
 -- The RULES version: change it ONLY when a change could make an old replay
 -- code play out differently (dice odds, scoring, shop, luck items, actions).
@@ -120,8 +120,8 @@ config.PIPS = {
     SLOT_LEVELS   = { 2, 3, 5, 6, 8, 9, 10, 11 },
     MAX_LEVEL     = 12,       -- clear level 12 to win the run
     ROUNDS        = 3,        -- rounds in each level (the shop opens after each)
-    SETS          = 5,        -- sets (scored rolls) you get each round
-    REROLLS       = 5,        -- rerolls each round, shared by all its sets
+    SETS          = 4,        -- sets (scored rolls) you get each round
+    REROLLS       = 4,        -- rerolls each round, shared by all its sets
     -- Goals: level 1's rounds need 60, 120, 180. Level 2's goals are
     -- GOAL_GROWTH times level 1's, and each level after grows GOAL_STEP more:
     -- x1.70, x1.76, x1.82 ... x2.30 for level 12. (Picked with 100-game runs of
@@ -133,17 +133,20 @@ config.PIPS = {
     ENDLESS_GROWTH = 3.0,
     ENDLESS_STEP   = 0.5,
     -- Coins for winning a round: a few for winning, then +1 for each
-    -- reroll left over and +2 for each set left over.
+    -- reroll left over and +1 for each set left over.
     WIN_COINS     = 3,
     COIN_PER_REROLL = 1,
-    COIN_PER_SET    = 2,
-    MAX_PERKYS    = 5,        -- Perky slots
+    COIN_PER_SET    = 1,
+    MAX_PERKYS    = 5,        -- Perky slots (a MYTHIC VIP upgrade adds a 6th)
+    -- VIP UPGRADES (vips.lua): one big buy on offer each level.
+    VIP_PRICE        = 15,
+    VIP_MYTHIC_PRICE = 25,
     -- The shop's 2 main items: chance (out of 100) of each kind.
     MAIN_ITEMS    = 2,
     MAIN_ODDS     = { perky = 80, diceAug = 10, setAug = 10 },
     -- Perky rarity chances (out of 100) in the shop and normal packs.
     RARITY_ODDS   = { common = 70, uncommon = 25, rare = 5 },
-    PERKY_PRICES  = { common = 4, uncommon = 6, rare = 8 },
+    PERKY_PRICES  = { common = 5, uncommon = 8, rare = 12 },
     AUG_PRICE     = 4,        -- a dice or set augment (each level: see augments.lua)
     SHOP_REROLL   = 3,        -- reroll the 2 main items: 3 coins, then +1 each time this visit
     -- The 3-reel slot machine: a spin costs SPIN_PRICE, +SPIN_STEP for each

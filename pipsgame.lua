@@ -8,12 +8,12 @@
 --     9, 10 and 11 - but you have to get the dice for them from the shop.
 --   * Each level has 3 ROUNDS with a goal each (level 1: 60, 120, 180).
 --     Each level's goals grow by a bit more than the level before's.
---   * A round gives you 5 SETS (scored rolls) and 5 REROLLS to share
+--   * A round gives you 4 SETS (scored rolls) and 4 REROLLS to share
 --     between them. Roll, hold the dice you like, reroll the rest as often
 --     as your rerolls last, then SCORE.
 --   * Score = POINTS (pips) x MULT (from the set you rolled) - see pipsscore.lua.
 --   * Reach the goal and you win the round: coins for winning, +1 per
---     reroll left and +2 per set left. Then the SHOP. Run out of sets
+--     reroll left and +1 per set left. Then the SHOP. Run out of sets
 --     first and the run is over.
 --   * BOSSES (bosses.lua): after one random level of 2-3, of 5-7 and of
 --     8-10, a boss round follows the shop. After level 12 comes PIT BOSS
@@ -168,8 +168,8 @@ end
 -- what a boss steals), score back to 0, then the first set.
 local function freshRound(run, minusSets, minusRerolls)
     run.roundScore = 0
-    run.setsLeft = P.SETS + perkyBonus(run, "extraSets") - (minusSets or 0)
-    run.rerollsLeft = P.REROLLS + perkyBonus(run, "extraRerolls") - (minusRerolls or 0)
+    run.setsLeft = P.SETS + run.bonusSets + perkyBonus(run, "extraSets") - (minusSets or 0)
+    run.rerollsLeft = P.REROLLS + run.bonusRerolls + perkyBonus(run, "extraRerolls") - (minusRerolls or 0)
     run.setsTotal = run.setsLeft
     startSet(run)
 end
@@ -180,8 +180,9 @@ local function startRound(run)
     freshRound(run, 0, 0)
 end
 
--- The goal is reached: count up the coins.
-local function winRound(run)
+-- The goal is reached: count up the coins. 'savedByLife' is true when the
+-- round was really lost but an EXTRA LIFE saved the run (no coins then).
+local function winRound(run, savedByLife)
     returnStolenDie(run)
     local pay = { win = P.WIN_COINS, rerolls = run.rerollsLeft * P.COIN_PER_REROLL,
                   sets = run.setsLeft * P.COIN_PER_SET, perkys = 0 }
@@ -189,6 +190,8 @@ local function winRound(run)
         local p = perkys.get(held.id)
         if p.roundEnd then pay.perkys = pay.perkys + p.roundEnd({ coins = run.coins }) end
     end
+    if savedByLife then pay = { win = 0, rerolls = 0, sets = 0, perkys = 0 } end
+    run.savedByLife = savedByLife or false
     pay.total = pay.win + pay.rerolls + pay.sets + pay.perkys
     run.coins = run.coins + pay.total
     run.payout = pay
@@ -245,8 +248,8 @@ local function startDuel(run)
         run.perkys[rng.random(#run.perkys)].disabled = true
         josh.perkys[rng.random(#josh.perkys)].disabled = true
     end
-    josh.setsLeft = P.SETS + perkyBonus(josh, "extraSets")
-    josh.rerollsLeft = P.REROLLS + perkyBonus(josh, "extraRerolls")
+    josh.setsLeft = P.SETS + run.bonusSets + perkyBonus(josh, "extraSets")
+    josh.rerollsLeft = P.REROLLS + run.bonusRerolls + perkyBonus(josh, "extraRerolls")
     run.josh = josh
     -- Josh's dice and thinking use their own random numbers, made from the seed.
     run.joshGen = love.math.newRandomGenerator(run.seed % 1000000007 + 4242)
@@ -297,6 +300,9 @@ function pipsgame.new(seed)
         boss = nil,               -- the boss of this boss round (nil = a normal round)
         pendingBoss = false,      -- a boss is waiting after this shop
         endless = false,
+        -- VIP upgrades (vips.lua)
+        vipOwned = {}, bonusSets = 0, bonusRerolls = 0, shopSlots = 0, perkySlots = 0,
+        extraLife = false, vipOffer = nil, vipLevel = nil,
     }
     rng.setSeed(run.seed)
     -- Which levels end with a boss: one of 2-3, one of 5-7, one of 8-10.
@@ -320,7 +326,12 @@ local function afterScore(run)
     elseif run.roundScore >= run.goal then
         winRound(run)
     elseif run.setsLeft <= 0 then
-        loseRun(run)
+        if run.extraLife and not run.boss then
+            run.extraLife = false        -- the EXTRA LIFE saves the run (and is used up)
+            winRound(run, true)
+        else
+            loseRun(run)
+        end
     else
         startSet(run)
     end
@@ -410,7 +421,7 @@ end
 local SHOP = {
     buy = pipsshop.buy, shopReroll = pipsshop.reroll, spin = pipsshop.spin,
     pickReel = pipsshop.pickReel, pickPack = pipsshop.pickOption, replaceDie = pipsshop.replaceDie,
-    skipPack = pipsshop.skipPack, sell = pipsshop.sell,
+    skipPack = pipsshop.skipPack, sell = pipsshop.sell, buyVip = pipsshop.buyVip,
 }
 for name, fn in pairs(SHOP) do
     ACTIONS[name] = function(run, arg)
@@ -487,7 +498,7 @@ end
 pipsgame.ACTION_NAMES = {
     "hold", "reroll", "score", "next", "toShop", "buy", "shopReroll", "spin",
     "pickReel", "pickPack", "replaceDie", "skipPack", "sell", "continue", "god",
-    "fight", "endless",
+    "fight", "endless", "buyVip",
 }
 
 -- Do an action. Returns true if it did something (and writes it in the log).
