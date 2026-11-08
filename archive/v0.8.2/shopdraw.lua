@@ -1,0 +1,487 @@
+-- shopdraw.lua
+-- DRAWS the shop screen: a casino-carpet background, a marquee sign,
+-- Vegas-style windows for DICE / UPGRADES / YOUR LUCK / YOUR DICE, and the
+-- three-reel MYSTERY MACHINE wrapped in chasing bulbs. Reads shop.lua (stock and positions), player.lua, luck.lua and
+-- upgrades.lua - but never changes any of them.
+
+local config    = require("config")
+local shop      = require("shop")
+local player    = require("player")
+local luck      = require("luck")
+local upgrades  = require("upgrades")
+local markers   = require("markers")
+local dicetypes = require("dicetypes")
+local score     = require("score")
+local draw      = require("draw")    -- for draw.dieImage
+local luckart   = require("luckart") -- luck item pictures and SELL buttons
+local luckrack  = require("luckrack") -- which luck item is picked / being dragged
+local fonts     = require("fonts")
+local ui        = require("ui")
+
+local shopdraw = {}
+
+-- Colours used more than once. {red, green, blue}
+local GOLD   = { 1, 0.85, 0.2 }
+local WHITE  = { 1, 1, 1 }
+local DIM    = { 1, 1, 1, 0.6 }
+local YELLOW = { 1, 0.9, 0.2 }
+
+
+---------------------------------------------------------------------------
+-- BACKGROUND AND SIGN
+---------------------------------------------------------------------------
+
+-- Deep red casino carpet: a dark gradient with a faint gold diamond pattern.
+local function drawBackground()
+    local W, H = love.graphics.getWidth(), love.graphics.getHeight()
+    for i = 0, H, 4 do
+        local t = i / H
+        love.graphics.setColor(0.24 - 0.14 * t, 0.03, 0.06 - 0.02 * t)
+        love.graphics.rectangle("fill", 0, i, W, 4)
+    end
+    -- Diamond lattice: two sets of diagonal lines.
+    love.graphics.setColor(1, 0.8, 0.3, 0.05)
+    love.graphics.setLineWidth(2)
+    local step = 60
+    for x = -H, W, step do
+        love.graphics.line(x, 0, x + H, H)
+        love.graphics.line(x + H, 0, x, H)
+    end
+    love.graphics.setLineWidth(1)
+end
+
+-- The SHOP marquee sign: a red board with chasing bulbs all round.
+local function drawSign()
+    local r = shop.signRect()
+    love.graphics.setColor(0, 0, 0, 0.5)
+    love.graphics.rectangle("fill", r.x + 4, r.y + 6, r.w, r.h, 16, 16)
+    love.graphics.setColor(0.55, 0.05, 0.08)
+    love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 16, 16)
+    love.graphics.setColor(1, 0.82, 0.3)
+    love.graphics.setLineWidth(3)
+    love.graphics.rectangle("line", r.x + 8, r.y + 8, r.w - 16, r.h - 16, 10, 10)
+    love.graphics.setLineWidth(1)
+    ui.bulbBorder(r, 26, 5, 6)
+    ui.text("THE SHOP", fonts.title, r.x, r.y + 2, r.w, "center", GOLD, true)
+end
+
+
+---------------------------------------------------------------------------
+-- CARDS
+---------------------------------------------------------------------------
+
+-- The background box every card sits on. Darker when sold.
+local function drawCardBox(r, sold, borderColor)
+    love.graphics.setColor(0.03, 0.02, 0.03, sold and 0.85 or 0.6)
+    love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 10, 10)
+    if borderColor and not sold then
+        love.graphics.setColor(borderColor[1], borderColor[2], borderColor[3], 0.9)
+        love.graphics.setLineWidth(2)
+    else
+        love.graphics.setColor(1, 1, 1, 0.2)
+    end
+    love.graphics.rectangle("line", r.x, r.y, r.w, r.h, 10, 10)
+    love.graphics.setLineWidth(1)
+
+    -- A soft highlight when the mouse is over an unsold card.
+    if not sold and ui.isHovered(r) then
+        love.graphics.setColor(1, 1, 1, 0.07)
+        love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 10, 10)
+    end
+end
+
+-- The price strip along the bottom of a card: "BUY  40" or "SOLD".
+-- Gold if they can afford it, dull if they can't.
+local function drawPrice(r, price, sold)
+    local strip = { x = r.x + 10, y = r.y + r.h - 38, w = r.w - 20, h = 28 }
+    if sold then
+        love.graphics.setColor(0.22, 0.22, 0.22)
+    elseif player.coins >= price then
+        love.graphics.setColor(0.92, 0.72, 0.12)
+    else
+        love.graphics.setColor(0.35, 0.3, 0.2)
+    end
+    love.graphics.rectangle("fill", strip.x, strip.y, strip.w, strip.h, 7, 7)
+    local label = sold and "SOLD" or ("BUY  " .. price)
+    love.graphics.setFont(fonts.hint)
+    love.graphics.setColor(sold and DIM or { 0.15, 0.07, 0 })
+    love.graphics.printf(label, strip.x, strip.y + 7, strip.w, "center")
+end
+
+-- A dice card: picture, name, description and the chance of each face.
+local function drawDiceCard(r, typeId, sold)
+    local dieType = dicetypes.get(typeId)
+    drawCardBox(r, sold)
+
+    local imageSize = 64
+    draw.dieImage(typeId, 6, r.x + (r.w - imageSize) / 2, r.y + 10, imageSize)
+    ui.text(dieType.name, fonts.small, r.x + 6, r.y + 82, r.w - 12, "center", WHITE)
+
+    love.graphics.setFont(fonts.tiny)
+    love.graphics.setColor(DIM)
+    love.graphics.printf(dieType.about, r.x + 8, r.y + 108, r.w - 16, "center")
+
+    -- Chance of each face, in two rows of three: "1: 10%  2: 10%  3: 15%"
+    love.graphics.setColor(WHITE)
+    for row = 0, 1 do
+        local parts = {}
+        for col = 1, 3 do
+            local face = row * 3 + col
+            table.insert(parts, face .. ": " .. dicetypes.percent(dieType.weights, face) .. "%")
+        end
+        love.graphics.printf(table.concat(parts, "  "), r.x, r.y + 160 + row * 18, r.w, "center")
+    end
+
+    drawPrice(r, dieType.price, sold)
+end
+
+-- An upgrade card: a big "x1.25" badge, its name and level, what it does.
+-- A small upgrade card (6 of them in a 3 x 2 grid): the level you'd buy,
+-- what its multiplier goes from and to, what it does, and the price. It
+-- never sells out - buy it again and the next level is shown.
+local function drawUpgradeCard(r, offer)
+    local def = upgrades.DEFS[offer.id]
+    local isKeep = (offer.id == "keep")
+    -- KEEP BONUS is gold; the sum-group upgrades are blue.
+    local accent = isKeep and { 1, 0.80, 0.25 } or { 0.35, 0.85, 1 }
+    drawCardBox(r, false, accent)
+
+    local level = upgrades.level(offer.id)
+    local function multAt(lvl)
+        if isKeep then return score.NO_REROLL_MULTIPLIER + upgrades.KEEP_STEP * lvl end
+        return 1 + upgrades.STEP * lvl
+    end
+    ui.text(upgrades.nextLabel(offer.id), fonts.heading, r.x + 6, r.y + 7, r.w - 12, "center", accent, true)
+    ui.text(string.format("x%.2f  >  x%.2f", multAt(level), multAt(level + 1)), fonts.small,
+        r.x + 6, r.y + 31, r.w - 12, "center", WHITE)
+
+    -- What it does, clipped so long words can't run into the price.
+    love.graphics.setScissor(r.x + 6, r.y + 54, r.w - 12, r.h - 54 - 40)
+    love.graphics.setFont(fonts.tiny)
+    love.graphics.setColor(DIM)
+    love.graphics.printf(def.about, r.x + 8, r.y + 54, r.w - 16, "center")
+    love.graphics.setScissor()
+
+    drawPrice(r, upgrades.nextPrice(offer.id), false)
+end
+
+
+---------------------------------------------------------------------------
+-- THE MYSTERY MACHINE
+---------------------------------------------------------------------------
+
+-- One reel: its glass, the pictures scrolling past, and the prize under it.
+local function drawReel(k)
+    local machine = shop.machine
+    local reel = shop.reelRect(k)
+    love.graphics.setColor(0.95, 0.93, 0.88)
+    love.graphics.rectangle("fill", reel.x, reel.y, reel.w, reel.h, 8, 8)
+
+    -- A STENCIL cuts out the glass's shape so the item pictures scrolling
+    -- past only show up inside it.
+    love.graphics.stencil(function()
+        love.graphics.rectangle("fill", reel.x, reel.y, reel.w, reel.h, 8, 8)
+    end, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+
+    -- The strip of items: item n sits (n - 1 - position) cells below the centre.
+    local cell = 84
+    local size = 72
+    local position = shop.reelPosition(k)
+    local centreY = reel.y + reel.h / 2
+    for n, id in ipairs(machine.reels[k].strip) do
+        local cy = centreY + (n - 1 - position) * cell
+        if cy > reel.y - cell and cy < reel.y + reel.h + cell then
+            luckart.picture(id, reel.x + (reel.w - size) / 2, cy - size / 2, size)
+        end
+    end
+    -- Shading at the top and bottom of the glass, like a curved drum.
+    for i = 0, 24 do
+        local a = 0.55 * (1 - i / 24)
+        love.graphics.setColor(0, 0, 0, a)
+        love.graphics.rectangle("fill", reel.x, reel.y + i, reel.w, 1)
+        love.graphics.rectangle("fill", reel.x, reel.y + reel.h - 1 - i, reel.w, 1)
+    end
+    love.graphics.setStencilTest()
+
+    -- The rim. Once it has stopped on a prize it glows in the prize's
+    -- rarity colour; the prize you took glows brightest, the others fade.
+    local prize = machine.reels[k].prize
+    local stopped = shop.reelStopped(k) and prize ~= nil
+    local rimColor = { 1, 0.82, 0.3 }
+    local faded = stopped and machine.taken ~= nil and machine.taken ~= k
+    if stopped then
+        rimColor = luck.rarityColor(luck.get(prize))
+        local glow = 0.35
+        if machine.taken == k then glow = 0.75 end
+        if faded then glow = 0 end
+        if shop.hasUntakenPrizes() and ui.isHovered(shop.reelColumnRect(k)) then glow = 0.65 end
+        love.graphics.setColor(rimColor[1], rimColor[2], rimColor[3], glow)
+        love.graphics.rectangle("fill", reel.x - 6, reel.y - 6, reel.w + 12, reel.h + 12, 12, 12)
+    end
+    love.graphics.setColor(rimColor)
+    love.graphics.setLineWidth(4)
+    love.graphics.rectangle("line", reel.x, reel.y, reel.w, reel.h, 8, 8)
+    love.graphics.setLineWidth(1)
+
+    -- A prize that wasn't picked gets a dark veil.
+    if faded then
+        love.graphics.setColor(0, 0, 0, 0.6)
+        love.graphics.rectangle("fill", reel.x, reel.y, reel.w, reel.h, 8, 8)
+    end
+
+    -- Under the reel: the prize's rarity, name and what it does.
+    if stopped then
+        local y = reel.y + reel.h + 8
+        local item = luck.get(prize)
+        local alpha = faded and 0.35 or 1
+        ui.text(luck.RARITIES[item.rarity].label, fonts.hint, reel.x - 4, y, reel.w + 8, "center",
+            { rimColor[1], rimColor[2], rimColor[3], alpha }, not faded)
+        ui.text(item.name, fonts.tiny, reel.x - 4, y + 16, reel.w + 8, "center", { 1, 1, 1, alpha })
+        -- The words are clipped (setScissor) so a long one can't run into SPIN.
+        local bottom = shop.spinButtonRect().y - 4
+        love.graphics.setScissor(reel.x - 6, y + 32, reel.w + 12, math.max(0, bottom - (y + 32)))
+        love.graphics.setFont(fonts.tiny)
+        love.graphics.setColor(1, 1, 1, 0.75 * alpha)
+        love.graphics.printf(item.about, reel.x - 4, y + 34, reel.w + 8, "center")
+        love.graphics.setScissor()
+        if machine.taken == k then
+            ui.text("TAKEN!", fonts.heading, reel.x, reel.y + reel.h - 24, reel.w, "center", YELLOW, true)
+        end
+    end
+end
+
+local function drawMachine()
+    local m = shop.machineRect()
+    local machine = shop.machine
+
+    -- Bulbs first, all round the cabinet - they chase faster while it spins.
+    local speed = machine.spinning and 18 or 5
+    ui.bulbBorder({ x = m.x - 10, y = m.y - 10, w = m.w + 20, h = m.h + 20 }, 24, 6, speed)
+
+    -- The cabinet: shiny red, darker at the bottom, with a gold trim.
+    for i = 0, m.h, 3 do
+        local t = i / m.h
+        love.graphics.setColor(0.78 - 0.35 * t, 0.08, 0.10)
+        love.graphics.rectangle("fill", m.x, m.y + i, m.w, 3)
+    end
+    love.graphics.setColor(1, 0.82, 0.3)
+    love.graphics.setLineWidth(3)
+    love.graphics.rectangle("line", m.x, m.y, m.w, m.h, 8, 8)
+    love.graphics.setLineWidth(1)
+
+    -- Title plate, with a line saying what to do next.
+    love.graphics.setColor(0.08, 0.02, 0.04)
+    love.graphics.rectangle("fill", m.x + 14, m.y + 10, m.w - 28, 42, 8, 8)
+    ui.text("MYSTERY MACHINE", fonts.heading, m.x, m.y + 13, m.w, "center", YELLOW, true)
+    local sub = "SPIN, THEN KEEP ONE OF THE 3 PRIZES"
+    if shop.hasUntakenPrizes() then
+        sub = luck.isFull() and "SLOTS FULL - SELL ONE, THEN PICK" or "CLICK A REEL TO TAKE IT"
+    end
+    ui.text(sub, fonts.hint, m.x, m.y + 34, m.w, "center", WHITE)
+
+    for k = 1, shop.REELS do
+        drawReel(k)
+    end
+
+    -- Payline arrows either side of the reels.
+    local first, last = shop.reelRect(1), shop.reelRect(shop.REELS)
+    local centreY = first.y + first.h / 2
+    love.graphics.setColor(1, 0.2, 0.2)
+    love.graphics.polygon("fill", first.x - 12, centreY - 8, first.x - 2, centreY, first.x - 12, centreY + 8)
+    love.graphics.polygon("fill", last.x + last.w + 12, centreY - 8, last.x + last.w + 2, centreY,
+        last.x + last.w + 12, centreY + 8)
+
+    -- Before the first spin: what it does and the odds.
+    if machine.reels[1].prize == nil and not machine.spinning then
+        ui.text("3 RANDOM LUCK ITEMS - KEEP ONE!", fonts.hint, m.x, first.y + first.h + 22, m.w,
+            "center", WHITE)
+        local odds = {}
+        for _, r in ipairs({ "common", "uncommon", "rare", "epic", "legendary" }) do
+            local name = luck.RARITIES[r].label:sub(1, 1) .. luck.RARITIES[r].label:sub(2):lower()
+            table.insert(odds, name .. " " .. luck.RARITIES[r].mystery .. "%")
+        end
+        ui.text(table.concat(odds, "   "), fonts.tiny,
+            m.x, first.y + first.h + 46, m.w, "center", DIM)
+        ui.text("Luck items are permanent until you sell them.", fonts.tiny,
+            m.x, first.y + first.h + 66, m.w, "center", DIM)
+    end
+
+    -- The lever on the right side. It's pulled down while the reels spin.
+    local lx = m.x + m.w + 2
+    local pulled = machine.spinning and math.max(0, 1 - machine.time * 2) or 0
+    local knobY = m.y + 90 + pulled * 90
+    love.graphics.setColor(0.55, 0.55, 0.6)
+    love.graphics.rectangle("fill", lx, m.y + 150, 10, 30, 3, 3)          -- the mount
+    love.graphics.setLineWidth(6)
+    love.graphics.line(lx + 10, m.y + 165, lx + 22, knobY)                 -- the arm
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(0.9, 0.1, 0.12)
+    love.graphics.circle("fill", lx + 22, knobY, 11)                       -- the red ball
+    love.graphics.setColor(1, 1, 1, 0.7)
+    love.graphics.circle("fill", lx + 18, knobY - 4, 3.5)
+
+    -- SPIN button
+    local price = shop.spinPrice()
+    local canSpin = not machine.spinning and player.coins >= price
+    ui.glossyButton(shop.spinButtonRect(), "SPIN  " .. price, { 0.95, 0.70, 0.10 }, canSpin)
+end
+
+
+---------------------------------------------------------------------------
+-- YOUR DICE, YOUR LUCK, MARKERS
+---------------------------------------------------------------------------
+
+-- Your 5 equipped dice and your inventory, in one window.
+local function drawYourDice()
+    local win = shop.diceWindowRect()
+    ui.vegasWindow(win, "YOUR DICE")
+
+    for i = 1, config.NUM_DICE do
+        local s = shop.slotRect(i)
+        draw.dieImage(player.loadout[i], i, s.x, s.y, s.w)
+        -- When an inventory die is picked, outline the slots to show that
+        -- clicking one will swap.
+        if shop.selectedInv then
+            love.graphics.setColor(1, 1, 1, 0.6)
+            love.graphics.setLineWidth(2)
+            love.graphics.rectangle("line", s.x - 4, s.y - 4, s.w + 8, s.h + 8, 10, 10)
+            love.graphics.setLineWidth(1)
+        end
+    end
+
+    local labelY = shop.slotRect(1).y + shop.SLOT_SIZE + 10
+    ui.text("INVENTORY", fonts.hint, win.x, labelY, win.w, "center", DIM)
+    if #player.inventory == 0 then
+        ui.text("(dice you buy go here)", fonts.tiny, win.x, labelY + 36, win.w, "center", DIM)
+    end
+    for j, typeId in ipairs(player.inventory) do
+        local s = shop.inventoryRect(j)
+        draw.dieImage(typeId, 6, s.x, s.y, s.w)
+        if shop.selectedInv == j then
+            love.graphics.setColor(GOLD)
+            love.graphics.setLineWidth(4)
+            love.graphics.rectangle("line", s.x - 5, s.y - 5, s.w + 10, s.h + 10, 10, 10)
+            love.graphics.setLineWidth(1)
+        end
+    end
+end
+
+-- YOUR LUCK: one row per slot - picture, SELL button, rarity, name and
+-- what it does.
+local function drawYourLuck()
+    local r = shop.luckRect()
+    ui.vegasWindow(r, "YOUR LUCK  " .. #luck.held .. "/" .. luck.MAX_HELD)
+    if #luck.held > 1 then
+        ui.text("drag to reorder (or L + arrows)", fonts.tiny, r.x, r.y + r.h + 1, r.w, "center", DIM)
+    end
+    for k = 1, luck.MAX_HELD do
+        local row = shop.luckRowRect(k)
+        if k > 1 then
+            love.graphics.setColor(1, 0.82, 0.3, 0.2)
+            love.graphics.rectangle("fill", row.x, row.y - 1, row.w, 1)
+        end
+        local id = luck.held[k]
+        if id then
+            local item = luck.get(id)
+            local color = luck.rarityColor(item)
+            local lifted = luckrack.drag and luckrack.drag.moved and luckrack.drag.from == k
+            if not lifted then luckart.picture(id, row.x + 4, row.y + 4, shop.luckPictureSize()) end
+            if luckrack.selected == k then luckrack.drawSelected(row) end
+            luckart.sellButton(shop.luckSellRect(k), luck.sellPrice(item))
+            local tx, tw = row.x + 76, row.w - 76
+            ui.text(luck.RARITIES[item.rarity].label, fonts.hint, tx, row.y + 4, tw, "left", color)
+            ui.text(item.name, fonts.small, tx, row.y + 18, tw, "left", WHITE)
+            -- The words are clipped to the row, so a long one can't run into the next.
+            love.graphics.setScissor(tx, row.y + 38, tw, math.max(0, row.h - 40))
+            love.graphics.setFont(fonts.tiny)
+            love.graphics.setColor(DIM)
+            love.graphics.printf(item.about, tx, row.y + 40, tw, "left")
+            love.graphics.setScissor()
+        else
+            ui.text("EMPTY SLOT", fonts.small, row.x, row.y + row.h / 2 - 20, row.w, "center", DIM)
+            ui.text("(win one from the Mystery Machine)", fonts.tiny, row.x, row.y + row.h / 2 + 2,
+                row.w, "center", DIM)
+        end
+    end
+end
+
+-- A white casino chip seen face-on (for the MARKERS window).
+local function drawChipIcon(cx, cy, r)
+    love.graphics.setColor(0, 0, 0, 0.4)
+    love.graphics.circle("fill", cx + 2, cy + 3, r)
+    love.graphics.setColor(0.97, 0.97, 0.99)
+    love.graphics.circle("fill", cx, cy, r)
+    love.graphics.setColor(0.15, 0.32, 0.85)
+    for n = 0, 5 do
+        local a = n * math.pi / 3
+        love.graphics.circle("fill", cx + math.cos(a) * r * 0.78, cy + math.sin(a) * r * 0.78, r * 0.16)
+    end
+    love.graphics.setColor(0.55, 0.58, 0.68)
+    love.graphics.circle("line", cx, cy, r * 0.58)
+    ui.text("x" .. markers.MULTIPLIER, fonts.tiny, cx - r, cy - 8, r * 2, "center", { 0.10, 0.18, 0.55 })
+end
+
+-- MARKERS: buy another white chip to place at the start of each level.
+local function drawMarkers()
+    local r = shop.markersRect()
+    ui.vegasWindow(r, "MARKERS")
+    drawChipIcon(r.x + 40, r.y + 58, 22)
+    ui.text("OWNED", fonts.hint, r.x + 72, r.y + 34, r.w - 84, "left", DIM)
+    ui.text(markers.owned .. " / " .. markers.MAX_OWNED, fonts.heading, r.x + 72, r.y + 50, r.w - 84, "left", WHITE, true)
+    ui.text("+1 chip each level", fonts.tiny, r.x + 72, r.y + 74, r.w - 84, "left", DIM)
+
+    local b = shop.markerButtonRect()
+    if markers.owned >= markers.MAX_OWNED then
+        ui.glossyButton(b, "MAX", { 0.5, 0.5, 0.55 }, false)
+    else
+        local price = markers.nextPrice()
+        ui.glossyButton(b, "+1  BUY " .. price, { 0.12, 0.38, 0.95 }, player.coins >= price)
+    end
+end
+
+
+---------------------------------------------------------------------------
+-- THE SCREEN (main.lua calls this)
+---------------------------------------------------------------------------
+
+function shopdraw.screen()
+    local W = love.graphics.getWidth()
+
+    drawBackground()
+    drawSign()
+
+    -- Coins and next level, top-left; the controls hint, top-right.
+    ui.text("COINS  " .. player.coins, fonts.heading, 20, 20, 400, "left", GOLD, true)
+    ui.text("NEXT UP: LEVEL " .. shop.nextLevel, fonts.heading, 20, 48, 400, "left", WHITE)
+    ui.text(ui.controlsHint(), fonts.heading, W - 600, 48, 580, "right", YELLOW)
+
+    -- The two windows of cards
+    ui.vegasWindow(shop.windowRect(1), "DICE")
+    ui.vegasWindow(shop.windowRect(2), "UPGRADES")
+    for n = 1, 2 do
+        drawDiceCard(shop.cardRect("dice", n), shop.stock.dice[n], shop.sold.dice[n])
+    end
+    for n = 1, #shop.stock.upgrades do
+        drawUpgradeCard(shop.cardRect("upgrades", n), shop.stock.upgrades[n])
+    end
+
+    drawYourLuck()
+    drawYourDice()
+    drawMachine()
+    drawMarkers()
+
+    -- A glossy green CONTINUE button, then the latest message under it.
+    ui.glossyButton(shop.continueRect(), "CONTINUE", { 0.10, 0.65, 0.25 }, not shop.machine.spinning)
+    local msg = shop.messageRect()
+    -- The message wraps onto as many lines as it needs (centred top-to-bottom).
+    love.graphics.setFont(fonts.small)
+    local _, lines = fonts.small:getWrap(shop.message, msg.w)
+    local textY = msg.y + math.max(0, (msg.h - #lines * fonts.small:getHeight()) / 2)
+    love.graphics.setColor(0, 0, 0, 0.7)
+    love.graphics.printf(shop.message, msg.x + 1, textY + 2, msg.w, "center")
+    love.graphics.setColor(GOLD)
+    love.graphics.printf(shop.message, msg.x, textY, msg.w, "center")
+end
+
+return shopdraw

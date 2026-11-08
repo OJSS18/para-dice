@@ -176,12 +176,15 @@ menu.GAME_TYPES = {
       lines = { "10 levels to beat", "the house.", "Goals x1.25 a level,", "x1.35 from level 6" } },
     { id = "hard", title = "HARD", color = { 0.85, 0.10, 0.12 },
       lines = { "For high rollers:", "goals climb fast.", "Goals x1.35 a level,", "x1.40 from level 6" } },
+    { id = "pips", title = "PIPS", color = { 0.95, 0.62, 0.10 },
+      lines = { "A new way to play:", "pips x mult, Perkys,", "dice packs & sets.", "12 levels, 3 rounds each" } },
 }
 
 function menu.typeCardRect(n)
     local W = love.graphics.getWidth()
     local w, h, gap = 260, 300, 30
-    local total = 3 * w + 2 * gap
+    local count = #menu.GAME_TYPES
+    local total = count * w + (count - 1) * gap
     return rect((W - total) / 2 + (n - 1) * (w + gap), menu.logoRect().y + menu.logoRect().h + 40, w, h)
 end
 

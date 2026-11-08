@@ -17,8 +17,10 @@ if fa != fb:
     print("SHOT LIST DIFFERS", len(fa), len(fb)); bad += 1
 for f in fa:
     if f not in fb: continue
-    ia = Image.open(os.path.join(a, "shots", f)).convert("RGBA")
-    ib = Image.open(os.path.join(b, "shots", f)).convert("RGBA")
+    # Compare as RGB: on an RGBA image, newer Pillow's getbbox() only looks at
+    # the alpha channel (always 255 here), so it would miss every colour change.
+    ia = Image.open(os.path.join(a, "shots", f)).convert("RGB")
+    ib = Image.open(os.path.join(b, "shots", f)).convert("RGB")
     box = ImageChops.difference(ia, ib).getbbox()
     if box:
         diff = ImageChops.difference(ia, ib).convert("L").point(lambda v: 255 if v else 0)

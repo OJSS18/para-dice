@@ -96,7 +96,7 @@ config.BUTTON_H = 56
 
 -- The game's version, shown small in the bottom-right corner. Bump it
 -- (and add a line to CHANGELOG.md) whenever you put out a new version.
-config.VERSION = "0.8.2"
+config.VERSION = "0.9.0"
 
 -- The RULES version: change it ONLY when a change could make an old replay
 -- code play out differently (dice odds, scoring, shop, luck items, actions).
@@ -110,6 +110,45 @@ config.RULES_VERSION = "0.8.0"
 -- The key is the project's PUBLIC "anon" key, which is safe to share.
 config.ONLINE_URL = "https://friyyzhqhidytdwxcqih.supabase.co"
 config.ONLINE_KEY = "sb_publishable_9kcOMDaLZo_CLS_4uPCDaQ_htVhqB6M"
+
+-- PIPS MODE (the second game type - see pipsgame.lua). Every number for
+-- it lives in this one table, so you can rebalance it in one place.
+config.PIPS = {
+    START_DICE    = 3,
+    START_COINS   = 4,        -- coins at the start of a run        -- dice (and dice slots) you start with
+    -- The level where each extra dice SLOT opens (you still buy the die).
+    SLOT_LEVELS   = { 2, 3, 5, 6, 8, 9, 10, 11 },
+    MAX_LEVEL     = 12,       -- clear level 12 to win the run
+    ROUNDS        = 3,        -- rounds in each level (the shop opens after each)
+    SETS          = 5,        -- sets (scored rolls) you get each round
+    REROLLS       = 4,        -- rerolls each round, shared by all its sets
+    -- Goals: level 1's rounds need 100, 200, 300. Each level's goals are
+    -- GOAL_GROWTH times the level before's.
+    FIRST_GOAL    = 100,
+    GOAL_GROWTH   = 2.0,      -- (tested with tools/pips-sim: a strong bot wins about half its runs)
+    -- Coins for winning a round: a few for winning, then +1 for each
+    -- reroll left over and +2 for each set left over.
+    WIN_COINS     = 3,
+    COIN_PER_REROLL = 1,
+    COIN_PER_SET    = 2,
+    MAX_PERKYS    = 5,        -- Perky slots
+    -- The shop's 2 main items: chance (out of 100) of each kind.
+    MAIN_ITEMS    = 2,
+    MAIN_ODDS     = { perky = 80, diceAug = 10, setAug = 10 },
+    -- Perky rarity chances (out of 100) in the shop and normal packs.
+    RARITY_ODDS   = { common = 70, uncommon = 25, rare = 5 },
+    PERKY_PRICES  = { common = 4, uncommon = 6, rare = 8 },
+    AUG_PRICE     = 4,
+    DICE_AUG_POINTS = 4,      -- each dice augment level: +4 points for every die showing that face
+    SHOP_REROLL   = 3,        -- reroll the 2 main items: 3 coins, then +1 each time this visit
+    -- The 3-reel slot machine: a spin costs SPIN_PRICE, +SPIN_STEP for each
+    -- spin already made this visit. Each reel lands on a pack (out of 100).
+    SPIN_PRICE    = 5,
+    SPIN_STEP     = 2,
+    REEL_ODDS     = { dice = 20, perky = 26, bigPerky = 10, augment = 22, craps = 12,
+                      dungeon = 9, rarePerky = 1 },
+    CRAPS_XMULT   = 2,        -- a craps bet that hits: x2 MULT
+}
 
 -- God mode (testing only - see godmode.lua)
 config.GOD_MODE_ENABLED = true  -- set to false before you share the game

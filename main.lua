@@ -54,6 +54,18 @@
 --   settings.lua  - the player's settings (music volume), saved to disk
 --   settingsmenu.lua - the SETTINGS tab and panel
 --   shopdraw.lua  - DRAWING for the shop
+--
+-- PIPS MODE (the second game type: pips x mult, Perkys, packs) has its own files:
+--   pipsgame.lua  - one PIPS run: rounds, sets, rerolls, and every action
+--   pipsdice.lua  - its dice: kinds, dungeon dice (D7-D20) and the 10 colours
+--   pipshands.lua - the SETS a roll can make (Pair, Straight...) and their mult
+--   pipsscore.lua - scoring: POINTS x MULT, with Perkys and craps bets
+--   perkys.lua    - PERKYS, the cards you buy that change scoring
+--   pipsshop.lua  - its shop: 2 items, the pack slot machine, packs, selling
+--   pipsview.lua  - looks only: the electronic dice roll and spinning reels
+--   pipslayout.lua- WHERE everything is on its screens
+--   pipsdraw.lua  - DRAWING of its play screen, pop-ups and shop
+--   pipsinput.lua - its clicks and keys, turned into actions
 --   main.lua      - this file: which screen we're on, and turning input
 --                   (keys and clicks) into menu steps and game actions
 --
@@ -90,11 +102,16 @@ local replay        = require("replay")
 local net           = require("net")
 local godmode       = require("godmode")
 local transition    = require("transition")
+local pipsgame      = require("pipsgame")
+local pipsview      = require("pipsview")
+local pipsdraw      = require("pipsdraw")
+local pipsinput     = require("pipsinput")
 
 -- Which screen is showing:
 --   "menu"        - the main menu
 --   "playMenu"    - pick a game type (tutorial / normal / hard)
 --   "game"        - a run is being played (game.state says which part)
+--   "pips"        - a PIPS mode run is being played (pipsgame.run.state says which part)
 --   "replay"      - watching a replay (game.state again, played by the bot)
 --   "entry"       - typing a username or pasting a replay code
 --   "stats"       - the logged-in player's stats
@@ -133,8 +150,15 @@ end
 -- MOVING BETWEEN SCREENS
 ---------------------------------------------------------------------------
 
--- Start a new run of a game type ("tutorial", "normal" or "hard").
+-- Start a new run of a game type ("tutorial", "normal", "hard" or "pips").
 local function startRun(mode)
+    leaveUntil = 0
+    if mode == "pips" then
+        pipsgame.new()
+        pipsview.reset()
+        screen = "pips"
+        return
+    end
     game.new(mode)
     luckrack.selected, luckrack.drag = nil, nil
     lastRun = { code = nil, copied = false }
@@ -147,6 +171,7 @@ end
 local function toMenu()
     if replay.active then replay.stop() end
     game.active = false
+    pipsgame.active = false
     tutorial.stop()
     animation.stop()
     confetti.stop()
@@ -301,6 +326,21 @@ function love.update(dt)
         game.update(dt * speed)
     end
     replay.update(dt)
+    if screen == "pips" then pipsview.update(dt) end
+end
+
+-- Do what pipsinput.lua says the player asked for in a PIPS run.
+local function pipsDo(action, arg)
+    if action == "again" then
+        startRun("pips")
+    elseif action == "menu" then
+        toMenu()
+    elseif action == "leave" then
+        -- MENU during a run: press it twice (the first press warns).
+        if love.timer.getTime() < leaveUntil then toMenu() else leaveUntil = love.timer.getTime() + 2.5 end
+    elseif action then
+        pipsgame.act(action, arg)
+    end
 end
 
 -- Was the shop showing last frame? (A change starts a slide.)
@@ -318,6 +358,12 @@ local function drawScene()
         screens.drawStats()
     elseif screen == "leaderboard" then
         screens.drawBoard()
+    elseif screen == "pips" then
+        pipsdraw.screen()
+        if love.timer.getTime() < leaveUntil then
+            ui.text("Press again to leave this run (it won't be saved)", fonts.heading,
+                0, love.graphics.getHeight() - 40, love.graphics.getWidth(), "center", { 1, 0.4, 0.35 }, true)
+        end
     else
         local s = game.state
         if game.onTable() then
@@ -453,6 +499,12 @@ function love.keypressed(key)
         return
     end
 
+    -- Escape during a PIPS run: the same, press it twice to leave.
+    if screen == "pips" and key == "escape" and not (showOdds or showControls) then
+        if not pipsgame.active then toMenu() else pipsDo("leave") end
+        return
+    end
+
     -- While the tutorial is showing a "read this" step, it takes the keys.
     if screen == "game" and tutorial.keypressed(key) then return end
 
@@ -493,6 +545,8 @@ function love.keypressed(key)
         end
     elseif screen == "stats" or screen == "leaderboard" then
         if key == "escape" then screen = "menu" end
+    elseif screen == "pips" then
+        pipsDo(pipsinput.key(key))
     elseif screen == "replay" then
         if key == "space" then replay.togglePause()
         elseif key == "left" then replay.rewind()
@@ -700,6 +754,8 @@ function love.mousepressed(x, y, button, istouch)
         elseif id == "exit" then exitReplay() end
     elseif screen == "game" then
         runClick(x, y)
+    elseif screen == "pips" then
+        pipsDo(pipsinput.click(x, y))
     end
 end
 
