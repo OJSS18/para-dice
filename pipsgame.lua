@@ -4,8 +4,8 @@
 -- (pipsinput.lua).
 --
 -- THE RULES IN SHORT
---   * You start with 3 dice. More dice SLOTS open at levels 2, 3, 5, 6, 8,
---     9, 10 and 11 - but you have to get the dice for them from the shop.
+--   * You start with 3 dice. More dice SLOTS open at levels 2, 4, 6 and 8
+--     (7 dice at most) - but you have to get the dice for them from the shop.
 --   * Each level has 3 ROUNDS with a goal each (level 1: 60, 120, 180).
 --     Each level's goals grow by a bit more than the level before's.
 --   * A round gives you 4 SETS (scored rolls) and 4 REROLLS to share

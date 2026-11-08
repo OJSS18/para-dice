@@ -9,6 +9,43 @@ function love.load(args)
     if os.getenv("GROWTH") then config.PIPS.GOAL_GROWTH = tonumber(os.getenv("GROWTH")) end
     -- SET="SETS=5 REROLLS=3" changes any number in config.PIPS for this test.
     for k, v in (os.getenv("SET") or ""):gmatch("([%w_]+)=([%d%.]+)") do config.PIPS[k] = tonumber(v) end
+    -- SHOPCHECK=1: open thousands of shops and packs at every level and make
+    -- sure nothing for a LOCKED set (one that needs more dice slots than the
+    -- run has) is ever offered - no Perkys, no set augments.
+    if os.getenv("SHOPCHECK") then
+        local pipsgame, pipsshop, perkys, pipshands = require("pipsgame"), require("pipsshop"),
+            require("perkys"), require("pipshands")
+        local checked, bad = 0, 0
+        local function check(item, run, where)
+            local hand = nil
+            if item.type == "perky" then hand = perkys.get(item.id).hand end
+            if item.type == "setAug" then hand = item.hand end
+            checked = checked + 1
+            if hand and not pipshands.isUnlocked(pipshands.get(hand), run.slots) then
+                bad = bad + 1
+                print("LOCKED SET OFFERED: " .. where .. " level " .. run.level .. " slots " .. run.slots .. ": " .. (item.id or item.hand))
+            end
+        end
+        for game = 1, 300 do
+            local run = pipsgame.new(seed + game)
+            for level = 1, config.PIPS.MAX_LEVEL do
+                run.level, run.slots = level, pipsgame.slotsFor(level)
+                for _ = 1, 3 do
+                    pipsshop.open(run)
+                    for _, item in ipairs(run.shop.items) do check(item, run, "shop") end
+                    for _, packId in ipairs({ "perky", "bigPerky", "rarePerky", "setAug" }) do
+                        run.shop.reels = { packId, packId, packId }
+                        pipsshop.pickReel(run, 1)
+                        for _, opt in ipairs(run.shop.pack.options) do check(opt, run, packId) end
+                        run.shop.pack = nil
+                    end
+                end
+            end
+        end
+        print(string.format("SHOPCHECK: %d offers checked, %d for locked sets", checked, bad))
+        love.event.quit()
+        return
+    end
     local bot = require("bot")
     local perkys = require("perkys")
     local wins, levels, reached, bossDeaths = 0, 0, {}, {}

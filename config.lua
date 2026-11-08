@@ -114,10 +114,11 @@ config.ONLINE_KEY = "sb_publishable_9kcOMDaLZo_CLS_4uPCDaQ_htVhqB6M"
 -- PIPS MODE (the second game type - see pipsgame.lua). Every number for
 -- it lives in this one table, so you can rebalance it in one place.
 config.PIPS = {
-    START_DICE    = 3,
-    START_COINS   = 4,        -- coins at the start of a run        -- dice (and dice slots) you start with
+    START_DICE    = 3,        -- dice (and dice slots) you start with
+    START_COINS   = 4,        -- coins at the start of a run
     -- The level where each extra dice SLOT opens (you still buy the die).
-    SLOT_LEVELS   = { 2, 3, 5, 6, 8, 9, 10, 11 },
+    -- 3 to start + 4 more = 7 dice at most. Sets that need 8 or more dice never unlock.
+    SLOT_LEVELS   = { 2, 4, 6, 8 },
     MAX_LEVEL     = 12,       -- clear level 12 to win the run
     ROUNDS        = 3,        -- rounds in each level (the shop opens after each)
     SETS          = 4,        -- sets (scored rolls) you get each round

@@ -17,7 +17,10 @@ PIPS mode:
 - New shop layout: FOR SALE fills the left half (main items, REROLL and the VIP upgrade).
   The right half has the pack machine, YOUR DICE (sized for 10 dice), NEXT ROUND and a
   smaller YOUR PERKYS - point at a Perky to read all of it. The AUGMENTS window is gone.
-- The strategy sim now reports how often the Perky slots are full.
+- At most 7 dice now: slots open at levels 2, 4, 6 and 8. Sets that need 8 or more dice
+  never unlock, so their Perkys and set augments never show up.
+- The strategy sim now reports how often the Perky slots are full, and `SHOPCHECK=1`
+  opens thousands of shops and packs to prove nothing for a locked set is ever offered.
 
 ## v0.9.0 - 2026-11-08
 

@@ -175,7 +175,7 @@ end
 
 pipslayout.CARD_W = 170
 pipslayout.CARD_H = 236
-pipslayout.SHOP_DIE = 40      -- your dice in the shop (10 fit in the YOUR DICE window)
+pipslayout.SHOP_DIE = 44      -- your dice in the shop (7 fit in the YOUR DICE window)
 
 function pipslayout.shopSign()
     local W = size()
@@ -232,11 +232,11 @@ function pipslayout.spinButton()
     return rect(m.x + (m.w - 280) / 2, m.y + m.h - 60, 280, 48)
 end
 
--- YOUR DICE: just wide enough for 10 dice.
+-- YOUR DICE: just wide enough for 7 dice (the most you can have).
 function pipslayout.diceWindow()
     local x = rightSide()
     local m = pipslayout.machine()
-    return rect(x, m.y + m.h + 26, 10 * (pipslayout.SHOP_DIE + 6) + 30, 110)
+    return rect(x, m.y + m.h + 26, pipsgame.slotsFor(99) * (pipslayout.SHOP_DIE + 6) + 30, 110)
 end
 
 function pipslayout.shopDie(i, slots)

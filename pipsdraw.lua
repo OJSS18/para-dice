@@ -910,7 +910,7 @@ local function drawYourPerkys(run)
     end
 end
 
--- Your dice: a window just big enough for 10 (11 squeeze in a bit smaller).
+-- Your dice: a window just big enough for the most dice you can have (7).
 local function drawYourDice(run)
     local w = pipslayout.diceWindow()
     ui.vegasWindow(w, "YOUR DICE " .. #run.dice .. "/" .. run.slots)
